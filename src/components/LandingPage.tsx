@@ -374,21 +374,66 @@ const LandingPage = () => {
       </div>
 
       {/* CTA */}
-      <div className="bg-green-50 py-20">
+      <div className="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-32 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:75px_75px]"></div>
         <div 
-          className="max-w-7xl mx-auto px-4 text-center"
+          className="max-w-7xl mx-auto px-4 text-center relative"
           data-aos="zoom-in"
           data-aos-duration="1000"
         >
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-40 h-40 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-full blur-3xl"></div>
+          
+          <span className="inline-flex items-center rounded-full px-4 py-1 text-sm font-medium bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 mb-8" data-aos="fade-up" data-aos-delay="100">
+            Ready to start? 🚀
+          </span>
+          
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 max-w-3xl mx-auto leading-tight" data-aos="fade-up" data-aos-delay="200">
             Start building your professional resume today
           </h2>
-          <Link
-            to="/resume"
-            className="px-8 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all"
-          >
-            Create Your Resume
-          </Link>
+          
+          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto" data-aos="fade-up" data-aos-delay="300">
+            Join thousands of job seekers who have successfully landed their dream jobs using ResumeAI
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4" data-aos="fade-up" data-aos-delay="400">
+            <Link
+              to="/resume"
+              className="px-8 py-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group"
+            >
+              Create Your Resume
+              <svg className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
+            <button className="px-8 py-4 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-all border border-gray-200 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              </svg>
+              View Templates
+            </button>
+          </div>
+          
+          <div className="mt-16 flex items-center justify-center gap-8" data-aos="fade-up" data-aos-delay="500">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-gray-600">Free Templates</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-gray-600">AI Powered</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-gray-600">ATS Friendly</span>
+            </div>
+          </div>
         </div>
       </div>
 
