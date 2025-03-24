@@ -121,12 +121,6 @@ const initialResumeData: ResumeData = {
   ],
 }
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-};
-
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr) return null;
   const date = new Date(dateStr);
