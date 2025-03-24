@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DocumentTextIcon, SparklesIcon, BriefcaseIcon, AcademicCapIcon, ChartBarIcon, LightBulbIcon } from '@heroicons/react/24/outline'
+import { DocumentTextIcon, SparklesIcon, BriefcaseIcon, AcademicCapIcon, ChartBarIcon, LightBulbIcon, CpuChipIcon } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 
 const stats = [
@@ -97,8 +97,13 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex-shrink-0">
-              <span className="text-2xl font-bold text-gray-900">ResumeAI</span>
+            <div className="flex items-center">
+              <div className="flex items-center space-x-2">
+                <CpuChipIcon className="h-6 w-6 text-blue-600" />
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  ResumeAI
+                </span>
+              </div>
             </div>
 
             {/* Desktop Navigation */}
@@ -188,18 +193,16 @@ const LandingPage = () => {
           Transform your career journey with AI-powered resume creation. We specialize in crafting professional resumes that stand out and get you noticed.
         </p>
 
-        <div className="flex flex-col items-center space-y-4">
-          <button className="bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center">
+        <div className="mt-8 flex justify-center">
+          <Link 
+            to="/loading"
+            className="bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center"
+          >
             Get Started
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
             </svg>
-          </button>
-          
-          <p className="text-sm text-gray-500 flex items-center">
-            <span className="text-orange-500 mr-1">★</span>
-            Start building your resume for free
-          </p>
+          </Link>
         </div>
       </div>
 
