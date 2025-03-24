@@ -186,7 +186,7 @@ const LandingPage = () => {
 
       {/* Hero Section */}
       <div className="pt-32 pb-16 text-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center space-x-2 mb-8">
+        <div className="flex items-center justify-center space-x-2 mb-8" data-aos="fade-down" data-aos-delay="100">
           <span>📝</span>
           <span>→</span>
           <img src="https://ui-avatars.com/api/?name=AI&background=0D8ABC&color=fff" alt="AI" className="w-8 h-8 rounded-full" />
@@ -194,16 +194,16 @@ const LandingPage = () => {
           <span>💼</span>
         </div>
         
-        <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-8">
+        <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-8" data-aos="fade-up" data-aos-delay="200">
           Create Your Future,<br />
           Build Your Perfect Resume Now!
         </h1>
         
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12" data-aos="fade-up" data-aos-delay="300">
           Transform your career journey with AI-powered resume creation. We specialize in crafting professional resumes that stand out and get you noticed.
         </p>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex justify-center" data-aos="fade-up" data-aos-delay="400">
           <Link 
             to="/loading"
             className="bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center"
@@ -219,8 +219,8 @@ const LandingPage = () => {
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20">
-          {stats.map((stat) => (
-            <div key={stat.value} className="text-center">
+          {stats.map((stat, index) => (
+            <div key={stat.value} className="text-center" data-aos="zoom-in" data-aos-delay={index * 100}>
               <div className="text-4xl font-bold text-gray-900 mb-2">{stat.value}</div>
               <div className="text-gray-600">{stat.label}</div>
             </div>
@@ -229,9 +229,9 @@ const LandingPage = () => {
       </div>
 
       {/* AI Features Section */}
-      <div className="bg-gray-50 py-20">
+      <div className="bg-gray-50 py-20" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="max-w-3xl">
+          <div className="max-w-3xl" data-aos="fade-right">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">
               AI-powered resume building for better results
             </h2>
@@ -250,7 +250,7 @@ const LandingPage = () => {
 
       {/* Features */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="text-center mb-16">
+        <div className="text-center mb-16" data-aos="fade-up">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
             Everything you need to succeed
           </h2>
@@ -260,10 +260,12 @@ const LandingPage = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature) => (
+          {features.map((feature, index) => (
             <div 
               key={feature.title} 
               className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100"
+              data-aos="fade-up"
+              data-aos-delay={index * 100}
             >
               <div className="bg-green-50 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                 <feature.icon className="w-7 h-7 text-green-600" />
@@ -277,15 +279,20 @@ const LandingPage = () => {
 
       {/* Templates */}
       <div className="max-w-7xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4" data-aos="fade-up">
           Professional resume templates
         </h2>
-        <p className="text-gray-600 mb-12">
+        <p className="text-gray-600 mb-12" data-aos="fade-up" data-aos-delay="100">
           Choose from our collection of ATS-friendly templates designed for success.
         </p>
         <div className="grid md:grid-cols-3 gap-8">
-          {templates.map((template) => (
-            <div key={template.title} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+          {templates.map((template, index) => (
+            <div 
+              key={template.title} 
+              className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+              data-aos="flip-left"
+              data-aos-delay={index * 200}
+            >
               <img src={template.image} alt={template.title} className="w-full h-48 object-cover" />
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-2">
@@ -302,12 +309,17 @@ const LandingPage = () => {
       {/* Steps */}
       <div className="bg-green-50 py-20">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4" data-aos="fade-up">
             Create your resume in minutes
           </h2>
           <div className="grid md:grid-cols-3 gap-8 mt-12">
             {steps.map((step, index) => (
-              <div key={step.title} className="bg-white p-6 rounded-xl">
+              <div 
+                key={step.title} 
+                className="bg-white p-6 rounded-xl"
+                data-aos="fade-right"
+                data-aos-delay={index * 200}
+              >
                 <div className="text-green-600 font-medium mb-4">Step {index + 1}</div>
                 <h3 className="font-medium text-gray-900 mb-2">{step.title}</h3>
                 <p className="text-gray-600">{step.description}</p>
@@ -319,7 +331,11 @@ const LandingPage = () => {
 
       {/* Testimonial */}
       <div className="max-w-7xl mx-auto px-4 py-20">
-        <div className="bg-gray-900 text-white rounded-2xl p-12 relative overflow-hidden">
+        <div 
+          className="bg-gray-900 text-white rounded-2xl p-12 relative overflow-hidden"
+          data-aos="fade-up"
+          data-aos-duration="1200"
+        >
           <div className="max-w-3xl relative z-10">
             <p className="text-xl mb-8">
               "Using ResumeAI was a game-changer in my job search. The AI suggestions helped me highlight my achievements better, and I landed interviews at my dream companies within weeks."
@@ -337,12 +353,17 @@ const LandingPage = () => {
 
       {/* FAQ */}
       <div className="max-w-7xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4" data-aos="fade-up">
           Common resume questions answered
         </h2>
         <div className="mt-12 space-y-6">
-          {faq.map((question) => (
-            <div key={question} className="flex items-center justify-between p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all cursor-pointer">
+          {faq.map((question, index) => (
+            <div 
+              key={question} 
+              className="flex items-center justify-between p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all cursor-pointer"
+              data-aos="fade-left"
+              data-aos-delay={index * 100}
+            >
               <span className="text-gray-900">{question}</span>
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -354,7 +375,11 @@ const LandingPage = () => {
 
       {/* CTA */}
       <div className="bg-green-50 py-20">
-        <div className="max-w-7xl mx-auto px-4 text-center">
+        <div 
+          className="max-w-7xl mx-auto px-4 text-center"
+          data-aos="zoom-in"
+          data-aos-duration="1000"
+        >
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Start building your professional resume today
           </h2>
