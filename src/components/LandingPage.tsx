@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DocumentTextIcon, SparklesIcon, BriefcaseIcon, AcademicCapIcon, ChartBarIcon, LightBulbIcon, CpuChipIcon } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
+import AOS from 'aos'
+import 'aos/dist/aos.css'
 
 const stats = [
   { value: '100K+', label: 'Resumes Created' },
@@ -89,6 +91,14 @@ const faq = [
 
 const LandingPage = () => {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    AOS.init({
+      duration: 1000,
+      once: true,
+      easing: 'ease-out'
+    })
+  }, [])
 
   return (
     <div className="min-h-screen bg-white">

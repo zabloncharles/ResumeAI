@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/react-datepicker": "^7.0.0",
     "@types/react-router-dom": "^5.3.3",
+    "aos": "^2.3.4",
     "html2pdf.js": "^0.10.3",
     "react": "^18.2.0",
     "react-datepicker": "^8.2.1",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@headlessui/react": "^1.7.18",
     "@heroicons/react": "^2.1.1",
+    "@types/aos": "^3.0.7",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
