@@ -23,38 +23,41 @@ const styles = StyleSheet.create({
     lineHeight: 1.5,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 4,
     fontFamily: 'Times-Roman',
+    textAlign: 'center',
   },
   divider: {
     borderBottomWidth: 1,
-    borderBottomColor: '#888',
+    borderBottomColor: '#ccc',
     marginVertical: 6,
     width: '100%',
+    alignSelf: 'center',
   },
   contact: {
     fontSize: 12,
-    borderBottom: '2px solid #888',
-    paddingBottom: 6,
-    marginBottom: 18,
+    marginBottom: 12,
     fontFamily: 'Times-Roman',
+    textAlign: 'center',
+    paddingBottom: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: '#888',
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    borderBottom: '2px solid #888',
-    paddingBottom: 2,
-    marginBottom: 8,
-    marginTop: 18,
+    marginBottom: 6,
+    marginTop: 0,
     fontFamily: 'Times-Roman',
+    // No border for summary
   },
   jobTitle: {
     fontWeight: 'bold',
@@ -84,6 +87,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Times-Roman',
   },
 });
+
+// Helper to display month and year correctly in PDF
+const formatMonthYear = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const [year, month] = dateStr.split('-');
+  if (!year || !month) return '';
+  const date = new Date(Number(year), Number(month) - 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
 
 interface ResumePDFProps {
   resumeData: ResumeData;
@@ -115,10 +127,10 @@ const ResumePDF: React.FC<ResumePDFProps> = ({ resumeData }) => (
               <Text style={styles.jobTitle}>{exp.company}</Text>
               {exp.company && exp.title ? ', ' : ''}
               <Text style={styles.jobMeta}>{exp.title ? ` ${exp.title}` : ''}</Text>
-              {exp.company || exp.title ? ' | ' : ''}
+              {(exp.company || exp.title) ? ' | ' : ''}
               <Text style={styles.expDates}>
-                {exp.startDate ? new Date(exp.startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : ''}
-                {exp.endDate ? ` - ${new Date(exp.endDate).toLocaleString('default', { month: 'long', year: 'numeric' })}` : ''}
+                {exp.startDate ? formatMonthYear(exp.startDate) : ''}
+                {exp.endDate ? ` - ${formatMonthYear(exp.endDate)}` : ''}
               </Text>
             </Text>
             {exp.description.length > 0 && (
@@ -141,7 +153,7 @@ const ResumePDF: React.FC<ResumePDFProps> = ({ resumeData }) => (
               {edu.degree && edu.school ? ', ' : ''}
               <Text style={styles.expCompany}>{edu.school}</Text>
               {' | '}
-              <Text style={styles.expDates}>{edu.startDate}{edu.endDate ? ` - ${edu.endDate}` : ''}</Text>
+              <Text style={styles.expDates}>{edu.startDate ? formatMonthYear(edu.startDate) : ''}{edu.endDate ? ` - ${formatMonthYear(edu.endDate)}` : ''}</Text>
             </Text>
           </View>
         ))}
