@@ -19,9 +19,12 @@ import {
   SwatchIcon,
   HomeIcon,
   DocumentIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline'
-import html2pdf from 'html2pdf.js'
+import ResumePDF from './ResumePDF'
+import { PDFDownloadLink } from '@react-pdf/renderer'
+import AIResumeAssistant from './AIResumeAssistant'
 
 interface ResumeData {
   personalInfo: {
@@ -135,11 +138,22 @@ const formatDateForState = (date: Date | null): string => {
   return `${year}-${month}`;
 };
 
+// Helper to display month and year correctly in preview
+const formatMonthYear = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const [year, month] = dateStr.split('-');
+  if (!year || !month) return '';
+  // Month is 1-based, so subtract 1 for Date constructor
+  const date = new Date(Number(year), Number(month) - 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
+
 const ResumeBuilder = () => {
   const [activeSection, setActiveSection] = useState('personal')
   const [resumeData, setResumeData] = useState<ResumeData>(initialResumeData)
   const [selectedTemplate, setSelectedTemplate] = useState('modern')
   const [showTemplates, setShowTemplates] = useState(false)
+  const [isUploading, setIsUploading] = useState(false);
 
   const handlePersonalInfoChange = (field: keyof typeof resumeData.personalInfo, value: string) => {
     setResumeData(prev => ({
@@ -333,204 +347,86 @@ const ResumeBuilder = () => {
     }
   };
 
-  const handlePrint = () => {
-    // Create a temporary container for the resume content
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <div class="resume-container">
-        <style>
-          @page {
-            size: letter;
-            margin: 0;
-          }
-          * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-            line-height: 1.5;
-            color: #111827;
-            background: white;
-          }
-          .resume-container {
-            width: 8.5in;
-            min-height: 11in;
-            padding: 1in;
-            position: relative;
-          }
-          .profile-section {
-            margin-bottom: 1.5rem;
-            page-break-inside: avoid;
-            text-align: center;
-          }
-          .profile-info h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #111827;
-            margin: 0;
-            line-height: 1.2;
-            margin-bottom: 0.5rem;
-            text-align: center;
-          }
-          .contact-info {
-            color: #4B5563;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            text-align: center;
-          }
-          section {
-            margin-bottom: 1.25rem;
-            page-break-inside: avoid;
-          }
-          section:last-child {
-            margin-bottom: 0;
-          }
-          h2 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #111827;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #E5E7EB;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-          }
-          h3 {
-            font-size: 1rem;
-            font-weight: 500;
-            color: #111827;
-            margin: 0;
-          }
-          p {
-            font-size: 0.875rem;
-            color: #4B5563;
-            margin: 0;
-            line-height: 1.5;
-          }
-          .experience-item, .education-item {
-            margin-bottom: 1rem;
-            page-break-inside: avoid;
-          }
-          .experience-item:last-child, .education-item:last-child {
-            margin-bottom: 0;
-          }
-          .experience-header, .education-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-          }
-          .date {
-            color: #6B7280;
-            font-size: 0.875rem;
-            white-space: nowrap;
-          }
-          ul {
-            margin: 0.5rem 0 0;
-            padding-left: 1.25rem;
-            list-style-type: none;
-          }
-          li {
-            font-size: 0.875rem;
-            color: #4B5563;
-            margin-bottom: 0.25rem;
-            line-height: 1.5;
-            position: relative;
-            padding-left: 1rem;
-          }
-          li:before {
-            content: "•";
-            position: absolute;
-            left: 0;
-            top: 0;
-            color: #4B5563;
-            display: inline-block;
-            width: 1rem;
-            font-size: 0.875rem;
-          }
-          li:last-child {
-            margin-bottom: 0;
-          }
-          ${getTemplateStyles()}
-        </style>
-        <div class="profile-section">
-          <div class="profile-info">
-            <h1>${resumeData.personalInfo.fullName}</h1>
-            <div class="contact-info">
-              ${resumeData.personalInfo.location} | ${resumeData.personalInfo.phone} | ${resumeData.personalInfo.email}
-            </div>
-          </div>
-        </div>
+  const handleSuggestionSelect = (suggestion: string) => {
+    switch (activeSection) {
+      case 'profile':
+        setResumeData(prev => ({
+          ...prev,
+          profile: suggestion
+        }))
+        break
+      case 'experience':
+        if (resumeData.experience.length > 0) {
+          const currentExp = resumeData.experience[0]
+          setResumeData(prev => ({
+            ...prev,
+            experience: prev.experience.map((exp, index) => 
+              index === 0 ? {
+                ...exp,
+                description: [...exp.description, suggestion]
+              } : exp
+            )
+          }))
+        }
+        break
+      default:
+        break
+    }
+  }
 
-        <section>
-          <h2>Profile</h2>
-          <p>${resumeData.profile}</p>
-        </section>
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-        <section>
-          <h2>Experience</h2>
-          ${resumeData.experience.map(exp => `
-            <div class="experience-item">
-              <div class="experience-header">
-                <div>
-                  <h3>${exp.title}</h3>
-                  <p>${exp.company}</p>
-                </div>
-                <span class="date">
-                  ${exp.startDate ? new Date(exp.startDate).getFullYear() : ''} - 
-                  ${exp.endDate ? new Date(exp.endDate).getFullYear() : 'Present'}
-                </span>
-              </div>
-              ${exp.description.length > 0 ? `
-                <ul>
-                  ${exp.description.map(bullet => `
-                    <li>${bullet}</li>
-                  `).join('')}
-                </ul>
-              ` : ''}
-            </div>
-          `).join('')}
-        </section>
+    setIsUploading(true);
+    try {
+      const text = await file.text();
+      // Parse the resume text and update the form data
+      // This is a simple implementation - you might want to use a more sophisticated parser
+      const lines = text.split('\n');
+      let currentSection = '';
+      
+      lines.forEach(line => {
+        line = line.trim();
+        if (!line) return;
 
-        <section>
-          <h2>Education</h2>
-          ${resumeData.education.map(edu => `
-            <div class="education-item">
-              <div class="education-header">
-                <div>
-                  <h3>${edu.degree}</h3>
-                  <p>${edu.school}</p>
-                </div>
-                <span class="date">${edu.startDate} - ${edu.endDate}</span>
-              </div>
-            </div>
-          `).join('')}
-        </section>
-      </div>
-    `;
-
-    // Configure pdf options
-    const opt = {
-      margin: 0,
-      filename: `${resumeData.personalInfo.fullName.replace(/\s+/g, '_')}_Resume.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { 
-        scale: 2,
-        letterRendering: true,
-        useCORS: true
-      },
-      jsPDF: { 
-        unit: 'in', 
-        format: 'letter', 
-        orientation: 'portrait'
-      }
-    };
-
-    // Generate and download PDF
-    html2pdf().set(opt).from(element).save();
+        if (line.toLowerCase().includes('experience')) {
+          currentSection = 'experience';
+        } else if (line.toLowerCase().includes('education')) {
+          currentSection = 'education';
+        } else if (line.toLowerCase().includes('skills')) {
+          currentSection = 'skills';
+        } else {
+          // Add content to the appropriate section
+          if (currentSection === 'experience') {
+            setResumeData(prev => ({
+              ...prev,
+              experience: [...prev.experience, {
+                title: line,
+                company: '',
+                startDate: '',
+                endDate: '',
+                description: []
+              }]
+            }));
+          } else if (currentSection === 'education') {
+            setResumeData(prev => ({
+              ...prev,
+              education: [...prev.education, {
+                degree: line,
+                school: '',
+                startDate: '',
+                endDate: ''
+              }]
+            }));
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error parsing resume:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const renderTemplates = () => (
@@ -613,6 +509,10 @@ const ResumeBuilder = () => {
                 />
               </div>
             </div>
+            <AIResumeAssistant 
+              profession={resumeData.personalInfo.title}
+              onSuggestionSelect={handleSuggestionSelect}
+            />
           </div>
         );
 
@@ -625,6 +525,11 @@ const ResumeBuilder = () => {
               value={resumeData.profile}
               onChange={(e) => handleProfileChange(e.target.value)}
               placeholder="Write a professional summary..."
+            />
+            <AIResumeAssistant 
+              profession={resumeData.personalInfo.title}
+              summary={resumeData.profile}
+              onSuggestionSelect={handleSuggestionSelect}
             />
           </div>
         );
@@ -733,6 +638,19 @@ const ResumeBuilder = () => {
                         </button>
                       </div>
                     ))}
+                  </div>
+                  <div className="mt-2">
+                    <AIResumeAssistant
+                      profession={exp.title}
+                      summary={''}
+                      onSuggestionSelect={(suggestion) => {
+                        handleExperienceChange(expIndex, 'description', [...exp.description, suggestion]);
+                      }}
+                      disabled={!exp.title || exp.title.trim() === ''}
+                    />
+                    {!exp.title || exp.title.trim() === '' ? (
+                      <div className="text-xs text-gray-400 mt-1">Enter a job title to get AI suggestions.</div>
+                    ) : null}
                   </div>
                 </div>
                 <button
@@ -862,6 +780,16 @@ const ResumeBuilder = () => {
             </div>
 
             <div className="flex items-center space-x-4">
+              <label className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors cursor-pointer">
+                <input
+                  type="file"
+                  accept=".txt,.doc,.docx,.pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <ArrowUpTrayIcon className="h-5 w-5" />
+                <span>{isUploading ? 'Uploading...' : 'Upload Resume'}</span>
+              </label>
               <button className="flex items-center space-x-1 text-gray-600">
                 <CloudIcon className="h-5 w-5" />
                 <span>Saved</span>
@@ -873,13 +801,18 @@ const ResumeBuilder = () => {
                 <button className="p-2 rounded-full hover:bg-gray-100">
                   <ArrowRightIcon className="h-5 w-5 text-gray-600" />
                 </button>
-                <button 
-                  onClick={handlePrint}
+                <PDFDownloadLink
+                  document={<ResumePDF resumeData={resumeData} />}
+                  fileName={`${resumeData.personalInfo.fullName.replace(/\s+/g, '_')}_Resume.pdf`}
                   className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
-                  <PrinterIcon className="h-5 w-5" />
-                  <span>Print PDF</span>
-                </button>
+                  {({ loading }) => (
+                    <>
+                      <PrinterIcon className="h-5 w-5" />
+                      <span>{loading ? 'Preparing PDF...' : 'Download PDF'}</span>
+                    </>
+                  )}
+                </PDFDownloadLink>
               </div>
             </div>
           </div>
@@ -1026,63 +959,69 @@ const ResumeBuilder = () => {
 
           {/* Right Side - Preview */}
           <div className="w-2/3">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-              <div className="w-[8.5in] h-[11in] mx-auto overflow-auto bg-white shadow-lg">
-                <style>{getTemplateStyles()}</style>
-                <div className="p-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8">
+              <div
+                className="mx-auto bg-white shadow-lg overflow-x-auto"
+                style={{
+                  width: '100%',
+                  maxWidth: '8.5in',
+                  aspectRatio: '8.5/11',
+                  minHeight: '0',
+                  height: 'auto',
+                  boxSizing: 'border-box',
+                  borderRadius: '0.5rem',
+                }}
+              >
+                <div className="p-4 sm:p-8" style={{ fontFamily: 'Times New Roman, Times, serif', color: '#111' }}>
+                  {/* Header */}
                   <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">{resumeData.personalInfo.fullName}</h1>
-                    <div className="text-gray-600 text-sm text-center">
-                      {resumeData.personalInfo.location} | {resumeData.personalInfo.phone} | {resumeData.personalInfo.email}
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-center" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{resumeData.personalInfo.fullName}</h1>
+                    <div className="w-full border-b border-gray-400 my-2" />
+                    <div className="text-gray-800 text-xs sm:text-sm text-center pb-2 border-b-2 border-gray-400 mb-6" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
+                      Location: {resumeData.personalInfo.location} | Phone: {resumeData.personalInfo.phone} | Email: {resumeData.personalInfo.email}
+                      {resumeData.websites && resumeData.websites.length > 0 ? ` | Portfolio: ${resumeData.websites[0].url}` : ''}
                     </div>
                   </div>
-
-                  <div className="space-y-6">
-                    <section>
-                      <h2 className="text-xl font-semibold text-gray-900 mb-3">Profile</h2>
-                      <p className="text-gray-600 text-sm leading-relaxed">{resumeData.profile}</p>
-                    </section>
-
-                    <section>
-                      <h2 className="text-xl font-semibold text-gray-900 mb-3">Experience</h2>
-                      <div className="space-y-4">
-                        {resumeData.experience.map((exp, index) => (
-                          <div key={index} className="mb-4">
-                            <div className="flex justify-between mb-2">
-                              <div>
-                                <h3 className="text-base font-medium">{exp.title}</h3>
-                                <p className="text-gray-600 text-sm">{exp.company}</p>
-                              </div>
-                              <p className="text-gray-600 text-sm">
-                                {exp.startDate && new Date(exp.startDate).getFullYear()} - {exp.endDate ? new Date(exp.endDate).getFullYear() : 'Present'}
-                              </p>
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-gray-600 text-sm">
-                              {exp.description.map((bullet, bulletIndex) => (
-                                <li key={bulletIndex}>{bullet}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
+                  {/* Summary */}
+                  <div className="mb-6">
+                    <div className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Summary</div>
+                    <div style={{ fontFamily: 'Times New Roman, Times, serif' }}>{resumeData.profile}</div>
+                  </div>
+                  {/* Experience */}
+                  <div className="mb-6">
+                    <div className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Experience</div>
+                    {resumeData.experience.map((exp, idx) => (
+                      <div key={idx} className="mb-4">
+                        <div>
+                          <span className="font-bold" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{exp.company}</span>
+                          {exp.company && exp.title ? ', ' : ''}
+                          <span className="italic" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{exp.title}</span>
+                          {(exp.company || exp.title) ? ' | ' : ''}
+                          <span style={{ fontFamily: 'Times New Roman, Times, serif' }}>
+                            {exp.startDate ? formatMonthYear(exp.startDate) : ''}
+                            {exp.endDate ? ` - ${formatMonthYear(exp.endDate)}` : ''}
+                          </span>
+                        </div>
+                        {exp.description.length > 0 && (
+                          <ul className="list-disc ml-6 mt-1" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
+                            {exp.description.map((bullet, bidx) => (
+                              <li key={bidx}>{bullet}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
-                    </section>
-
-                    <section>
-                      <h2 className="text-xl font-semibold text-gray-900 mb-3">Education</h2>
-                      <div className="space-y-3">
-                        {resumeData.education.map((edu, index) => (
-                          <div key={index}>
-                            <div className="flex justify-between mb-1">
-                              <div>
-                                <h3 className="text-base font-medium">{edu.degree}</h3>
-                                <p className="text-gray-600 text-sm">{edu.school}</p>
-                              </div>
-                              <p className="text-gray-600 text-sm">{edu.startDate} - {edu.endDate}</p>
-                            </div>
-                          </div>
-                        ))}
+                    ))}
+                  </div>
+                  {/* Education */}
+                  <div className="mb-6">
+                    <div className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Education</div>
+                    {resumeData.education.map((edu, idx) => (
+                      <div key={idx} className="mb-2">
+                        <span className="font-bold" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{edu.degree}</span>
+                        {edu.degree && edu.school ? ', ' : ''}
+                        <span style={{ fontFamily: 'Times New Roman, Times, serif' }}>{formatMonthYear(edu.startDate)}{edu.endDate ? ` - ${formatMonthYear(edu.endDate)}` : ''}</span>
                       </div>
-                    </section>
+                    ))}
                   </div>
                 </div>
               </div>
