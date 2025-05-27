@@ -976,7 +976,7 @@ const ResumeBuilder = () => {
                   {/* Header */}
                   <div className="mb-8">
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-center" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{resumeData.personalInfo.fullName}</h1>
-                    <div className="w-full border-b border-gray-400 my-2" />
+                    <div className="w-full border-t border-t-[1px] border-gray-300 my-2" />
                     <div className="text-gray-800 text-xs sm:text-sm text-center pb-2 border-b-2 border-gray-400 mb-6" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
                       Location: {resumeData.personalInfo.location} | Phone: {resumeData.personalInfo.phone} | Email: {resumeData.personalInfo.email}
                       {resumeData.websites && resumeData.websites.length > 0 ? ` | Portfolio: ${resumeData.websites[0].url}` : ''}
@@ -984,7 +984,7 @@ const ResumeBuilder = () => {
                   </div>
                   {/* Summary */}
                   <div className="mb-6">
-                    <div className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Summary</div>
+                    <div className="text-base sm:text-lg font-bold pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Summary</div>
                     <div style={{ fontFamily: 'Times New Roman, Times, serif' }}>{resumeData.profile}</div>
                   </div>
                   {/* Experience */}
