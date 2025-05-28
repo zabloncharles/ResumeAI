@@ -25,35 +25,7 @@ import {
 import ResumePDF from './ResumePDF'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import AIResumeAssistant from './AIResumeAssistant'
-
-interface ResumeData {
-  personalInfo: {
-    fullName: string;
-    title: string;
-    email: string;
-    phone: string;
-    location: string;
-    photo: string;
-  };
-  profile: string;
-  experience: Array<{
-    title: string;
-    company: string;
-    startDate: string;
-    endDate: string;
-    description: string[];
-  }>;
-  education: Array<{
-    degree: string;
-    school: string;
-    startDate: string;
-    endDate: string;
-  }>;
-  websites: Array<{
-    label: string;
-    url: string;
-  }>;
-}
+import type { ResumeData } from '../types/ResumeData'
 
 interface ResumeTemplate {
   id: string;
@@ -273,7 +245,6 @@ const ResumeBuilder = () => {
         break
       case 'experience':
         if (resumeData.experience.length > 0) {
-          const currentExp = resumeData.experience[0]
           setResumeData(prev => ({
             ...prev,
             experience: prev.experience.map((exp, index) => 
