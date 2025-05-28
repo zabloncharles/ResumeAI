@@ -236,13 +236,17 @@ const ResumeBuilder = () => {
   }
 
   const handleSuggestionSelect = (suggestion: string) => {
+    console.log('Active Section:', activeSection);
     switch (activeSection) {
-      case 'profile':
+      case 'personal':
+        // Handle personal section suggestions
+        break;
+      case 'summary':
         setResumeData(prev => ({
           ...prev,
           profile: suggestion
-        }))
-        break
+        }));
+        break;
       case 'experience':
         if (resumeData.experience.length > 0) {
           setResumeData(prev => ({
@@ -253,11 +257,11 @@ const ResumeBuilder = () => {
                 description: [...exp.description, suggestion]
               } : exp
             )
-          }))
+          }));
         }
-        break
+        break;
       default:
-        break
+        break;
     }
   }
 
@@ -354,6 +358,8 @@ const ResumeBuilder = () => {
                 <label className="block text-sm font-medium text-gray-700">Full Name</label>
                 <input
                   type="text"
+                  id="fullName"
+                  name="fullName"
                   className="resume-input mt-1"
                   value={resumeData.personalInfo.fullName}
                   onChange={(e) => handlePersonalInfoChange('fullName', e.target.value)}
@@ -363,6 +369,8 @@ const ResumeBuilder = () => {
                 <label className="block text-sm font-medium text-gray-700">Title</label>
                 <input
                   type="text"
+                  id="title"
+                  name="title"
                   className="resume-input mt-1"
                   value={resumeData.personalInfo.title}
                   onChange={(e) => handlePersonalInfoChange('title', e.target.value)}
@@ -372,6 +380,8 @@ const ResumeBuilder = () => {
                 <label className="block text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
+                  id="email"
+                  name="email"
                   className="resume-input mt-1"
                   value={resumeData.personalInfo.email}
                   onChange={(e) => handlePersonalInfoChange('email', e.target.value)}
@@ -381,6 +391,8 @@ const ResumeBuilder = () => {
                 <label className="block text-sm font-medium text-gray-700">Phone</label>
                 <input
                   type="tel"
+                  id="phone"
+                  name="phone"
                   className="resume-input mt-1"
                   value={resumeData.personalInfo.phone}
                   onChange={(e) => handlePersonalInfoChange('phone', e.target.value)}
@@ -390,6 +402,8 @@ const ResumeBuilder = () => {
                 <label className="block text-sm font-medium text-gray-700">Location</label>
                 <input
                   type="text"
+                  id="location"
+                  name="location"
                   className="resume-input mt-1"
                   value={resumeData.personalInfo.location}
                   onChange={(e) => handlePersonalInfoChange('location', e.target.value)}
@@ -399,6 +413,7 @@ const ResumeBuilder = () => {
             <AIResumeAssistant 
               profession={resumeData.personalInfo.title}
               onSuggestionSelect={handleSuggestionSelect}
+              section={activeSection}
             />
           </div>
         );
@@ -417,6 +432,7 @@ const ResumeBuilder = () => {
               profession={resumeData.personalInfo.title}
               summary={resumeData.profile}
               onSuggestionSelect={handleSuggestionSelect}
+              section={activeSection}
             />
           </div>
         );
@@ -534,6 +550,7 @@ const ResumeBuilder = () => {
                         handleExperienceChange(expIndex, 'description', [...exp.description, suggestion]);
                       }}
                       disabled={!exp.title || exp.title.trim() === ''}
+                      section={activeSection}
                     />
                     {!exp.title || exp.title.trim() === '' ? (
                       <div className="text-xs text-gray-400 mt-1">Enter a job title to get AI suggestions.</div>

@@ -6,9 +6,10 @@ interface AIResumeAssistantProps {
   summary?: string;
   onSuggestionSelect: (suggestion: string) => void;
   disabled?: boolean;
+  section: string;
 }
 
-const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disabled = false }: AIResumeAssistantProps) => {
+const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disabled = false, section }: AIResumeAssistantProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -16,68 +17,24 @@ const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disab
   const generateSuggestions = async () => {
     setIsLoading(true);
     setError(null);
-    
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    
-    // Debug logging
-    console.log('Environment variables:', {
-      hasApiKey: !!apiKey,
-      keyLength: apiKey?.length,
-      envKeys: Object.keys(import.meta.env)
-    });
-    
-    if (!apiKey) {
-      setError('OpenAI API key is not configured. Please contact support if this error persists.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Build the prompt based on context
-    let userPrompt = '';
-    if (summary && summary.trim().length > 0) {
-      userPrompt = `Rewrite the following professional summary to make it more compelling, concise, and professional. Provide 5 improved versions as bullet points.\n\nSummary: ${summary.trim()}`;
-    } else if (profession && profession.trim().length > 0) {
-      userPrompt = `Generate 5 impactful resume bullet points for the job title: ${profession}. Each bullet should describe a specific achievement, responsibility, or result that would impress a recruiter and help land an interview. Use action verbs, quantify results where possible, and keep each point concise and professional. Return as bullet points.`;
-    } else {
-      userPrompt = `Generate 5 professional summary statements for a resume. Each should be concise, compelling, and tailored for a resume. Return as bullet points.`;
-    }
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('/.netlify/functions/generateResume', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert resume writer and career coach. Focus on:
-              1. Professional, concise, and compelling language
-              2. Resume-appropriate tone
-              3. Action-oriented and achievement-focused statements
-              4. For employment history, focus on bullet points that describe what the candidate did at the job that would help them land an interview. Use action verbs and quantify results where possible.
-              Return only the 5 best bullet points as bullet points.`
-            },
-            {
-              role: 'user',
-              content: userPrompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
-        })
+        body: JSON.stringify({ profession, summary, section })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to generate suggestions');
+        throw new Error(errorData.error || 'Failed to generate suggestions');
       }
 
       const data = await response.json();
-      const content = data.choices[0].message.content;
+      // The OpenAI response is in data.content
+      const content = data.content || '';
       const suggestionList = content.split('\n').filter((line: string) => line.trim().startsWith('-'));
       setSuggestions(suggestionList.map((s: string) => s.replace('-', '').trim()));
     } catch (err) {
