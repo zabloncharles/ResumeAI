@@ -6,7 +6,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer';
-import type { ResumeData } from './ResumeBuilder';
+import type { ResumeData } from '../types/ResumeData';
 
 // Remove or comment out the custom font registration
 // Font.register({ family: 'Times New Roman', src: 'https://fonts.cdnfonts.com/s/15010/TimesNewRoman.woff', fontStyle: 'normal', fontWeight: 'normal' });
