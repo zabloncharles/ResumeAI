@@ -5,8 +5,6 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
-  Link
 } from '@react-pdf/renderer';
 import type { ResumeData } from './ResumeBuilder';
 
@@ -121,7 +119,7 @@ const ResumePDF: React.FC<ResumePDFProps> = ({ resumeData }) => (
       {/* Experience */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Experience</Text>
-        {resumeData.experience.map((exp, idx) => (
+        {resumeData.experience.map((exp: any, idx: number) => (
           <View key={idx} style={{ marginBottom: 8 }}>
             <Text>
               <Text style={styles.jobTitle}>{exp.company}</Text>
@@ -146,7 +144,7 @@ const ResumePDF: React.FC<ResumePDFProps> = ({ resumeData }) => (
       {/* Education */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Education</Text>
-        {resumeData.education.map((edu, idx) => (
+        {resumeData.education.map((edu: any, idx: number) => (
           <View key={idx} style={{ marginBottom: 8 }}>
             <Text>
               <Text style={styles.jobTitle}>{edu.degree}</Text>

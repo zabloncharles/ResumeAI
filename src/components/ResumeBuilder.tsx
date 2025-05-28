@@ -263,90 +263,6 @@ const ResumeBuilder = () => {
     }))
   }
 
-  const getTemplateStyles = () => {
-    switch (selectedTemplate) {
-      case 'executive':
-        return `
-          .resume-container {
-            font-family: 'Georgia', serif;
-          }
-          h1 {
-            font-size: 2rem !important;
-            color: #1a365d !important;
-          }
-          h2 {
-            font-size: 1.25rem !important;
-            color: #2c5282 !important;
-            border-bottom: 2px solid #2c5282 !important;
-            text-transform: none !important;
-            letter-spacing: normal !important;
-          }
-          .profile-section {
-            margin-bottom: 2rem !important;
-          }
-          .contact-info {
-            font-style: italic;
-          }
-        `;
-      case 'minimal':
-        return `
-          .resume-container {
-            font-family: 'Inter', sans-serif;
-          }
-          h1 {
-            font-size: 1.75rem !important;
-            font-weight: 500 !important;
-          }
-          h2 {
-            font-size: 0.875rem !important;
-            color: #4a5568 !important;
-            border-bottom: 1px solid #e2e8f0 !important;
-          }
-          .profile-image {
-            display: none;
-          }
-          .profile-info {
-            text-align: center;
-          }
-        `;
-      case 'creative':
-        return `
-          .resume-container {
-            font-family: 'Poppins', sans-serif;
-          }
-          h1 {
-            font-size: 2.25rem !important;
-            background: linear-gradient(to right, #3182ce, #2b6cb0);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-          }
-          h2 {
-            font-size: 1rem !important;
-            color: #2b6cb0 !important;
-            border-bottom: none !important;
-            position: relative !important;
-          }
-          h2::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 2rem;
-            height: 2px;
-            background: #3182ce;
-          }
-          .profile-section {
-            position: relative;
-          }
-          .profile-image {
-            border: 3px solid #3182ce;
-          }
-        `;
-      default: // modern
-        return '';
-    }
-  };
-
   const handleSuggestionSelect = (suggestion: string) => {
     switch (activeSection) {
       case 'profile':
@@ -547,7 +463,7 @@ const ResumeBuilder = () => {
                 <span>Add Experience</span>
               </button>
             </div>
-            {resumeData.experience.map((exp, expIndex) => (
+            {resumeData.experience.map((exp: any, expIndex: number) => (
               <div key={expIndex} className="space-y-4 p-4 bg-gray-50 rounded-lg">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Job Title</label>
@@ -620,7 +536,7 @@ const ResumeBuilder = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    {exp.description.map((bullet, bulletIndex) => (
+                    {exp.description.map((bullet: string, bulletIndex: number) => (
                       <div key={bulletIndex} className="flex items-start space-x-2">
                         <span className="mt-2.5 text-gray-500">•</span>
                         <textarea
@@ -678,7 +594,7 @@ const ResumeBuilder = () => {
                 <span>Add Education</span>
               </button>
             </div>
-            {resumeData.education.map((edu, index) => (
+            {resumeData.education.map((edu: any, index: number) => (
               <div key={index} className="space-y-4 p-4 bg-gray-50 rounded-lg">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Degree</label>
@@ -990,7 +906,7 @@ const ResumeBuilder = () => {
                   {/* Experience */}
                   <div className="mb-6">
                     <div className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Experience</div>
-                    {resumeData.experience.map((exp, idx) => (
+                    {resumeData.experience.map((exp: any, idx: number) => (
                       <div key={idx} className="mb-4">
                         <div>
                           <span className="font-bold" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{exp.company}</span>
@@ -1004,7 +920,7 @@ const ResumeBuilder = () => {
                         </div>
                         {exp.description.length > 0 && (
                           <ul className="list-disc ml-6 mt-1" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
-                            {exp.description.map((bullet, bidx) => (
+                            {exp.description.map((bullet: string, bidx: number) => (
                               <li key={bidx}>{bullet}</li>
                             ))}
                           </ul>
@@ -1015,7 +931,7 @@ const ResumeBuilder = () => {
                   {/* Education */}
                   <div className="mb-6">
                     <div className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2" style={{ fontFamily: 'Times New Roman, Times, serif' }}>Education</div>
-                    {resumeData.education.map((edu, idx) => (
+                    {resumeData.education.map((edu: any, idx: number) => (
                       <div key={idx} className="mb-2">
                         <span className="font-bold" style={{ fontFamily: 'Times New Roman, Times, serif' }}>{edu.degree}</span>
                         {edu.degree && edu.school ? ', ' : ''}
