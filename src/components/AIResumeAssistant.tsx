@@ -20,7 +20,7 @@ const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disab
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     
     if (!apiKey) {
-      setError('OpenAI API key is not configured. Please add your API key to the .env.local file.');
+      setError('OpenAI API key is not configured. Please contact support if this error persists.');
       setIsLoading(false);
       return;
     }
