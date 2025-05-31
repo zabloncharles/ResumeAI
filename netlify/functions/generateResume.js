@@ -8,11 +8,28 @@ exports.handler = async function(event, context) {
     };
   }
 
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch (e) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Invalid request body' })
+    };
+  }
+
+  let { prompt } = body || {};
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'No prompt provided.' })
+    };
+  }
+
   let profession = '';
   let summary = '';
   let section = '';
   try {
-    const body = JSON.parse(event.body);
     profession = body.profession || '';
     summary = body.summary || '';
     section = body.section || '';
@@ -20,6 +37,13 @@ exports.handler = async function(event, context) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Invalid request body' })
+    };
+  }
+
+  if (section === 'personal' && (!profession || profession.trim().length === 0)) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Please provide a job title in the personal information section.' })
     };
   }
 
@@ -31,22 +55,36 @@ exports.handler = async function(event, context) {
     };
   }
 
-  let userPrompt = '';
-  if (section === 'personal') {
-    userPrompt = `Generate 5 ways to improve a resume for the job title: ${profession}. Each should be concise, compelling, and tailored for a resume. Return as bullet points.`;
-  } else if (section === 'summary') {
-    if (summary && summary.trim().length > 0) {
-      userPrompt = `Rewrite the following professional summary to make it more compelling, concise, and professional. Provide 5 improved versions as bullet points.\n\nSummary: ${summary.trim()}`;
-    } else if (profession && profession.trim().length > 0) {
-      userPrompt = `Generate 5 impactful resume bullet points for the job title: ${profession}. Each bullet should describe a specific achievement, responsibility, or result that would impress a recruiter and help land an interview. Use action verbs, quantify results where possible, and keep each point concise and professional. Return as bullet points.`;
-    } else {
-      userPrompt = `Generate 5 professional summary statements for a resume. Each should be concise, compelling, and tailored for a resume. Return as bullet points.`;
+  console.log('Section:', section);
+  console.log('Profession:', profession);
+  console.log('Debug - Section:', section);
+  console.log('Debug - Profession:', profession);
+
+  const generatePersonalSuggestions = (profession) => {
+    if (!profession || profession.trim().length === 0) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Please provide a job title in the personal information section.' })
+      };
     }
-  } else if (section === 'employment') {
-    userPrompt = `Generate 5 bullet points describing what the person did at the job. Each bullet should describe a specific achievement, responsibility, or result that would impress a recruiter and help land an interview. Use action verbs, quantify results where possible, and keep each point concise and professional. Return as bullet points.`;
-  } else {
-    userPrompt = `Generate 5 professional summary statements for a resume. Each should be concise, compelling, and tailored for a resume. Return as bullet points.`;
-  }
+    return `List 5 essential tips for creating a professional resume for a ${profession}. Each tip should be clear, actionable, and specifically helpful for someone seeking a ${profession} position. Return as bullet points.`;
+  };
+
+  const generateSummarySuggestions = (profession) => {
+    if (!profession || profession.trim().length === 0) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Please provide a job title in the personal information section to get suggestions.' })
+      };
+    }
+    return `Generate 5 professional summary statements tailored for a ${profession}. Each summary should be concise, compelling, and highlight the candidate's strengths for this role. Focus on their overall professional identity, key skills, and career goals. Return as bullet points.`;
+  };
+
+  const generateEmploymentSuggestions = (profession) => {
+    return `Given the job title: ${profession}, generate 5 impactful resume bullet points describing achievements, responsibilities, or results that would impress a recruiter. Use action verbs, quantify results where possible, and keep each point concise. Return as bullet points.`;
+  };
+
+  console.log('Debug - Prompt:', prompt);
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -64,7 +102,7 @@ exports.handler = async function(event, context) {
           },
           {
             role: 'user',
-            content: userPrompt
+            content: prompt
           }
         ],
         temperature: 0.7,
@@ -81,6 +119,8 @@ exports.handler = async function(event, context) {
     }
 
     const data = await response.json();
+    // Debug log to check the output returned
+    console.log('Debug - API Response:', data);
     // The OpenAI response is in data.choices[0].message.content
     const content = data.choices?.[0]?.message?.content || '';
     return {

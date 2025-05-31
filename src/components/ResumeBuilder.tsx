@@ -242,6 +242,7 @@ const ResumeBuilder = () => {
         // Handle personal section suggestions
         break;
       case 'summary':
+      case 'profile':
         setResumeData(prev => ({
           ...prev,
           profile: suggestion
@@ -350,6 +351,8 @@ const ResumeBuilder = () => {
   const renderEditSection = () => {
     switch (activeSection) {
       case 'personal':
+        // Debug log for job title and active section
+        console.log('Job Title:', resumeData.personalInfo.title, 'Active Section:', activeSection);
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
@@ -550,7 +553,7 @@ const ResumeBuilder = () => {
                         handleExperienceChange(expIndex, 'description', [...exp.description, suggestion]);
                       }}
                       disabled={!exp.title || exp.title.trim() === ''}
-                      section={activeSection}
+                      section="employment"
                     />
                     {!exp.title || exp.title.trim() === '' ? (
                       <div className="text-xs text-gray-400 mt-1">Enter a job title to get AI suggestions.</div>

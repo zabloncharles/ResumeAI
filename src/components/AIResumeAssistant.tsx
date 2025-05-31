@@ -9,6 +9,28 @@ interface AIResumeAssistantProps {
   section: string;
 }
 
+function getPrompt(section: string, profession: string, summary: string) {
+  if (section === 'personal') {
+    if (!profession || profession.trim().length === 0) {
+      return { error: 'Please provide a job title in the personal information section to get suggestions.' };
+    }
+    return `List 5 actionable tips or best practices for someone creating a resume for a ${profession} position. Do NOT provide example resume bullet points or work achievements. Instead, give advice on what to include, how to structure the resume, and what skills or experiences to highlight. Return as bullet points.`;
+  }
+  if (section === 'summary' || section === 'profile') {
+    if (!profession || profession.trim().length === 0) {
+      return { error: 'Please provide a job title in the personal information section to get suggestions.' };
+    }
+    return `Generate 5 professional summary statements tailored for a ${profession}. Each summary should be concise, compelling, and highlight the candidate's strengths for this role. Focus on their overall professional identity, key skills, and career goals. Return as bullet points.`;
+  }
+  if (section === 'employment') {
+    if (!profession || profession.trim().length === 0) {
+      return { error: 'Please provide a job title for this experience to get suggestions.' };
+    }
+    return `Given the job title: ${profession}, generate 5 impactful resume bullet points describing achievements, responsibilities, or results that would impress a recruiter. Use action verbs, quantify results where possible, and keep each point concise. Return as bullet points.`;
+  }
+  return null;
+}
+
 const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disabled = false, section }: AIResumeAssistantProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -18,22 +40,35 @@ const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disab
     setIsLoading(true);
     setError(null);
 
+    const promptOrError = getPrompt(section, profession, summary);
+
+    if (promptOrError && typeof promptOrError === 'object' && 'error' in promptOrError) {
+      setError(promptOrError.error);
+      setIsLoading(false);
+      return;
+    }
+    const prompt = promptOrError as string;
+
+    if (!prompt) {
+      setError('Please provide a job title in the personal information section to get suggestions.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/.netlify/functions/generateResume', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ profession, summary, section })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate suggestions');
+        setError(errorData.error || 'Failed to generate suggestions');
+        return;
       }
 
       const data = await response.json();
-      // The OpenAI response is in data.content
       const content = data.content || '';
       const suggestionList = content.split('\n').filter((line: string) => line.trim().startsWith('-'));
       setSuggestions(suggestionList.map((s: string) => s.replace('-', '').trim()));
