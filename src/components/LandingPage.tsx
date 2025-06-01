@@ -193,16 +193,13 @@ const LandingPage = () => {
           <span>→</span>
           <span>💼</span>
         </div>
-        
         <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-8" data-aos="fade-up" data-aos-delay="200">
           Create Your Future,<br />
           Build Your Perfect Resume Now!
         </h1>
-        
         <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12" data-aos="fade-up" data-aos-delay="300">
           Transform your career journey with AI-powered resume creation. We specialize in crafting professional resumes that stand out and get you noticed.
         </p>
-
         <div className="mt-8 flex justify-center" data-aos="fade-up" data-aos-delay="400">
           <Link 
             to="/loading"
@@ -214,6 +211,17 @@ const LandingPage = () => {
             </svg>
           </Link>
         </div>
+      </div>
+      {/* Cover Letter Feature Section */}
+      <div className="mt-12 max-w-2xl mx-auto bg-blue-50 border border-blue-200 rounded-xl p-8 shadow-md" data-aos="fade-up" data-aos-delay="300">
+        <div className="flex items-center mb-3">
+          <DocumentTextIcon className="h-7 w-7 text-blue-600 mr-2" />
+          <h2 className="text-2xl font-bold text-blue-700">✨ New: AI Cover Letter Generator</h2>
+        </div>
+        <p className="text-gray-700 mb-2">Instantly create a tailored, professional cover letter using your resume or a specific job description. Save time and stand out to employers with a personalized cover letter that matches your experience and the job requirements.</p>
+        <Link to="/resume" className="inline-block mt-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">
+          Try the Cover Letter Creator
+        </Link>
       </div>
 
       {/* Stats */}
@@ -231,7 +239,7 @@ const LandingPage = () => {
       {/* AI Features Section */}
       <div className="bg-gray-50 py-20" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="max-w-3xl" data-aos="fade-right">
+          <div className="max-w-3xl mx-auto text-center" data-aos="fade-right">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">
               AI-powered resume building for better results
             </h2>
