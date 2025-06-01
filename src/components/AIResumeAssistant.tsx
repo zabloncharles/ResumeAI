@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { auth, db } from '../firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, setDoc, increment } from 'firebase/firestore';
 
 interface AIResumeAssistantProps {
   profession: string;
@@ -35,6 +38,12 @@ const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disab
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
 
   const generateSuggestions = async () => {
     setIsLoading(true);
@@ -70,8 +79,20 @@ const AIResumeAssistant = ({ profession, summary = '', onSuggestionSelect, disab
 
       const data = await response.json();
       const content = data.content || '';
+      const totalTokens = data.total_tokens || 0;
       const suggestionList = content.split('\n').filter((line: string) => line.trim().startsWith('-'));
       setSuggestions(suggestionList.map((s: string) => s.replace('-', '').trim()));
+      // Increment call count and totalTokens in Firestore
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        try {
+          console.log('[Firestore] Attempting to increment callCount and totalTokens for:', user.uid, 'Tokens:', totalTokens);
+          await setDoc(userRef, { callCount: increment(1), totalTokens: increment(totalTokens) }, { merge: true });
+          console.log('[Firestore] callCount and totalTokens incremented for:', user.uid);
+        } catch (e) {
+          console.error('[Firestore] Error incrementing callCount/totalTokens:', e);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate suggestions. Please try again.');
       console.error('Error generating suggestions:', err);

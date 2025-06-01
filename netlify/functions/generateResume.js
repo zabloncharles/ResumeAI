@@ -123,9 +123,10 @@ exports.handler = async function(event, context) {
     console.log('Debug - API Response:', data);
     // The OpenAI response is in data.choices[0].message.content
     const content = data.choices?.[0]?.message?.content || '';
+    const total_tokens = data.usage?.total_tokens || 0;
     return {
       statusCode: 200,
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ content, total_tokens })
     };
   } catch (err) {
     return {

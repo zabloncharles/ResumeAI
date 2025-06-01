@@ -87,6 +87,7 @@ exports.handler = async (event) => {
     const data = await response.json();
     debugLog.push({ step: 'OpenAI API response', data });
     const aiResponse = data.choices?.[0]?.message?.content || '';
+    const total_tokens = data.usage?.total_tokens || 0;
     debugLog.push({ step: 'AI Response', aiResponse });
     let jsonStart = aiResponse.indexOf('{');
     let jsonEnd = aiResponse.lastIndexOf('}');
@@ -105,7 +106,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify(resumeJson),
+      body: JSON.stringify({ ...resumeJson, total_tokens }),
     };
   } catch (error) {
     debugLog.push({ step: 'General error', error: error.message });

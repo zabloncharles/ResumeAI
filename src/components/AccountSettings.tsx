@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { Switch } from '@headlessui/react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import zipcodes from 'zipcodes';
 
 const US_STATES = [
   { name: 'Alabama', cities: ['Birmingham', 'Montgomery', 'Mobile'] },
@@ -21,16 +22,16 @@ const AccountSettings = () => {
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [emailNotifications, setEmailNotifications] = useState(true);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [state, setState] = useState('');
-  const [zip, setZip] = useState('');
+  const [personalInfo, setPersonalInfo] = useState({ firstName: '', lastName: '', phone: '', state: '', zip: '' });
   const [personalInfoLoading, setPersonalInfoLoading] = useState(false);
   const [personalInfoSaved, setPersonalInfoSaved] = useState(false);
   const [showPersonal, setShowPersonal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
+  const [showApiUsage, setShowApiUsage] = useState(false);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiCallCount, setApiCallCount] = useState<number | null>(null);
+  const [apiTotalTokens, setApiTotalTokens] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,20 +40,37 @@ const AccountSettings = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    setFirstName(user.displayName?.split(' ')[0] || '');
-    setLastName(user.displayName?.split(' ')[1] || '');
-    const fetchProfile = async () => {
+    if (!user || !showPersonal) return;
+    const fetchPersonalInfo = async () => {
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setState(docSnap.data().state || '');
-        setPhone(docSnap.data().phone || '');
-        setZip(docSnap.data().zip || '');
+        setPersonalInfo({
+          firstName: user.displayName?.split(' ')[0] || '',
+          lastName: user.displayName?.split(' ')[1] || '',
+          phone: docSnap.data().phone || '',
+          state: docSnap.data().state || '',
+          zip: docSnap.data().zip || ''
+        });
       }
     };
-    fetchProfile();
-  }, [user]);
+    fetchPersonalInfo();
+  }, [user, showPersonal]);
+
+  useEffect(() => {
+    if (!user || !showApiUsage) return;
+    setApiLoading(true);
+    const fetchApiUsage = async () => {
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setApiCallCount(docSnap.data().callCount || 0);
+        setApiTotalTokens(docSnap.data().totalTokens || 0);
+      }
+      setApiLoading(false);
+    };
+    fetchApiUsage();
+  }, [user, showApiUsage]);
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -73,15 +91,39 @@ const AccountSettings = () => {
 
   const isEmailPasswordUser = user?.providerData.some(p => p.providerId === 'password');
 
+  const handlePersonalInfoChange = (field: keyof typeof personalInfo, value: string) => {
+    if (field === 'zip') {
+      const lookup = zipcodes.lookup(value);
+      if (lookup && lookup.state) {
+        const abbr = lookup.state;
+        const fullName = zipcodes.states.abbr[abbr];
+        const found = US_STATES.find(s => s.name.toLowerCase() === (fullName ? fullName.toLowerCase() : ''));
+        setPersonalInfo(prev => ({
+          ...prev,
+          zip: value,
+          state: found ? found.name : abbr
+        }));
+        return;
+      }
+    }
+    setPersonalInfo(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSavePersonalInfo = async () => {
     if (!user) return;
     setPersonalInfoLoading(true);
     setPersonalInfoSaved(false);
     try {
       await updateProfile(user, {
-        displayName: `${firstName} ${lastName}`.trim(),
+        displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
       });
-      await setDoc(doc(db, 'users', user.uid), { state, phone, zip }, { merge: true });
+      await setDoc(doc(db, 'users', user.uid), {
+        firstName: personalInfo.firstName,
+        lastName: personalInfo.lastName,
+        state: personalInfo.state,
+        phone: personalInfo.phone,
+        zip: personalInfo.zip
+      }, { merge: true });
       setPersonalInfoSaved(true);
     } catch (e) {
       // Optionally handle error
@@ -140,32 +182,23 @@ const AccountSettings = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.firstName} onChange={e => handlePersonalInfoChange('firstName', e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={lastName} onChange={e => setLastName(e.target.value)} />
+                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.lastName} onChange={e => handlePersonalInfoChange('lastName', e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={phone} onChange={e => setPhone(e.target.value)} />
+                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.phone} onChange={e => handlePersonalInfoChange('phone', e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                      <select
-                        className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                        value={state}
-                        onChange={e => setState(e.target.value)}
-                      >
-                        <option value="">Select a state</option>
-                        {US_STATES.map(s => (
-                          <option key={s.name} value={s.name}>{s.name}</option>
-                        ))}
-                      </select>
+                      <input type="text" className="w-full rounded border-gray-300 bg-gray-100 cursor-not-allowed" value={personalInfo.state} readOnly tabIndex={-1} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={zip} onChange={e => setZip(e.target.value)} />
+                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.zip} onChange={e => handlePersonalInfoChange('zip', e.target.value)} />
                     </div>
                   </div>
                   <button
@@ -200,6 +233,27 @@ const AccountSettings = () => {
                       className={`${emailNotifications ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                     />
                   </Switch>
+                </div>
+              )}
+            </div>
+            <div className="mb-4">
+              <button
+                className="w-full flex justify-between items-center px-4 py-3 bg-gray-100 rounded-t-lg text-left text-lg font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none"
+                onClick={() => setShowApiUsage((v) => !v)}
+              >
+                <span>API Usage</span>
+                <span>{showApiUsage ? '▲' : '▼'}</span>
+              </button>
+              {showApiUsage && (
+                <div className="bg-gray-50 p-5 rounded-b-lg border border-dashed border-gray-200 space-y-2">
+                  {apiLoading ? (
+                    <div className="text-gray-500 text-sm">Loading usage...</div>
+                  ) : (
+                    <>
+                      <div className="text-base text-blue-700 font-semibold">AI Calls Used: {apiCallCount}</div>
+                      <div className="text-base text-purple-700 font-semibold">Total Tokens Used: {apiTotalTokens}</div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

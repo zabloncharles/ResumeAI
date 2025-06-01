@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const SignIn = () => {
   const [email, setEmail] = useState('');
@@ -16,6 +17,12 @@ const SignIn = () => {
     try {
       if (isRegister) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Create user document in Firestore
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          callCount: 0,
+          email: userCredential.user.email,
+          createdAt: new Date().toISOString()
+        });
         await sendEmailVerification(userCredential.user);
         setVerificationSent(true);
       } else {
@@ -30,7 +37,13 @@ const SignIn = () => {
     setError('');
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      // Create user document in Firestore for Google sign-in
+      await setDoc(doc(db, 'users', result.user.uid), {
+        callCount: 0,
+        email: result.user.email,
+        createdAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err: any) {
       setError(err.message);
     }

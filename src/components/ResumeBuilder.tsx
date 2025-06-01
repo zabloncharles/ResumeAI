@@ -30,7 +30,7 @@ import type { ResumeData } from '../types/ResumeData'
 import CoverLetterCreator from './CoverLetterCreator'
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, increment, updateDoc } from 'firebase/firestore';
 import SignIn from './SignIn';
 
 interface ResumeTemplate {
@@ -153,7 +153,7 @@ const ResumeBuilder = () => {
       if (firebaseUser) {
         setLoading(true);
         try {
-          const docRef = doc(db, 'resumes', firebaseUser.uid);
+          const docRef = doc(db, 'users', firebaseUser.uid, 'resume', 'main');
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             console.debug('[Firebase] Loaded resume for user:', firebaseUser.uid, docSnap.data());
@@ -177,7 +177,7 @@ const ResumeBuilder = () => {
     setSaving(true);
     setSaveStatus(null);
     try {
-      await setDoc(doc(db, 'resumes', user.uid), resumeData);
+      await setDoc(doc(db, 'users', user.uid, 'resume', 'main'), resumeData);
       setLastSaved(new Date());
       setSaveStatus('saved');
       console.debug('[Firebase] Resume saved for user:', user.uid, resumeData);
@@ -396,6 +396,18 @@ const ResumeBuilder = () => {
       setResumeData(data);
       setShowPasteModal(false);
       setPastedResume('');
+      const totalTokens = data.total_tokens || 0;
+      // Increment call count and totalTokens in Firestore
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        try {
+          console.log('[Firestore] Attempting to increment callCount and totalTokens for:', user.uid, 'Tokens:', totalTokens);
+          await setDoc(userRef, { callCount: increment(1), totalTokens: increment(totalTokens) }, { merge: true });
+          console.log('[Firestore] callCount and totalTokens incremented for:', user.uid);
+        } catch (e) {
+          console.error('[Firestore] Error incrementing callCount/totalTokens:', e);
+        }
+      }
     } catch (e: any) {
       setParseError('Could not parse resume. Please try again.');
     }
