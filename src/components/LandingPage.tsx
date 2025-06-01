@@ -120,7 +120,7 @@ const LandingPage = () => {
             <div className="hidden md:flex items-center justify-center flex-1 space-x-8">
               <a href="#" className="text-gray-600 hover:text-gray-900">Home</a>
               <div className="relative group">
-                <a href="#" className="text-gray-600 hover:text-gray-900">Templates</a>
+                <Link to="/courses" className="text-gray-600 hover:text-gray-900">Courses</Link>
               </div>
               <div className="relative group">
                 <a href="#" className="text-gray-600 hover:text-gray-900">Features</a>
@@ -166,7 +166,7 @@ const LandingPage = () => {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <a href="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Home</a>
-              <a href="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Templates</a>
+              <a href="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Courses</a>
               <a href="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Features</a>
               <a href="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Pricing</a>
               <a href="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">FAQs</a>
