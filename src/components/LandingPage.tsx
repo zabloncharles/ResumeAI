@@ -12,6 +12,7 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import videoBg from "../video.mp4";
 
 const stats = [
   { value: "100K+", label: "Resumes Created" },
@@ -121,91 +122,105 @@ const LandingPage = () => {
       {/* Navigation */}
       <Navbar />
 
-      {/* Hero Section */}
-      <div className="pt-32 pb-16 text-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          className="flex items-center justify-center space-x-2 mb-8"
-          data-aos="fade-down"
-          data-aos-delay="100"
-        >
-          <span>📝</span>
-          <span>→</span>
-          <img
-            src="https://ui-avatars.com/api/?name=AI&background=0D8ABC&color=fff"
-            alt="AI"
-            className="w-8 h-8 rounded-full"
-          />
-          <span>→</span>
-          <span>💼</span>
-        </div>
-        <h1
-          className="text-6xl font-bold tracking-tight text-gray-900 mb-8"
-          data-aos="fade-up"
-          data-aos-delay="200"
-        >
-          Create Your Future,
-          <br />
-          Build Your Perfect Resume Now!
-        </h1>
-        <p
-          className="text-xl text-gray-600 max-w-3xl mx-auto mb-12"
-          data-aos="fade-up"
-          data-aos-delay="300"
-        >
-          Transform your career journey with AI-powered resume creation. We
-          specialize in crafting professional resumes that stand out and get you
-          noticed.
-        </p>
-        <div
-          className="mt-8 flex justify-center"
-          data-aos="fade-up"
-          data-aos-delay="400"
-        >
-          <Link
-            to="/loading"
-            className="bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center"
-          >
-            Get Started
-            <svg
-              className="w-5 h-5 ml-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+      {/* Hero Section + AI Cover Letter Section with shared video background */}
+      <div className="relative overflow-hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Blurred background video */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover z-0 blur-md"
+          src={videoBg}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        <div className="relative z-10">
+          {/* Hero Section */}
+          <div className="pt-32 pb-16 text-center">
+            <div
+              className="flex items-center justify-center space-x-2 mb-8"
+              data-aos="fade-down"
+              data-aos-delay="100"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M9 5l7 7-7 7"
+              <span>📝</span>
+              <span>→</span>
+              <img
+                src="https://ui-avatars.com/api/?name=AI&background=0D8ABC&color=fff"
+                alt="AI"
+                className="w-8 h-8 rounded-full"
               />
-            </svg>
-          </Link>
+              <span>→</span>
+              <span>💼</span>
+            </div>
+            <h1
+              className="text-6xl font-bold tracking-tight text-gray-900 mb-8"
+              data-aos="fade-up"
+              data-aos-delay="200"
+            >
+              Create Your Future,
+              <br />
+              Build Your Perfect Resume Now!
+            </h1>
+            <p
+              className="text-xl text-gray-600 max-w-3xl mx-auto mb-12"
+              data-aos="fade-up"
+              data-aos-delay="300"
+            >
+              Transform your career journey with AI-powered resume creation. We
+              specialize in crafting professional resumes that stand out and get
+              you noticed.
+            </p>
+            <div
+              className="mt-8 flex justify-center"
+              data-aos="fade-up"
+              data-aos-delay="400"
+            >
+              <Link
+                to="/loading"
+                className="bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center"
+              >
+                Get Started
+                <svg
+                  className="w-5 h-5 ml-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </Link>
+            </div>
+          </div>
+          {/* AI Cover Letter Feature Section */}
+          <div
+            className="mt-12 max-w-2xl mx-auto bg-gradient-to-r from-green-50 to-yellow-50 border border-green-200 rounded-xl p-8 flex flex-col items-center text-center"
+            data-aos="fade-up"
+            data-aos-delay="300"
+          >
+            <div className="flex items-center mb-3 justify-center">
+              <DocumentTextIcon className="h-7 w-7 text-green-600 mr-2" />
+              <h2 className="text-2xl font-bold text-green-700">
+                ✨ New: AI Cover Letter Generator
+              </h2>
+            </div>
+            <p className="text-gray-700 mb-2">
+              Instantly create a tailored, professional cover letter using your
+              resume or a specific job description. Save time and stand out to
+              employers with a personalized cover letter that matches your
+              experience and the job requirements.
+            </p>
+            <Link
+              to="/resume"
+              className="inline-block mt-4 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-semibold"
+            >
+              Try the Cover Letter Creator
+            </Link>
+          </div>
         </div>
-      </div>
-      {/* Cover Letter Feature Section */}
-      <div
-        className="mt-12 max-w-2xl mx-auto bg-blue-50 border border-blue-200 rounded-xl p-8 shadow-md flex flex-col items-center text-center"
-        data-aos="fade-up"
-        data-aos-delay="300"
-      >
-        <div className="flex items-center mb-3 justify-center">
-          <DocumentTextIcon className="h-7 w-7 text-blue-600 mr-2" />
-          <h2 className="text-2xl font-bold text-blue-700">
-            ✨ New: AI Cover Letter Generator
-          </h2>
-        </div>
-        <p className="text-gray-700 mb-2">
-          Instantly create a tailored, professional cover letter using your
-          resume or a specific job description. Save time and stand out to
-          employers with a personalized cover letter that matches your
-          experience and the job requirements.
-        </p>
-        <Link
-          to="/resume"
-          className="inline-block mt-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow"
-        >
-          Try the Cover Letter Creator
-        </Link>
       </div>
 
       {/* Stats */}
