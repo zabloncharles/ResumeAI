@@ -140,14 +140,14 @@ const Footer = () => (
         {/* Column 4 - Logo */}
         <div className="col-span-1">
           <div className="flex items-center justify-end h-full">
-            <span className="text-2xl font-bold">Brightfolio</span>
+            <span className="text-2xl font-bold">ResumeAI</span>
           </div>
         </div>
       </div>
 
       {/* Copyright */}
       <div className="text-center text-gray-400 text-sm">
-        All Rights Reserved 2024 | Brightfolio
+        All Rights Reserved 2024 | ResumeAI
       </div>
     </div>
   </footer>

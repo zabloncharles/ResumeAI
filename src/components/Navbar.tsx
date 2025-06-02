@@ -10,6 +10,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import bunny1 from "../bunny1.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,11 +60,7 @@ const Navbar = () => {
               to="/"
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
-              <img
-                src={require("../bunny1.png")}
-                alt="Brightfolio Logo"
-                className="h-8 w-8"
-              />
+              <img src={bunny1} alt="Brightfolio Logo" className="h-8 w-8" />
               <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Brightfolio
               </span>
