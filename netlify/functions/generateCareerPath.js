@@ -62,6 +62,7 @@ exports.handler = async function(event, context) {
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
+    const total_tokens = data.usage?.total_tokens || 0;
     // Try to parse the JSON array from the AI response
     let steps = [];
     try {
@@ -76,7 +77,7 @@ exports.handler = async function(event, context) {
     }
     return {
       statusCode: 200,
-      body: JSON.stringify({ steps })
+      body: JSON.stringify({ steps, total_tokens })
     };
   } catch (err) {
     return {

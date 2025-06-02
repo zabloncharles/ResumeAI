@@ -4,6 +4,8 @@ import ResumeBuilder from './components/ResumeBuilder'
 import LoadingPage from './components/LoadingPage'
 import AccountSettings from './components/AccountSettings'
 import Courses from './components/Courses'
+import Jobs from './components/Jobs'
+import News from './components/News'
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
         <Route path="/resume" element={<ResumeBuilder />} />
         <Route path="/settings" element={<AccountSettings />} />
         <Route path="/courses" element={<Courses />} />
+        <Route path="/jobs" element={<Jobs />} />
+        <Route path="/news" element={<News />} />
       </Routes>
     </Router>
   )
