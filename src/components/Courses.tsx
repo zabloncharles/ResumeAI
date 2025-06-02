@@ -1,33 +1,24 @@
-import Navbar from './Navbar';
-import { useState, useEffect } from 'react';
-import { AcademicCapIcon, CheckCircleIcon, ArrowRightIcon, BookOpenIcon } from '@heroicons/react/24/outline';
-import { auth, db } from '../firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, setDoc, increment } from 'firebase/firestore';
-import Footer from './Footer';
+import Navbar from "./Navbar";
+import { useState, useEffect } from "react";
+import {
+  AcademicCapIcon,
+  CheckCircleIcon,
+  ArrowRightIcon,
+  BookOpenIcon,
+} from "@heroicons/react/24/outline";
+import { auth, db } from "../firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { doc, setDoc, increment } from "firebase/firestore";
+import Footer from "./Footer";
 
-const stepColors = [
-  'bg-blue-400',
-  'bg-purple-400',
-  'bg-pink-400',
-  'bg-green-400',
-  'bg-yellow-400',
-  'bg-indigo-400',
-];
 const stepIcons = [AcademicCapIcon, BookOpenIcon, CheckCircleIcon];
 
-const boardColumns = [
-  { key: 'planned', label: 'Planned', color: 'text-purple-500', dot: 'bg-purple-400' },
-  { key: 'inprogress', label: 'In Progress', color: 'text-blue-500', dot: 'bg-blue-400' },
-  { key: 'released', label: 'Released', color: 'text-green-500', dot: 'bg-green-400' },
-];
-
 const Courses = () => {
-  const [profession, setProfession] = useState('');
+  const [profession, setProfession] = useState("");
   const [loading, setLoading] = useState(false);
   const [steps, setSteps] = useState<any[]>([]);
-  const [error, setError] = useState('');
-  const [view, setView] = useState<'timeline' | 'board'>('timeline');
+  const [error, setError] = useState("");
+  const [view, setView] = useState<"timeline" | "board">("timeline");
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -38,39 +29,56 @@ const Courses = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
     setSteps([]);
     try {
-      const response = await fetch('/.netlify/functions/generateCareerPath', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/.netlify/functions/generateCareerPath", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profession }),
       });
-      if (!response.ok) throw new Error('Failed to generate career path');
+      if (!response.ok) throw new Error("Failed to generate career path");
       const data = await response.json();
       const totalTokens = data.total_tokens || 0;
-      
+
       // Increment call count and totalTokens in Firestore
       if (user) {
-        const userRef = doc(db, 'users', user.uid);
+        const userRef = doc(db, "users", user.uid);
         try {
-          console.log('[Firestore] Attempting to increment callCount and totalTokens for:', user.uid, 'Tokens:', totalTokens);
-          await setDoc(userRef, { callCount: increment(1), totalTokens: increment(totalTokens) }, { merge: true });
-          console.log('[Firestore] callCount and totalTokens incremented for:', user.uid);
+          console.log(
+            "[Firestore] Attempting to increment callCount and totalTokens for:",
+            user.uid,
+            "Tokens:",
+            totalTokens
+          );
+          await setDoc(
+            userRef,
+            { callCount: increment(1), totalTokens: increment(totalTokens) },
+            { merge: true }
+          );
+          console.log(
+            "[Firestore] callCount and totalTokens incremented for:",
+            user.uid
+          );
         } catch (e) {
-          console.error('[Firestore] Error incrementing callCount/totalTokens:', e);
+          console.error(
+            "[Firestore] Error incrementing callCount/totalTokens:",
+            e
+          );
         }
       }
 
       // For demo: randomly assign status to steps if not present
-      const statuses = ['planned', 'inprogress', 'released'];
-      const stepsWithStatus = (data.steps || []).map((step: any, idx: number) => ({
-        ...step,
-        status: step.status || statuses[idx % statuses.length],
-      }));
+      const statuses = ["planned", "inprogress", "released"];
+      const stepsWithStatus = (data.steps || []).map(
+        (step: any, idx: number) => ({
+          ...step,
+          status: step.status || statuses[idx % statuses.length],
+        })
+      );
       setSteps(stepsWithStatus);
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      setError(err.message || "Something went wrong");
     }
     setLoading(false);
   };
@@ -82,15 +90,24 @@ const Courses = () => {
         {/* Hero Section */}
         <div className="w-full flex flex-col items-center justify-center pt-28 pb-10 mb-0">
           <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">Find Your Path to Success</h1>
-            <p className="text-lg text-gray-500 mb-8">Enter your dream profession and get a personalized, actionable roadmap with the best courses and certifications to land your next job.</p>
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-xl mx-auto w-full mb-2">
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">
+              Find Your Path to Success
+            </h1>
+            <p className="text-lg text-gray-500 mb-8">
+              Enter your dream profession and get a personalized, actionable
+              roadmap with the best courses and certifications to land your next
+              job.
+            </p>
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-xl mx-auto w-full mb-2"
+            >
               <input
                 type="text"
                 className="flex-1 px-6 py-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white text-gray-900 text-lg shadow-sm transition-all placeholder:text-gray-400"
                 placeholder="e.g. Data Scientist, UX Designer, Cloud Engineer"
                 value={profession}
-                onChange={e => setProfession(e.target.value)}
+                onChange={(e) => setProfession(e.target.value)}
                 required
                 disabled={loading}
               />
@@ -109,7 +126,11 @@ const Courses = () => {
                 )}
               </button>
             </form>
-            {error && <div className="text-red-500 text-center mt-2 font-medium animate-pulse">{error}</div>}
+            {error && (
+              <div className="text-red-500 text-center mt-2 font-medium animate-pulse">
+                {error}
+              </div>
+            )}
           </div>
         </div>
 
@@ -117,14 +138,22 @@ const Courses = () => {
         <div className="flex justify-center mb-10 gap-4">
           <div className="inline-flex rounded-full bg-white border border-gray-200 p-1 shadow-sm">
             <button
-              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${view === 'timeline' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-50'}`}
-              onClick={() => setView('timeline')}
+              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
+                view === "timeline"
+                  ? "bg-blue-500 text-white"
+                  : "text-blue-600 hover:bg-blue-50"
+              }`}
+              onClick={() => setView("timeline")}
             >
               Timeline
             </button>
             <button
-              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${view === 'board' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-50'}`}
-              onClick={() => setView('board')}
+              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
+                view === "board"
+                  ? "bg-blue-500 text-white"
+                  : "text-blue-600 hover:bg-blue-50"
+              }`}
+              onClick={() => setView("board")}
             >
               Board
             </button>
@@ -132,33 +161,65 @@ const Courses = () => {
         </div>
 
         {/* Roadmap Section */}
-        {view === 'timeline' && (
+        {view === "timeline" && (
           <div className="w-full max-w-6xl mx-auto pb-16">
             {steps.length > 0 && (
               <>
-                <div className="relative rounded-2xl py-12 px-2 shadow-md overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div
+                  className="relative rounded-2xl py-12 px-2 shadow-md overflow-x-auto scrollbar-hide"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
                   {/* Horizontal timeline with scroll */}
-                  <div className="flex items-center relative min-w-[700px]" style={{ minWidth: steps.length * 260 + 'px' }}>
+                  <div
+                    className="flex items-center relative min-w-[700px]"
+                    style={{ minWidth: steps.length * 260 + "px" }}
+                  >
                     {/* Timeline line */}
-                    <div className="absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-gray-100 rounded-full z-0" style={{ transform: 'translateY(-50%)' }} />
+                    <div
+                      className="absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-gray-100 rounded-full z-0"
+                      style={{ transform: "translateY(-50%)" }}
+                    />
                     {steps.map((step, idx) => {
                       const Icon = stepIcons[idx % stepIcons.length];
                       // Active color for first N steps, gray for the rest
                       const isActive = idx === 0 || idx === 1 || idx === 2; // Example: first 3 active
-                      const dotColor = isActive ? 'bg-blue-400 border-blue-400' : 'bg-gray-200 border-gray-300';
+                      const dotColor = isActive
+                        ? "bg-blue-400 border-blue-400"
+                        : "bg-gray-200 border-gray-300";
                       return (
-                        <div key={idx} className="relative flex flex-col items-center mx-6 z-10" style={{ minWidth: 240 }}>
+                        <div
+                          key={idx}
+                          className="relative flex flex-col items-center mx-6 z-10"
+                          style={{ minWidth: 240 }}
+                        >
                           <div className="relative flex flex-col items-center w-full">
                             {/* Card above the line */}
-                            <div className={`bg-white rounded-xl border ${isActive ? 'border-blue-400 shadow-md' : 'border-gray-100 shadow-sm'} px-7 py-6 text-left text-gray-900 transition-all w-full`}>
-                              <div className="text-lg font-semibold mb-2">Step {idx + 1}</div>
-                              <div className="text-sm text-blue-700 mb-2">{step.title}</div>
-                              <div className="text-xs text-gray-500 mb-2">{step.description}</div>
+                            <div
+                              className={`bg-white rounded-xl border ${
+                                isActive
+                                  ? "border-blue-400 shadow-md"
+                                  : "border-gray-100 shadow-sm"
+                              } px-7 py-6 text-left text-gray-900 transition-all w-full`}
+                            >
+                              <div className="text-lg font-semibold mb-2">
+                                Step {idx + 1}
+                              </div>
+                              <div className="text-sm text-blue-700 mb-2">
+                                {step.title}
+                              </div>
+                              <div className="text-xs text-gray-500 mb-2">
+                                {step.description}
+                              </div>
                               {step.links && step.links.length > 0 && (
                                 <ul className="list-disc ml-5 space-y-1 text-xs text-blue-500 mt-2">
                                   {step.links.map((link: any, lidx: number) => (
                                     <li key={lidx}>
-                                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                                      <a
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="hover:underline flex items-center gap-1"
+                                      >
                                         <BookOpenIcon className="w-3 h-3 inline-block" />
                                         {link.label}
                                       </a>
@@ -168,7 +229,9 @@ const Courses = () => {
                               )}
                             </div>
                             {/* Node on the line, always centered below card */}
-                            <div className={`absolute left-1/2 -bottom-5 -translate-x-1/2 w-6 h-6 rounded-full border-4 ${dotColor} flex items-center justify-center z-20`}>
+                            <div
+                              className={`absolute left-1/2 -bottom-5 -translate-x-1/2 w-6 h-6 rounded-full border-4 ${dotColor} flex items-center justify-center z-20`}
+                            >
                               <Icon className="w-3.5 h-3.5 text-white" />
                             </div>
                           </div>
@@ -182,10 +245,16 @@ const Courses = () => {
                   </div>
                   {/* Navigation arrows (scroll buttons) */}
                   <div className="flex justify-center mt-8 gap-2">
-                    <button className="w-8 h-8 rounded bg-white text-blue-400 flex items-center justify-center border border-blue-200 hover:bg-blue-100 hover:text-blue-600 transition-all" aria-label="Scroll left">
+                    <button
+                      className="w-8 h-8 rounded bg-white text-blue-400 flex items-center justify-center border border-blue-200 hover:bg-blue-100 hover:text-blue-600 transition-all"
+                      aria-label="Scroll left"
+                    >
                       <span className="text-lg">&#60;</span>
                     </button>
-                    <button className="w-8 h-8 rounded bg-white text-blue-400 flex items-center justify-center border border-blue-200 hover:bg-blue-100 hover:text-blue-600 transition-all" aria-label="Scroll right">
+                    <button
+                      className="w-8 h-8 rounded bg-white text-blue-400 flex items-center justify-center border border-blue-200 hover:bg-blue-100 hover:text-blue-600 transition-all"
+                      aria-label="Scroll right"
+                    >
                       <span className="text-lg">&#62;</span>
                     </button>
                   </div>
@@ -197,22 +266,36 @@ const Courses = () => {
 
         {/* How it works Section */}
         <div className="w-full max-w-4xl mx-auto mt-20 mb-12">
-          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">How it works</h2>
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
+            How it works
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
               <div className="text-3xl font-bold text-blue-500 mb-2">1</div>
-              <div className="font-semibold text-gray-900 mb-1">Enter Profession</div>
-              <div className="text-gray-500 text-sm">Type your dream job or field to get started.</div>
+              <div className="font-semibold text-gray-900 mb-1">
+                Enter Profession
+              </div>
+              <div className="text-gray-500 text-sm">
+                Type your dream job or field to get started.
+              </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
               <div className="text-3xl font-bold text-blue-500 mb-2">2</div>
-              <div className="font-semibold text-gray-900 mb-1">Get Roadmap</div>
-              <div className="text-gray-500 text-sm">Receive a step-by-step, AI-powered learning path.</div>
+              <div className="font-semibold text-gray-900 mb-1">
+                Get Roadmap
+              </div>
+              <div className="text-gray-500 text-sm">
+                Receive a step-by-step, AI-powered learning path.
+              </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
               <div className="text-3xl font-bold text-blue-500 mb-2">3</div>
-              <div className="font-semibold text-gray-900 mb-1">Start Learning</div>
-              <div className="text-gray-500 text-sm">Follow the roadmap and achieve your career goals.</div>
+              <div className="font-semibold text-gray-900 mb-1">
+                Start Learning
+              </div>
+              <div className="text-gray-500 text-sm">
+                Follow the roadmap and achieve your career goals.
+              </div>
             </div>
           </div>
         </div>
@@ -254,4 +337,4 @@ const Courses = () => {
   );
 };
 
-export default Courses; 
+export default Courses;
