@@ -184,11 +184,11 @@ const LandingPage = () => {
       </div>
       {/* Cover Letter Feature Section */}
       <div
-        className="mt-12 max-w-2xl mx-auto bg-blue-50 border border-blue-200 rounded-xl p-8 shadow-md"
+        className="mt-12 max-w-2xl mx-auto bg-blue-50 border border-blue-200 rounded-xl p-8 shadow-md flex flex-col items-center text-center"
         data-aos="fade-up"
         data-aos-delay="300"
       >
-        <div className="flex items-center mb-3">
+        <div className="flex items-center mb-3 justify-center">
           <DocumentTextIcon className="h-7 w-7 text-blue-600 mr-2" />
           <h2 className="text-2xl font-bold text-blue-700">
             ✨ New: AI Cover Letter Generator
@@ -260,23 +260,25 @@ const LandingPage = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100"
-              data-aos="fade-up"
-              data-aos-delay={index * 100}
-            >
-              <div className="bg-green-50 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                <feature.icon className="w-7 h-7 text-green-600" />
+        <div className="flex justify-center">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <div
+                key={feature.title}
+                className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100"
+                data-aos="fade-up"
+                data-aos-delay={index * 100}
+              >
+                <div className="bg-green-50 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                  <feature.icon className="w-7 h-7 text-green-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600">{feature.description}</p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                {feature.title}
-              </h3>
-              <p className="text-gray-600">{feature.description}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
