@@ -13,6 +13,126 @@ import Footer from "./Footer";
 
 const stepIcons = [AcademicCapIcon, BookOpenIcon, CheckCircleIcon];
 
+// MOCKED STEPS DATA FOR DEMO (replace with real API data structure as needed)
+const mockSteps = [
+  {
+    id: "you",
+    title: "You",
+    description: "",
+    prerequisiteIds: [],
+    childrenIds: ["bachelor"],
+  },
+  {
+    id: "bachelor",
+    title: "Bachelor's Degree",
+    description: "Complete a relevant degree",
+    prerequisiteIds: ["you"],
+    childrenIds: ["creative", "brand", "digital"],
+  },
+  {
+    id: "creative",
+    title: "Creative Director",
+    description: "Lead creative teams",
+    prerequisiteIds: ["bachelor"],
+    childrenIds: [],
+  },
+  {
+    id: "brand",
+    title: "Brand Manager",
+    description: "Manage brand strategy",
+    prerequisiteIds: ["bachelor"],
+    childrenIds: [],
+  },
+  {
+    id: "digital",
+    title: "Digital Marketing Director",
+    description: "Oversee digital marketing",
+    prerequisiteIds: ["bachelor"],
+    childrenIds: ["ux", "editor"],
+  },
+  {
+    id: "ux",
+    title: "UX Writer",
+    description: "Write for user experience",
+    prerequisiteIds: ["digital"],
+    childrenIds: [],
+  },
+  {
+    id: "editor",
+    title: "Senior Editor",
+    description: "Edit and manage content",
+    prerequisiteIds: ["digital"],
+    childrenIds: [],
+  },
+];
+
+// Helper: build a map for quick lookup (for any steps array)
+function buildStepMap(stepsArr: any[]) {
+  return Object.fromEntries((stepsArr || []).map((s) => [s.id, s]));
+}
+
+// Helper: recursively render the flowchart for any steps array
+function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
+  const step = stepMap[id];
+  if (!step) return null;
+  const children = (step.childrenIds || [])
+    .map((cid: string) => stepMap[cid])
+    .filter(Boolean);
+  return (
+    <div className="flex flex-col items-center relative">
+      {/* Prerequisite note */}
+      {step.prerequisiteIds &&
+        step.prerequisiteIds.length > 0 &&
+        step.id !== "you" && (
+          <div className="text-xs text-gray-400 mb-1">
+            Prerequisite:{" "}
+            {step.prerequisiteIds
+              .map((pid: string) => stepMap[pid]?.title)
+              .join(", ")}
+          </div>
+        )}
+      {/* Node card */}
+      <div className="bg-white rounded-xl shadow border px-6 py-3 mb-4 text-center min-w-[180px]">
+        <div className="font-semibold text-lg mb-1">{step.title}</div>
+        {step.description && (
+          <div className="text-xs text-gray-500">{step.description}</div>
+        )}
+      </div>
+      {/* Draw lines to children */}
+      {children.length > 0 && (
+        <div className="flex flex-row justify-center items-start w-full relative">
+          {/* SVG lines */}
+          <svg
+            height="30"
+            width={children.length * 200}
+            className="absolute left-1/2 -translate-x-1/2"
+            style={{ top: 0, zIndex: 0 }}
+          >
+            {children.map((child: any, i: number) => (
+              <line
+                key={child.id}
+                x1={children.length === 1 ? 100 : 100 + i * 200}
+                y1={0}
+                x2={children.length === 1 ? 100 : 100 + i * 200}
+                y2={30}
+                stroke="#bbb"
+                strokeDasharray="6,4"
+                strokeWidth="2"
+              />
+            ))}
+          </svg>
+          {/* Children nodes */}
+          {children.map((child: any, i: number) => (
+            <div key={child.id} className="mx-4 mt-8">
+              <FlowNodeGeneric id={child.id} stepMap={stepMap} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const Courses = () => {
   const [profession, setProfession] = useState("");
   const [loading, setLoading] = useState(false);
@@ -163,104 +283,17 @@ const Courses = () => {
         {/* Roadmap Section */}
         {view === "timeline" && (
           <div className="w-full max-w-6xl mx-auto pb-16">
-            {steps.length > 0 && (
-              <>
-                <div
-                  className="relative rounded-2xl py-12 px-2 shadow-md overflow-x-auto scrollbar-hide"
-                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                >
-                  {/* Horizontal timeline with scroll */}
-                  <div
-                    className="flex items-center relative min-w-[700px]"
-                    style={{ minWidth: steps.length * 260 + "px" }}
-                  >
-                    {/* Timeline line */}
-                    <div
-                      className="absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-gray-100 rounded-full z-0"
-                      style={{ transform: "translateY(-50%)" }}
-                    />
-                    {steps.map((step, idx) => {
-                      const Icon = stepIcons[idx % stepIcons.length];
-                      // Active color for first N steps, gray for the rest
-                      const isActive = idx === 0 || idx === 1 || idx === 2; // Example: first 3 active
-                      const dotColor = isActive
-                        ? "bg-blue-400 border-blue-400"
-                        : "bg-gray-200 border-gray-300";
-                      return (
-                        <div
-                          key={idx}
-                          className="relative flex flex-col items-center mx-6 z-10"
-                          style={{ minWidth: 240 }}
-                        >
-                          <div className="relative flex flex-col items-center w-full">
-                            {/* Card above the line */}
-                            <div
-                              className={`bg-white rounded-xl border ${
-                                isActive
-                                  ? "border-blue-400 shadow-md"
-                                  : "border-gray-100 shadow-sm"
-                              } px-7 py-6 text-left text-gray-900 transition-all w-full`}
-                            >
-                              <div className="text-lg font-semibold mb-2">
-                                Step {idx + 1}
-                              </div>
-                              <div className="text-sm text-blue-700 mb-2">
-                                {step.title}
-                              </div>
-                              <div className="text-xs text-gray-500 mb-2">
-                                {step.description}
-                              </div>
-                              {step.links && step.links.length > 0 && (
-                                <ul className="list-disc ml-5 space-y-1 text-xs text-blue-500 mt-2">
-                                  {step.links.map((link: any, lidx: number) => (
-                                    <li key={lidx}>
-                                      <a
-                                        href={link.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="hover:underline flex items-center gap-1"
-                                      >
-                                        <BookOpenIcon className="w-3 h-3 inline-block" />
-                                        {link.label}
-                                      </a>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                            {/* Node on the line, always centered below card */}
-                            <div
-                              className={`absolute left-1/2 -bottom-5 -translate-x-1/2 w-6 h-6 rounded-full border-4 ${dotColor} flex items-center justify-center z-20`}
-                            >
-                              <Icon className="w-3.5 h-3.5 text-white" />
-                            </div>
-                          </div>
-                          {/* Connector line to next node (except last) */}
-                          {idx < steps.length - 1 && (
-                            <div className="w-24 h-px bg-gray-200 my-8" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Navigation arrows (scroll buttons) */}
-                  <div className="flex justify-center mt-8 gap-2">
-                    <button
-                      className="w-8 h-8 rounded bg-white text-blue-400 flex items-center justify-center border border-blue-200 hover:bg-blue-100 hover:text-blue-600 transition-all"
-                      aria-label="Scroll left"
-                    >
-                      <span className="text-lg">&#60;</span>
-                    </button>
-                    <button
-                      className="w-8 h-8 rounded bg-white text-blue-400 flex items-center justify-center border border-blue-200 hover:bg-blue-100 hover:text-blue-600 transition-all"
-                      aria-label="Scroll right"
-                    >
-                      <span className="text-lg">&#62;</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            {/* FLOWCHART RENDERING */}
+            <div className="flex flex-col items-center">
+              {steps && steps.length > 0 ? (
+                <FlowNodeGeneric
+                  id={steps[0].id}
+                  stepMap={buildStepMap(steps)}
+                />
+              ) : (
+                <FlowNodeGeneric id="you" stepMap={buildStepMap(mockSteps)} />
+              )}
+            </div>
           </div>
         )}
 
