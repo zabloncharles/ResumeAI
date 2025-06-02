@@ -94,34 +94,28 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
       {/* Draw lines to children */}
       {children.length > 0 && (
         <div className="flex flex-row justify-center items-start w-full relative">
-          {/* SVG lines */}
-          <svg
-            height="30"
-            width={children.length * 200}
-            className="absolute left-1/2 -translate-x-1/2"
-            style={{ top: 0, zIndex: 0 }}
-          >
-            {children.map((child: any) => (
-              <line
-                key={child.id}
-                x1={
-                  children.length === 1
-                    ? 100
-                    : 100 + child.id.charCodeAt(0) * 200
-                }
-                y1={0}
-                x2={
-                  children.length === 1
-                    ? 100
-                    : 100 + child.id.charCodeAt(0) * 200
-                }
-                y2={30}
-                stroke="#bbb"
-                strokeDasharray="6,4"
-                strokeWidth="2"
-              />
-            ))}
-          </svg>
+          {/* SVG lines for each child, supporting multiple prerequisites */}
+          {children.map((child: any) => (
+            <svg
+              key={child.id}
+              height="30"
+              width="200"
+              className="absolute left-1/2 -translate-x-1/2"
+              style={{ top: 0, zIndex: 0 }}
+            >
+              {child.prerequisiteIds && child.prerequisiteIds.includes(id) && (
+                <line
+                  x1={100}
+                  y1={0}
+                  x2={100}
+                  y2={30}
+                  stroke="#bbb"
+                  strokeDasharray="6,4"
+                  strokeWidth="2"
+                />
+              )}
+            </svg>
+          ))}
           {/* Children nodes */}
           {children.map((child: any) => (
             <div key={child.id} className="mx-4 mt-8">
