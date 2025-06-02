@@ -1,17 +1,10 @@
 import Navbar from "./Navbar";
 import { useState, useEffect } from "react";
-import {
-  AcademicCapIcon,
-  CheckCircleIcon,
-  ArrowRightIcon,
-  BookOpenIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, increment } from "firebase/firestore";
 import Footer from "./Footer";
-
-const stepIcons = [AcademicCapIcon, BookOpenIcon, CheckCircleIcon];
 
 // MOCKED STEPS DATA FOR DEMO (replace with real API data structure as needed)
 const mockSteps = [
@@ -108,12 +101,20 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
             className="absolute left-1/2 -translate-x-1/2"
             style={{ top: 0, zIndex: 0 }}
           >
-            {children.map((child: any, i: number) => (
+            {children.map((child: any) => (
               <line
                 key={child.id}
-                x1={children.length === 1 ? 100 : 100 + i * 200}
+                x1={
+                  children.length === 1
+                    ? 100
+                    : 100 + child.id.charCodeAt(0) * 200
+                }
                 y1={0}
-                x2={children.length === 1 ? 100 : 100 + i * 200}
+                x2={
+                  children.length === 1
+                    ? 100
+                    : 100 + child.id.charCodeAt(0) * 200
+                }
                 y2={30}
                 stroke="#bbb"
                 strokeDasharray="6,4"
@@ -122,7 +123,7 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
             ))}
           </svg>
           {/* Children nodes */}
-          {children.map((child: any, i: number) => (
+          {children.map((child: any) => (
             <div key={child.id} className="mx-4 mt-8">
               <FlowNodeGeneric id={child.id} stepMap={stepMap} />
             </div>
