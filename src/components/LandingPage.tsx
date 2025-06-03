@@ -243,7 +243,7 @@ const LandingPage = () => {
       </div>
 
       {/* AI Features Section */}
-      <div className="bg-gray-50 py-20" data-aos="fade-up">
+      <div className="py-20" data-aos="fade-up">
         <div className="max-w-7xl mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center" data-aos="fade-right">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">
