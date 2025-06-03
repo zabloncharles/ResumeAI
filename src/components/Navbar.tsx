@@ -61,7 +61,7 @@ const Navbar = () => {
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
               <img src={bunny1} alt="Brightfolio Logo" className="h-8 w-8" />
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black bg-clip-text text-transparent">
                 Brightfolio
               </span>
             </Link>
@@ -98,7 +98,7 @@ const Navbar = () => {
               }`}
             >
               <DocumentTextIcon className="h-5 w-5" />
-              <span>Courses</span>
+              <span>Career Path</span>
             </Link>
             <Link
               to="/jobs"
@@ -265,7 +265,7 @@ const Navbar = () => {
             >
               <div className="flex items-center space-x-2">
                 <DocumentTextIcon className="h-5 w-5" />
-                <span>Courses</span>
+                <span>Career Path</span>
               </div>
             </Link>
             <Link

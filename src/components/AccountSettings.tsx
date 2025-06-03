@@ -1,38 +1,30 @@
-import { useEffect, useState } from 'react';
-import { auth } from '../firebase';
-import { onAuthStateChanged, signOut, User, sendEmailVerification, updateProfile } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { Switch } from '@headlessui/react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import zipcodes from 'zipcodes';
-
-const US_STATES = [
-  { name: 'Alabama', cities: ['Birmingham', 'Montgomery', 'Mobile'] },
-  { name: 'California', cities: ['Los Angeles', 'San Francisco', 'San Diego'] },
-  { name: 'New York', cities: ['New York City', 'Buffalo', 'Rochester'] },
-  { name: 'Texas', cities: ['Houston', 'Dallas', 'Austin'] },
-  { name: 'Florida', cities: ['Miami', 'Orlando', 'Tampa'] },
-  // ...add more as needed
-];
+import { useState, useEffect } from "react";
+import Navbar from "./Navbar";
+import { auth, db } from "../firebase";
+import { signOut, onAuthStateChanged, User } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
 
 const AccountSettings = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [verificationSent, setVerificationSent] = useState(false);
-  const [verificationError, setVerificationError] = useState<string | null>(null);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [personalInfo, setPersonalInfo] = useState({ firstName: '', lastName: '', phone: '', state: '', zip: '' });
-  const [personalInfoLoading, setPersonalInfoLoading] = useState(false);
-  const [personalInfoSaved, setPersonalInfoSaved] = useState(false);
-  const [showPersonal, setShowPersonal] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showAppSettings, setShowAppSettings] = useState(false);
-  const [showApiUsage, setShowApiUsage] = useState(false);
-  const [apiLoading, setApiLoading] = useState(false);
-  const [apiCallCount, setApiCallCount] = useState<number | null>(null);
-  const [apiTotalTokens, setApiTotalTokens] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    state: "",
+    zip: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [user, setUser] = useState<User | null>(null);
+  const [apiUsage, setApiUsage] = useState<{
+    callCount: number;
+    totalTokens: number;
+    lastUsed: string;
+  } | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -40,251 +32,273 @@ const AccountSettings = () => {
   }, []);
 
   useEffect(() => {
-    if (!user || !showPersonal) return;
-    const fetchPersonalInfo = async () => {
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setPersonalInfo({
-          firstName: user.displayName?.split(' ')[0] || '',
-          lastName: user.displayName?.split(' ')[1] || '',
-          phone: docSnap.data().phone || '',
-          state: docSnap.data().state || '',
-          zip: docSnap.data().zip || ''
-        });
+    if (!user) return;
+    const fetchUsage = async () => {
+      setLoadingUsage(true);
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          setApiUsage({
+            callCount: data.callCount || 0,
+            totalTokens: data.totalTokens || 0,
+            lastUsed: data.lastUsed || "-",
+          });
+          setFormData((prev) => ({
+            ...prev,
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+            email: data.email || user.email || "",
+            phone: data.phone || "",
+            state: data.state || "",
+            zip: data.zip || "",
+          }));
+        } else {
+          setApiUsage({ callCount: 0, totalTokens: 0, lastUsed: "-" });
+        }
+      } catch (e) {
+        setApiUsage({ callCount: 0, totalTokens: 0, lastUsed: "-" });
       }
+      setLoadingUsage(false);
     };
-    fetchPersonalInfo();
-  }, [user, showPersonal]);
+    fetchUsage();
+  }, [user]);
 
-  useEffect(() => {
-    if (!user || !showApiUsage) return;
-    setApiLoading(true);
-    const fetchApiUsage = async () => {
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setApiCallCount(docSnap.data().callCount || 0);
-        setApiTotalTokens(docSnap.data().totalTokens || 0);
-      }
-      setApiLoading(false);
-    };
-    fetchApiUsage();
-  }, [user, showApiUsage]);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle form submission
+    console.log("Form submitted:", formData);
+  };
 
   const handleSignOut = async () => {
-    await signOut(auth);
-  };
-
-  const handleResendVerification = async () => {
-    setVerificationError(null);
-    setVerificationSent(false);
-    if (user) {
-      try {
-        await sendEmailVerification(user);
-        setVerificationSent(true);
-      } catch (err: any) {
-        setVerificationError('Failed to send verification email.');
-      }
-    }
-  };
-
-  const isEmailPasswordUser = user?.providerData.some(p => p.providerId === 'password');
-
-  const handlePersonalInfoChange = (field: keyof typeof personalInfo, value: string) => {
-    if (field === 'zip') {
-      const lookup = zipcodes.lookup(value);
-      if (lookup && lookup.state) {
-        const abbr = lookup.state;
-        const fullName = zipcodes.states.abbr[abbr];
-        const found = US_STATES.find(s => s.name.toLowerCase() === (fullName ? fullName.toLowerCase() : ''));
-        setPersonalInfo(prev => ({
-          ...prev,
-          zip: value,
-          state: found ? found.name : abbr
-        }));
-        return;
-      }
-    }
-    setPersonalInfo(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSavePersonalInfo = async () => {
-    if (!user) return;
-    setPersonalInfoLoading(true);
-    setPersonalInfoSaved(false);
     try {
-      await updateProfile(user, {
-        displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
-      });
-      await setDoc(doc(db, 'users', user.uid), {
-        firstName: personalInfo.firstName,
-        lastName: personalInfo.lastName,
-        state: personalInfo.state,
-        phone: personalInfo.phone,
-        zip: personalInfo.zip
-      }, { merge: true });
-      setPersonalInfoSaved(true);
-    } catch (e) {
-      // Optionally handle error
+      await signOut(auth);
+      navigate("/");
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
-    setPersonalInfoLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="relative max-w-md w-full space-y-8 bg-white rounded-2xl shadow-2xl p-10 border border-gray-100">
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute -top-4 -left-4 flex items-center px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow hover:bg-gray-50 transition-colors"
-        >
-          <ArrowLeftIcon className="h-5 w-5 text-blue-600 mr-1" />
-          <span className="text-blue-600 font-medium">Back</span>
-        </button>
-        <h2 className="text-3xl font-extrabold text-gray-900 mb-8 text-center tracking-tight">Account Settings</h2>
-        {user ? (
-          <div className="space-y-6 flex flex-col h-full">
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center text-3xl font-bold text-blue-700 mb-3 shadow">
-                {user.displayName ? user.displayName[0] : user.email?.[0]}
-              </div>
-              <div className="text-xl font-semibold text-gray-800">{user.displayName || user.email}</div>
-              <div className="text-sm text-gray-500">{user.email}</div>
-            </div>
-            {isEmailPasswordUser && !user.emailVerified && (
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg mb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-yellow-800 font-semibold">Account not confirmed</div>
-                    <div className="text-yellow-700 text-sm mt-1">Your email address is not verified. Please check your inbox or spam folder for a confirmation link.</div>
-                  </div>
-                  <button
-                    onClick={handleResendVerification}
-                    className="ml-4 px-3 py-1.5 bg-yellow-400 text-yellow-900 rounded font-semibold hover:bg-yellow-500 transition-colors"
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-16">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-8">
+            Account Settings
+          </h1>
+
+          {/* Personal Information Section */}
+          <div className="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Personal Information
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="firstName"
+                    className="block text-sm font-medium text-gray-700"
                   >
-                    Resend Confirmation Link
-                  </button>
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                  />
                 </div>
-                {verificationSent && <div className="text-green-600 text-sm mt-2">Verification email sent!</div>}
-                {verificationError && <div className="text-red-600 text-sm mt-2">{verificationError}</div>}
+                <div>
+                  <label
+                    htmlFor="lastName"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Phone
+                  </label>
+                  <input
+                    type="text"
+                    name="phone"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="state"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    id="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="zip"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Zip
+                  </label>
+                  <input
+                    type="text"
+                    name="zip"
+                    id="zip"
+                    value={formData.zip}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    id="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-[#16aeac] text-white rounded-md hover:bg-[#138a88] transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Account Usage Section */}
+          <div className="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Account Usage
+            </h2>
+            {loadingUsage ? (
+              <div className="text-gray-500">Loading usage data...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-500">Total API Calls</div>
+                  <div className="text-2xl font-bold text-[#16aeac]">
+                    {apiUsage?.callCount ?? 0}
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-500">Total Tokens Used</div>
+                  <div className="text-2xl font-bold text-[#16aeac]">
+                    {apiUsage?.totalTokens?.toLocaleString?.() ?? 0}
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-500">Last Used</div>
+                  <div className="text-2xl font-bold text-[#16aeac]">
+                    {apiUsage?.lastUsed ?? "-"}
+                  </div>
+                </div>
               </div>
             )}
-            <div className="mb-4">
-              <button
-                className="w-full flex justify-between items-center px-4 py-3 bg-gray-100 rounded-t-lg text-left text-lg font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none"
-                onClick={() => setShowPersonal((v) => !v)}
-              >
-                <span>Personal Information</span>
-                <span>{showPersonal ? '▲' : '▼'}</span>
-              </button>
-              {showPersonal && (
-                <div className="bg-gray-50 p-5 rounded-b-lg border border-dashed border-gray-200 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.firstName} onChange={e => handlePersonalInfoChange('firstName', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.lastName} onChange={e => handlePersonalInfoChange('lastName', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.phone} onChange={e => handlePersonalInfoChange('phone', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                      <input type="text" className="w-full rounded border-gray-300 bg-gray-100 cursor-not-allowed" value={personalInfo.state} readOnly tabIndex={-1} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
-                      <input type="text" className="w-full rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500" value={personalInfo.zip} onChange={e => handlePersonalInfoChange('zip', e.target.value)} />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleSavePersonalInfo}
-                    className="mt-4 px-6 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition-colors"
-                    disabled={personalInfoLoading}
-                  >
-                    {personalInfoLoading ? 'Saving...' : 'Save'}
-                  </button>
-                  {personalInfoSaved && <div className="text-green-600 text-sm mt-2">Personal information saved!</div>}
+          </div>
+
+          {/* App Settings Section */}
+          <div className="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              App Settings
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-medium text-gray-900">
+                    Email Notifications
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Receive updates about your account activity
+                  </p>
                 </div>
-              )}
-            </div>
-            <div className="mb-4">
-              <button
-                className="w-full flex justify-between items-center px-4 py-3 bg-gray-100 rounded-t-lg text-left text-lg font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none"
-                onClick={() => setShowNotifications((v) => !v)}
-              >
-                <span>Notifications</span>
-                <span>{showNotifications ? '▲' : '▼'}</span>
-              </button>
-              {showNotifications && (
-                <div className="flex items-center justify-between bg-gray-50 p-5 rounded-b-lg border border-dashed border-gray-200">
-                  <span className="text-base text-gray-700">Email Notifications</span>
-                  <Switch
-                    checked={emailNotifications}
-                    onChange={setEmailNotifications}
-                    className={`${emailNotifications ? 'bg-blue-600' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none`}
-                  >
-                    <span className="sr-only">Enable email notifications</span>
-                    <span
-                      className={`${emailNotifications ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                    />
-                  </Switch>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#16aeac]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16aeac]"></div>
+                </label>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-medium text-gray-900">
+                    Dark Mode
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Switch between light and dark theme
+                  </p>
                 </div>
-              )}
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#16aeac]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16aeac]"></div>
+                </label>
+              </div>
             </div>
-            <div className="mb-4">
-              <button
-                className="w-full flex justify-between items-center px-4 py-3 bg-gray-100 rounded-t-lg text-left text-lg font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none"
-                onClick={() => setShowApiUsage((v) => !v)}
-              >
-                <span>API Usage</span>
-                <span>{showApiUsage ? '▲' : '▼'}</span>
-              </button>
-              {showApiUsage && (
-                <div className="bg-gray-50 p-5 rounded-b-lg border border-dashed border-gray-200 space-y-2">
-                  {apiLoading ? (
-                    <div className="text-gray-500 text-sm">Loading usage...</div>
-                  ) : (
-                    <>
-                      <div className="text-base text-blue-700 font-semibold">AI Calls Used: {apiCallCount}</div>
-                      <div className="text-base text-purple-700 font-semibold">Total Tokens Used: {apiTotalTokens}</div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="mb-8">
-              <button
-                className="w-full flex justify-between items-center px-4 py-3 bg-gray-100 rounded-t-lg text-left text-lg font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none"
-                onClick={() => setShowAppSettings((v) => !v)}
-              >
-                <span>App Settings</span>
-                <span>{showAppSettings ? '▲' : '▼'}</span>
-              </button>
-              {showAppSettings && (
-                <div className="bg-gray-50 p-5 rounded-b-lg text-gray-500 text-base border border-dashed border-gray-200">
-                  (Settings coming soon)
-                </div>
-              )}
-            </div>
-            <div className="flex-1" />
+          </div>
+
+          {/* Sign Out Section */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Sign Out
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Sign out of your account. You can sign back in at any time.
+            </p>
             <button
               onClick={handleSignOut}
-              className="w-full py-2 px-4 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg font-semibold hover:from-red-600 hover:to-pink-600 shadow transition-colors mt-8"
+              className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
             >
               Sign Out
             </button>
           </div>
-        ) : (
-          <div className="text-center text-gray-500">Loading user info...</div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
-export default AccountSettings; 
+export default AccountSettings;
