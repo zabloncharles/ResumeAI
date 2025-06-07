@@ -25,10 +25,21 @@ const AccountSettings = () => {
     lastUsed: string;
   } | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
+  const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
+  const [userType, setUserType] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    } else {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        setUser(firebaseUser);
+        if (firebaseUser)
+          localStorage.setItem("user", JSON.stringify(firebaseUser));
+      });
+      return () => unsubscribe();
+    }
   }, []);
 
   useEffect(() => {
@@ -40,6 +51,7 @@ const AccountSettings = () => {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const data = userSnap.data();
+          setUserType(data.type || "free");
           setApiUsage({
             callCount: data.callCount || 0,
             totalTokens: data.totalTokens || 0,
@@ -54,10 +66,13 @@ const AccountSettings = () => {
             state: data.state || "",
             zip: data.zip || "",
           }));
+          localStorage.setItem("userData", JSON.stringify(data));
         } else {
+          setUserType("free");
           setApiUsage({ callCount: 0, totalTokens: 0, lastUsed: "-" });
         }
       } catch (e) {
+        setUserType("free");
         setApiUsage({ callCount: 0, totalTokens: 0, lastUsed: "-" });
       }
       setLoadingUsage(false);
@@ -82,6 +97,10 @@ const AccountSettings = () => {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      localStorage.removeItem("user");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("resume");
+      // Add any other keys you use for sensitive data here
       navigate("/");
     } catch (error) {
       console.error("Error signing out:", error);
@@ -93,12 +112,12 @@ const AccountSettings = () => {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-16">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-8 bg-gradient-to-r from-green-500 to-black text-transparent bg-clip-text">
             Account Settings
           </h1>
 
           {/* Personal Information Section */}
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <div className="bg-white/80 backdrop-blur-md shadow rounded-lg p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               Personal Information
             </h2>
@@ -117,7 +136,7 @@ const AccountSettings = () => {
                     id="firstName"
                     value={formData.firstName}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 h-10 pl-4"
                   />
                 </div>
                 <div>
@@ -133,7 +152,7 @@ const AccountSettings = () => {
                     id="lastName"
                     value={formData.lastName}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 h-10 pl-4"
                   />
                 </div>
                 <div>
@@ -149,7 +168,7 @@ const AccountSettings = () => {
                     id="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 h-10 pl-4"
                   />
                 </div>
                 <div>
@@ -165,7 +184,7 @@ const AccountSettings = () => {
                     id="state"
                     value={formData.state}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 h-10 pl-4"
                   />
                 </div>
                 <div>
@@ -181,7 +200,7 @@ const AccountSettings = () => {
                     id="zip"
                     value={formData.zip}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 h-10 pl-4"
                   />
                 </div>
                 <div>
@@ -197,14 +216,14 @@ const AccountSettings = () => {
                     id="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac]"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 h-10 pl-4"
                   />
                 </div>
               </div>
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-[#16aeac] text-white rounded-md hover:bg-[#138a88] transition-colors"
+                  className="inline-flex justify-center rounded-md bg-gradient-to-r from-green-500 to-yellow-500 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-green-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm"
                 >
                   Save Changes
                 </button>
@@ -213,7 +232,7 @@ const AccountSettings = () => {
           </div>
 
           {/* Account Usage Section */}
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <div className="bg-white/80 backdrop-blur-md shadow rounded-lg p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               Account Usage
             </h2>
@@ -223,19 +242,19 @@ const AccountSettings = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-sm text-gray-500">Total API Calls</div>
-                  <div className="text-2xl font-bold text-[#16aeac]">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-green-500 to-yellow-500 text-transparent bg-clip-text">
                     {apiUsage?.callCount ?? 0}
                   </div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-sm text-gray-500">Total Tokens Used</div>
-                  <div className="text-2xl font-bold text-[#16aeac]">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-green-500 to-yellow-500 text-transparent bg-clip-text">
                     {apiUsage?.totalTokens?.toLocaleString?.() ?? 0}
                   </div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-sm text-gray-500">Last Used</div>
-                  <div className="text-2xl font-bold text-[#16aeac]">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-green-500 to-yellow-500 text-transparent bg-clip-text">
                     {apiUsage?.lastUsed ?? "-"}
                   </div>
                 </div>
@@ -244,44 +263,96 @@ const AccountSettings = () => {
           </div>
 
           {/* App Settings Section */}
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <div className="bg-white/80 backdrop-blur-md shadow rounded-lg p-6 mb-6">
+            <h2
+              className="text-xl font-semibold text-gray-900 mb-4 cursor-pointer select-none flex items-center justify-between"
+              onClick={() => setIsAppSettingsOpen((open) => !open)}
+            >
               App Settings
+              <span
+                className="ml-2 transition-transform duration-200"
+                style={{
+                  transform: isAppSettingsOpen
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="text-gray-500"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </span>
             </h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-medium text-gray-900">
-                    Email Notifications
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Receive updates about your account activity
-                  </p>
+            <p className="text-sm text-gray-500 mb-4 -mt-2">
+              Manage advanced features and preferences for your account.
+            </p>
+            {isAppSettingsOpen && (
+              <div className="space-y-4">
+                {/* Dashboard button for admin only */}
+                {userType === "admin" && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-medium text-gray-900">
+                        Dashboard
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Access the admin dashboard for advanced analytics and
+                        management.
+                      </p>
+                    </div>
+                    <button
+                      className="inline-flex justify-center rounded-md bg-gradient-to-r from-green-500 to-yellow-500 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-green-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm"
+                      onClick={() => navigate("/dashboard")}
+                    >
+                      Dashboard
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-medium text-gray-900">
+                      Email Notifications
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Receive updates about your account activity
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-green-500 peer-checked:to-yellow-500"></div>
+                  </label>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#16aeac]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16aeac]"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-medium text-gray-900">
-                    Dark Mode
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Switch between light and dark theme
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-medium text-gray-900">
+                      Dark Mode
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Switch between light and dark theme
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-green-500 peer-checked:to-yellow-500"></div>
+                  </label>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#16aeac]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16aeac]"></div>
-                </label>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Sign Out Section */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white/80 backdrop-blur-md shadow rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               Sign Out
             </h2>
@@ -290,7 +361,7 @@ const AccountSettings = () => {
             </p>
             <button
               onClick={handleSignOut}
-              className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              className="inline-flex justify-center rounded-md bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:text-sm"
             >
               Sign Out
             </button>

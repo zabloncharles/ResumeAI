@@ -11,35 +11,62 @@ import { auth, db } from "../firebase";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import bunny1 from "../bunny1.png";
+import SignInModal from "./SignInModal";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [firstName, setFirstName] = useState("");
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        // Get user's first name from Firestore
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setFirstName(
-            userData.firstName || user.displayName?.split(" ")[0] || ""
-          );
-        }
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      const storedUserData = localStorage.getItem("userData");
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
+        setFirstName(
+          userData.firstName || parsedUser.displayName?.split(" ")[0] || ""
+        );
+        setIsAdmin(userData.role === "admin");
       }
-    });
-    return () => unsubscribe();
+    } else {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          localStorage.setItem("user", JSON.stringify(firebaseUser));
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setFirstName(
+              userData.firstName ||
+                firebaseUser.displayName?.split(" ")[0] ||
+                ""
+            );
+            setIsAdmin(userData.role === "admin");
+            localStorage.setItem("userData", JSON.stringify(userData));
+          }
+        } else {
+          setIsAdmin(false);
+        }
+      });
+      return () => unsubscribe();
+    }
   }, []);
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      localStorage.removeItem("user");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("resume");
       navigate("/");
     } catch (error) {
       console.error("Error signing out:", error);
@@ -51,14 +78,14 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed w-full top-0 bg-white/80 backdrop-blur-sm z-50 border-b border-gray-100">
+    <nav className="fixed w-full top-0 bg-white/80 z-50 border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link
               to="/"
-              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+              className="flex items-center hover:opacity-80 transition-opacity"
             >
               <img src={bunny1} alt="Brightfolio Logo" className="h-8 w-8" />
               <span className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black bg-clip-text text-transparent">
@@ -88,6 +115,17 @@ const Navbar = () => {
             >
               <DocumentIcon className="h-5 w-5" />
               <span>Resume</span>
+            </Link>
+            <Link
+              to="/cover-letter"
+              className={`text-gray-600 hover:text-gray-900 flex items-center space-x-2 ${
+                isActive("/cover-letter")
+                  ? "font-bold border-b-2 border-blue-500"
+                  : ""
+              }`}
+            >
+              <DocumentTextIcon className="h-5 w-5" />
+              <span>Cover Letter</span>
             </Link>
             <Link
               to="/courses"
@@ -152,12 +190,22 @@ const Navbar = () => {
                   </button>
                   {isSettingsOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5">
-                      <Link
-                        to="/account"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Account Settings
-                      </Link>
+                      <div className="py-1">
+                        {isAdmin && (
+                          <Link
+                            to="/dashboard"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Dashboard
+                          </Link>
+                        )}
+                        <Link
+                          to="/account"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Account Settings
+                        </Link>
+                      </div>
                       <button
                         onClick={handleSignOut}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -170,18 +218,18 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center space-x-4">
-                <Link
-                  to="/signin"
+                <button
+                  onClick={() => setShowSignInModal(true)}
                   className="text-gray-600 hover:text-gray-900"
                 >
                   Sign In
-                </Link>
-                <Link
-                  to="/signin?register=true"
+                </button>
+                <button
+                  onClick={() => setShowSignInModal(true)}
                   className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
                 >
                   Register
-                </Link>
+                </button>
               </div>
             )}
           </div>
@@ -256,6 +304,19 @@ const Navbar = () => {
               </div>
             </Link>
             <Link
+              to="/cover-letter"
+              className={`block px-3 py-2 text-gray-600 hover:text-gray-900 ${
+                isActive("/cover-letter")
+                  ? "font-bold border-l-2 border-blue-500"
+                  : ""
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <DocumentTextIcon className="h-5 w-5" />
+                <span>Cover Letter</span>
+              </div>
+            </Link>
+            <Link
               to="/courses"
               className={`block px-3 py-2 text-gray-600 hover:text-gray-900 ${
                 isActive("/courses")
@@ -300,12 +361,22 @@ const Navbar = () => {
                   <span className="text-gray-700 font-medium px-3">
                     Hi, {firstName}
                   </span>
-                  <Link
-                    to="/account"
-                    className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                  >
-                    Account Settings
-                  </Link>
+                  <div className="py-1">
+                    {isAdmin && (
+                      <Link
+                        to="/dashboard"
+                        className="block px-3 py-2 text-gray-600 hover:text-gray-900"
+                      >
+                        Dashboard
+                      </Link>
+                    )}
+                    <Link
+                      to="/account"
+                      className="block px-3 py-2 text-gray-600 hover:text-gray-900"
+                    >
+                      Account Settings
+                    </Link>
+                  </div>
                   <button
                     onClick={handleSignOut}
                     className="block w-full text-left px-3 py-2 text-gray-600 hover:text-gray-900"
@@ -315,24 +386,31 @@ const Navbar = () => {
                 </>
               ) : (
                 <>
-                  <Link
-                    to="/signin"
+                  <button
+                    onClick={() => setShowSignInModal(true)}
                     className="text-gray-600 hover:text-gray-900 px-3"
                   >
                     Sign In
-                  </Link>
-                  <Link
-                    to="/signin?register=true"
+                  </button>
+                  <button
+                    onClick={() => setShowSignInModal(true)}
                     className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors mx-3"
                   >
                     Register
-                  </Link>
+                  </button>
                 </>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSuccess={() => setShowSignInModal(false)}
+      />
     </nav>
   );
 };

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   DocumentTextIcon,
   SparklesIcon,
@@ -13,6 +13,7 @@ import "aos/dist/aos.css";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import videoBg from "../video.mp4";
+import SignInModal from "./SignInModal";
 
 const stats = [
   { value: "100K+", label: "Resumes Created" },
@@ -109,6 +110,8 @@ const faq = [
 ];
 
 const LandingPage = () => {
+  const [showSignInModal, setShowSignInModal] = useState(false);
+
   useEffect(() => {
     AOS.init({
       duration: 1000,
@@ -176,7 +179,7 @@ const LandingPage = () => {
             >
               <Link
                 to="/loading"
-                className="bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center"
+                className="inline-block px-8 py-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl text-lg font-semibold flex items-center"
               >
                 Get Started
                 <svg
@@ -189,7 +192,7 @@ const LandingPage = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M9 5l7 7-7 7"
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
                   />
                 </svg>
               </Link>
@@ -214,8 +217,8 @@ const LandingPage = () => {
               experience and the job requirements.
             </p>
             <Link
-              to="/resume"
-              className="inline-block mt-4 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-semibold"
+              to="/cover-letter"
+              className="px-6 py-2.5 bg-white text-gray-900 rounded-full border border-gray-200 hover:bg-gray-50 transition-all"
             >
               Try the Cover Letter Creator
             </Link>
@@ -254,7 +257,7 @@ const LandingPage = () => {
               personalized suggestions to make yours stand out.
             </p>
             <Link
-              to="/resume"
+              to="/loading"
               className="px-6 py-2.5 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-all"
             >
               Try AI Builder
@@ -471,7 +474,7 @@ const LandingPage = () => {
             data-aos-delay="400"
           >
             <Link
-              to="/resume"
+              to="/loading"
               className="px-8 py-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group"
             >
               Create Your Resume
@@ -566,6 +569,13 @@ const LandingPage = () => {
 
       {/* Footer */}
       <Footer />
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSuccess={() => setShowSignInModal(false)}
+      />
     </div>
   );
 };

@@ -1,8 +1,47 @@
+const admin = require("firebase-admin");
+const serviceAccount = require("../../serviceAccountKey.json");
+
+// Initialize Firebase Admin with credentials
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+async function verifyIdToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.log("Invalid auth header format");
+    return null;
+  }
+  const idToken = authHeader.split(" ")[1];
+  try {
+    console.log("Verifying token...");
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    console.log("Token verified for user:", decoded.uid);
+    return decoded.uid;
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return null;
+  }
+}
+
 exports.handler = async function (event, context) {
+  console.log("Function called with headers:", event.headers);
+
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       body: JSON.stringify({ error: "Method Not Allowed" }),
+    };
+  }
+
+  // Verify user
+  const uid = await verifyIdToken(event.headers["authorization"]);
+  if (!uid) {
+    console.log("Unauthorized: No valid user ID");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Unauthorized" }),
     };
   }
 
@@ -102,6 +141,21 @@ exports.handler = async function (event, context) {
         body: JSON.stringify({ error: "AI did not return valid JSON." }),
       };
     }
+
+    // Increment user's totalTokens in Firestore
+    try {
+      await admin
+        .firestore()
+        .collection("users")
+        .doc(uid)
+        .update({
+          totalTokens: admin.firestore.FieldValue.increment(total_tokens),
+        });
+    } catch (e) {
+      // Log but do not block response
+      console.error("Failed to increment totalTokens", e);
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({ steps, total_tokens }),

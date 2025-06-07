@@ -3,8 +3,16 @@ import { useState, useEffect } from "react";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, setDoc, increment } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  increment,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import Footer from "./Footer";
+import { useAuth } from "../contexts/AuthContext";
 
 // MOCKED STEPS DATA FOR DEMO (replace with real API data structure as needed)
 const mockSteps = [
@@ -129,17 +137,12 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
 }
 
 const Courses = () => {
+  const { user } = useAuth();
   const [profession, setProfession] = useState("");
-  const [loading, setLoading] = useState(false);
   const [steps, setSteps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<"timeline" | "board">("timeline");
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,12 +150,32 @@ const Courses = () => {
     setError("");
     setSteps([]);
     try {
+      console.log("Current user state:", user);
+      if (!user) {
+        setError("Please sign in to use this feature");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Getting ID token for user:", user.uid);
+      const token = await user.getIdToken();
+      console.log("Token received:", token ? "Yes" : "No");
+
       const response = await fetch("/.netlify/functions/generateCareerPath", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ profession }),
       });
-      if (!response.ok) throw new Error("Failed to generate career path");
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
+        throw new Error(errorData.error || "Failed to generate career path");
+      }
+
       const data = await response.json();
       const totalTokens = data.total_tokens || 0;
 
@@ -192,6 +215,15 @@ const Courses = () => {
         })
       );
       setSteps(stepsWithStatus);
+
+      // Add to paths collection if roadmap fetch was successful
+      if (user && stepsWithStatus.length > 0) {
+        await addDoc(collection(db, "paths"), {
+          createdAt: serverTimestamp(),
+          userId: user.uid,
+          profession,
+        });
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     }

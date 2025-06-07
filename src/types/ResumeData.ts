@@ -25,4 +25,5 @@ export interface ResumeData {
     label: string;
     url: string;
   }>;
-} 
+  skills?: string[];
+}

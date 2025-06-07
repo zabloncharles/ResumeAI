@@ -1,23 +1,46 @@
-import { useState } from 'react';
-import { DocumentTextIcon, BriefcaseIcon, ClipboardIcon, ArrowDownTrayIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from "react";
+import {
+  DocumentTextIcon,
+  BriefcaseIcon,
+  ClipboardIcon,
+  ArrowDownTrayIcon,
+  SparklesIcon,
+} from "@heroicons/react/24/outline";
+import { auth } from "../firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import Navbar from "./Navbar";
+import Footer from "./Footer";
+import thumbsupPng from "../thumbsup.png";
 
 interface CoverLetterCreatorProps {
   resumeData: any;
 }
 
 const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
-  const [mode, setMode] = useState<'resume' | 'job'>('resume');
-  const [jobDescription, setJobDescription] = useState('');
-  const [coverLetter, setCoverLetter] = useState('');
+  const [mode, setMode] = useState<"resume" | "job">("resume");
+  const [jobDescription, setJobDescription] = useState("");
+  const [coverLetter, setCoverLetter] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
 
   const getPrompt = () => {
-    const profession = resumeData.personalInfo.title || '';
-    const summary = resumeData.profile || '';
-    const experience = resumeData.experience?.map((exp: any) => `- ${exp.title} at ${exp.company}: ${exp.description.join(' ')}`).join('\n') || '';
-    if (mode === 'resume') {
+    const profession = resumeData.personalInfo.title || "";
+    const summary = resumeData.profile || "";
+    const experience =
+      resumeData.experience
+        ?.map(
+          (exp: any) =>
+            `- ${exp.title} at ${exp.company}: ${exp.description.join(" ")}`
+        )
+        .join("\n") || "";
+    if (mode === "resume") {
       return `Generate a professional cover letter for a ${profession} using the following resume information.\nSummary: ${summary}\nExperience:\n${experience}\nMake it concise, compelling, and suitable for job applications.`;
     } else {
       return `Generate a professional cover letter for a ${profession} using the following resume information.\nSummary: ${summary}\nExperience:\n${experience}\nTailor the cover letter to this job description: ${jobDescription}\nMake it concise, compelling, and aligned with the job requirements.`;
@@ -27,25 +50,32 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   const generateCoverLetter = async () => {
     setIsLoading(true);
     setError(null);
-    setCoverLetter('');
+    setCoverLetter("");
     setCopied(false);
     const prompt = getPrompt();
     try {
-      const response = await fetch('/.netlify/functions/generateResume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+      let token = "";
+      if (user) {
+        token = await user.getIdToken();
+      }
+      const response = await fetch("/.netlify/functions/generateResume", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ prompt }),
       });
       if (!response.ok) {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to generate cover letter');
+        setError(errorData.error || "Failed to generate cover letter");
         setIsLoading(false);
         return;
       }
       const data = await response.json();
-      setCoverLetter(data.content || '');
+      setCoverLetter(data.content || "");
     } catch (err) {
-      setError('Failed to generate cover letter. Please try again.');
+      setError("Failed to generate cover letter. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -58,96 +88,260 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([coverLetter], { type: 'text/plain' });
+    const blob = new Blob([coverLetter], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'cover_letter.txt';
+    a.download = "cover_letter.txt";
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-2xl mx-auto mt-10 animate-fade-in">
-      <div className="flex items-center mb-6">
-        <SparklesIcon className="h-7 w-7 text-blue-600 mr-2" />
-        <h2 className="text-2xl font-bold">AI Cover Letter Generator</h2>
-      </div>
-      <p className="text-gray-600 mb-6">Generate a tailored, professional cover letter in seconds. Choose to use your resume or target a specific job description for best results.</p>
-      <div className="flex space-x-4 mb-8">
-        <button
-          className={`flex-1 flex flex-col items-center p-4 rounded-lg border transition-colors ${mode === 'resume' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200' : 'bg-gray-50 border-gray-200 hover:border-blue-300'}`}
-          onClick={() => setMode('resume')}
-        >
-          <DocumentTextIcon className="h-8 w-8 mb-2 text-blue-600" />
-          <span className="font-semibold">From Resume</span>
-          <span className="text-xs text-gray-500 mt-1">Use your resume details to create a general cover letter.</span>
-        </button>
-        <button
-          className={`flex-1 flex flex-col items-center p-4 rounded-lg border transition-colors ${mode === 'job' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200' : 'bg-gray-50 border-gray-200 hover:border-blue-300'}`}
-          onClick={() => setMode('job')}
-        >
-          <BriefcaseIcon className="h-8 w-8 mb-2 text-blue-600" />
-          <span className="font-semibold">For Specific Job</span>
-          <span className="text-xs text-gray-500 mt-1">Paste a job description to tailor your cover letter.</span>
-        </button>
-      </div>
-      {mode === 'job' && (
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Paste Job Description</label>
-          <textarea
-            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-            rows={6}
-            value={jobDescription}
-            onChange={e => setJobDescription(e.target.value)}
-            placeholder="Paste the job description here..."
-          />
-        </div>
-      )}
-      <button
-        className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-lg font-semibold mb-4 flex items-center justify-center"
-        onClick={generateCoverLetter}
-        disabled={isLoading || (mode === 'job' && !jobDescription.trim())}
+    <>
+      <Navbar />
+      {/* Hero Section with Integrated Generator Card */}
+      <section
+        className="w-full flex flex-col items-center justify-center pt-28 pb-10 px-4"
+        style={{
+          backgroundImage:
+            'url("https://cdn.dribbble.com/userupload/16032057/file/original-f8be23000af11e2053b89c652b0d830a.jpg?resize=2048x1536&vertical=center")',
+          backgroundSize: "cover",
+          backgroundRepeat: "no-repeat",
+        }}
       >
-        {isLoading ? (
-          <>
-            <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
-            Generating...
-          </>
-        ) : (
-          <>
-            <SparklesIcon className="h-5 w-5 mr-2" /> Generate Cover Letter
-          </>
-        )}
-      </button>
-      {error && <div className="text-red-600 mb-4 flex items-center"><span className="mr-2">❌</span>{error}</div>}
-      {coverLetter && (
-        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4 relative animate-fade-in">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Generated Cover Letter</label>
-          <textarea
-            className="w-full p-3 border rounded-md bg-gray-100 text-gray-800 font-mono text-sm"
-            rows={12}
-            value={coverLetter}
-            readOnly
-          />
-          <div className="flex space-x-2 mt-2">
-            <button
-              className={`flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors ${copied ? 'opacity-70' : ''}`}
-              onClick={handleCopy}
-            >
-              <ClipboardIcon className="h-5 w-5 mr-1" /> {copied ? 'Copied!' : 'Copy'}
-            </button>
-            <button
-              className="flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              onClick={handleDownload}
-            >
-              <ArrowDownTrayIcon className="h-5 w-5 mr-1" /> Download as .txt
-            </button>
+        <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+          <div className="relative bg-white/60 backdrop-blur-lg border border-white/40 rounded-2xl shadow-2xl px-8 pt-10 pb-8 mb-8">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-2 rounded-t-lg bg-gradient-to-r from-[#16aeac] to-black" />
+            <img
+              src={thumbsupPng}
+              alt="Thumbs Up"
+              className="w-32 h-32 mx-auto mb-4 object-contain"
+            />
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">
+              AI Cover Letter Generator
+            </h1>
+            <p className="text-lg text-gray-600 mb-6">
+              Create a tailored, professional cover letter in seconds. Powered
+              by AI, designed for you.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center mb-6">
+              <span className="px-3 py-1 rounded-full bg-white/60 backdrop-blur border border-[#16aeac] text-[#16aeac] font-semibold text-xs shadow">
+                Free to Use
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/60 backdrop-blur border border-[#16aeac] text-[#16aeac] font-semibold text-xs shadow">
+                No Registration
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/60 backdrop-blur border border-[#16aeac] text-[#16aeac] font-semibold text-xs shadow">
+                ATS-Optimized
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/60 backdrop-blur border border-[#16aeac] text-[#16aeac] font-semibold text-xs shadow">
+                Instant Download
+              </span>
+            </div>
+            {/* Integrated Generator Card */}
+            <div className="relative w-full max-w-2xl mx-auto animate-fade-in">
+              {/* Remove duplicate title/desc, keep only generator UI */}
+              <div className="flex items-center mb-6">
+                <SparklesIcon className="h-7 w-7 text-blue-600 mr-2" />
+                <h2 className="text-2xl font-bold">Start Generating</h2>
+              </div>
+              <div className="flex space-x-4 mb-8">
+                <button
+                  className={`flex-1 flex flex-col items-center p-4 rounded-lg border transition-colors ${
+                    mode === "resume"
+                      ? "bg-blue-50 border-blue-500 ring-2 ring-blue-200"
+                      : "bg-gray-50 border-gray-200 hover:border-blue-300"
+                  }`}
+                  onClick={() => setMode("resume")}
+                >
+                  <DocumentTextIcon className="h-8 w-8 mb-2 text-blue-600" />
+                  <span className="font-semibold">From Resume</span>
+                  <span className="text-xs text-gray-500 mt-1">
+                    Use your resume details to create a general cover letter.
+                  </span>
+                </button>
+                <button
+                  className={`flex-1 flex flex-col items-center p-4 rounded-lg border transition-colors ${
+                    mode === "job"
+                      ? "bg-blue-50 border-blue-500 ring-2 ring-blue-200"
+                      : "bg-gray-50 border-gray-200 hover:border-blue-300"
+                  }`}
+                  onClick={() => setMode("job")}
+                >
+                  <BriefcaseIcon className="h-8 w-8 mb-2 text-blue-600" />
+                  <span className="font-semibold">For Specific Job</span>
+                  <span className="text-xs text-gray-500 mt-1">
+                    Paste a job description to tailor your cover letter.
+                  </span>
+                </button>
+              </div>
+              {mode === "job" && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Paste Job Description
+                  </label>
+                  <textarea
+                    className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
+                    rows={6}
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste the job description here..."
+                  />
+                </div>
+              )}
+              <button
+                className="w-full px-6 py-3 bg-gradient-to-r from-[#16aeac] to-black text-white rounded-md hover:from-[#139b99] hover:to-gray-900 transition-colors text-lg font-semibold mb-4 flex items-center justify-center shadow-lg"
+                onClick={generateCoverLetter}
+                disabled={
+                  isLoading || (mode === "job" && !jobDescription.trim())
+                }
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      ></path>
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <SparklesIcon className="h-5 w-5 mr-2 text-[#16aeac]" />{" "}
+                    Generate Cover Letter
+                  </>
+                )}
+              </button>
+              {error && (
+                <div className="text-red-600 mb-4 flex items-center">
+                  <span className="mr-2">❌</span>
+                  {error}
+                </div>
+              )}
+              {coverLetter && (
+                <div className="mt-6 relative group">
+                  {/* Accent bar */}
+                  <div className="absolute top-0 left-0 w-full h-2 rounded-t-lg bg-gradient-to-r from-[#16aeac] to-black" />
+                  <div className="relative bg-white/60 backdrop-blur-lg border border-white/40 rounded-2xl shadow-2xl p-6 pt-8 transition-transform duration-200 group-hover:scale-[1.02]">
+                    <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <SparklesIcon className="h-5 w-5 text-[#16aeac]" />
+                      Generated Cover Letter
+                    </label>
+                    <textarea
+                      className="w-full p-4 border border-white/30 rounded-lg bg-white/40 backdrop-blur focus:outline-none text-gray-900 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-[#16aeac] transition-all shadow-sm"
+                      rows={12}
+                      value={coverLetter}
+                      readOnly
+                      style={{ minHeight: 220 }}
+                    />
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4 justify-end items-center">
+                      <button
+                        className={`flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#16aeac] to-black text-white rounded-lg font-semibold shadow hover:from-[#139b99] hover:to-gray-900 transition-colors ${
+                          copied ? "opacity-70" : ""
+                        }`}
+                        onClick={handleCopy}
+                      >
+                        <ClipboardIcon className="h-5 w-5" />
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                      <button
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#16aeac] to-black text-white rounded-lg font-semibold shadow hover:from-[#139b99] hover:to-gray-900 transition-colors"
+                        onClick={handleDownload}
+                      >
+                        <ArrowDownTrayIcon className="h-5 w-5" /> Download as
+                        .txt
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
-    </div>
+      </section>
+
+      {/* How it Works Section */}
+      <section
+        className="w-full flex flex-col items-center justify-center pb-10 px-4"
+        style={{ paddingTop: "2.5rem" }}
+      >
+        <div className="max-w-4xl w-full mx-auto grid grid-cols-1 sm:grid-cols-4 gap-6">
+          {[
+            {
+              icon: <DocumentTextIcon className="h-8 w-8 text-[#16aeac]" />,
+              title: "1. Enter Info",
+              desc: "Add your resume details or job description.",
+            },
+            {
+              icon: <SparklesIcon className="h-8 w-8 text-[#16aeac]" />,
+              title: "2. Generate",
+              desc: "Let AI craft a personalized cover letter.",
+            },
+            {
+              icon: <ClipboardIcon className="h-8 w-8 text-[#16aeac]" />,
+              title: "3. Copy or Download",
+              desc: "Copy to clipboard or download instantly.",
+            },
+            {
+              icon: <BriefcaseIcon className="h-8 w-8 text-[#16aeac]" />,
+              title: "4. Apply",
+              desc: "Use your new cover letter for any job.",
+            },
+          ].map((step, idx) => (
+            <div
+              key={idx}
+              className="bg-white/60 backdrop-blur-lg border-1 border-white/40 rounded-2xl p-6 flex flex-col items-center text-center"
+            >
+              <div className="mb-2">{step.icon}</div>
+              <div className="font-bold text-lg text-gray-900 mb-1">
+                {step.title}
+              </div>
+              <div className="text-gray-600 text-sm">{step.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="w-full flex flex-col items-center justify-center pb-16 px-4">
+        <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+          <div className="relative bg-white/60 backdrop-blur-lg border-1 border-white/40 rounded-2xl px-8 py-10 mb-8">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-2 rounded-t-lg bg-gradient-to-r from-[#16aeac] to-black" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Want a Resume to Match?
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Try our AI Resume Builder for a complete job application toolkit.
+            </p>
+            <a
+              href="/resume"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-[#16aeac] to-black text-white rounded-full font-semibold hover:from-[#139b99] hover:to-gray-900 transition-colors text-lg"
+            >
+              Go to Resume Builder
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </>
   );
 };
 
-export default CoverLetterCreator; 
+export default CoverLetterCreator;

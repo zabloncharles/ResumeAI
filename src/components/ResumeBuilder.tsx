@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -22,16 +22,29 @@ import {
   CpuChipIcon,
   ArrowUpTrayIcon,
   Cog6ToothIcon,
+  XMarkIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import ResumePDF from "./ResumePDF";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import AIResumeAssistant from "./AIResumeAssistant";
 import type { ResumeData } from "../types/ResumeData";
-import CoverLetterCreator from "./CoverLetterCreator";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc, increment } from "firebase/firestore";
-import SignIn from "./SignIn";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  increment,
+  collection,
+  addDoc,
+  updateDoc,
+  arrayUnion,
+} from "firebase/firestore";
+import SignInModal from "./SignInModal";
+import bunny1 from "../bunny1.png";
+import ResumePreview from "./ResumePreview";
+import TemplatesPage from "./TemplatesPage";
 
 interface ResumeTemplate {
   id: string;
@@ -39,33 +52,6 @@ interface ResumeTemplate {
   description: string;
   preview: string;
 }
-
-const resumeTemplates: ResumeTemplate[] = [
-  {
-    id: "modern",
-    name: "Modern Professional",
-    description: "Clean and modern design with a focus on readability",
-    preview: "/templates/modern.png",
-  },
-  {
-    id: "executive",
-    name: "Executive",
-    description: "Traditional layout perfect for senior positions",
-    preview: "/templates/executive.png",
-  },
-  {
-    id: "minimal",
-    name: "Minimal",
-    description: "Simple and elegant design that lets your content shine",
-    preview: "/templates/minimal.png",
-  },
-  {
-    id: "creative",
-    name: "Creative Professional",
-    description: "Modern design with a creative touch",
-    preview: "/templates/creative.png",
-  },
-];
 
 const initialResumeData: ResumeData = {
   personalInfo: {
@@ -130,107 +116,105 @@ const formatMonthYear = (dateStr: string): string => {
 };
 
 const ResumeBuilder = () => {
-  const [activeSection, setActiveSection] = useState("personal");
+  // Consolidate related state into a single object
+  const [uiState, setUiState] = useState({
+    activeSection: "personal" as string | null,
+    selectedTemplate: "modern",
+    showTemplates: false,
+    activeTopTab: "myResumes" as
+      | "myResumes"
+      | "templates"
+      | "settings"
+      | "help",
+    showPasteModal: false,
+    showSignInModal: false,
+  });
+
   const [resumeData, setResumeData] = useState<ResumeData>(initialResumeData);
-  const [selectedTemplate, setSelectedTemplate] = useState("modern");
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [activeTopTab, setActiveTopTab] = useState<"resume" | "coverLetter">(
-    "resume"
-  );
+  const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [unsaved, setUnsaved] = useState(false);
-  const [showPasteModal, setShowPasteModal] = useState(false);
   const [pastedResume, setPastedResume] = useState("");
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [firestoreError, setFirestoreError] = useState<string | null>(null);
 
-  // Load user and resume data
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.debug("[Firebase] Auth state changed:", firebaseUser);
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        setLoading(true);
-        try {
-          const docRef = doc(db, "users", firebaseUser.uid, "resume", "main");
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            console.debug(
-              "[Firebase] Loaded resume for user:",
-              firebaseUser.uid,
-              docSnap.data()
-            );
-            setResumeData(docSnap.data() as ResumeData);
-          } else {
-            console.debug(
-              "[Firebase] No resume found for user:",
-              firebaseUser.uid
-            );
-          }
-        } catch (err) {
-          console.debug("[Firebase] Error loading resume:", err);
-        }
-        setLoading(false);
-      } else {
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  // Add auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  const handleManualSave = async () => {
-    if (!user) return;
-    setSaving(true);
-    setSaveStatus(null);
-    try {
-      await setDoc(doc(db, "users", user.uid, "resume", "main"), resumeData);
-      setLastSaved(new Date());
-      setSaveStatus("saved");
-      console.debug("[Firebase] Resume saved for user:", user.uid, resumeData);
-    } catch (e) {
-      setSaveStatus("Error saving.");
-      console.debug("[Firebase] Error saving resume:", e);
-    }
-    setSaving(false);
-  };
-
-  const handlePersonalInfoChange = (
-    field: keyof typeof resumeData.personalInfo,
-    value: string
-  ) => {
-    setResumeData((prev) => ({
-      ...prev,
-      personalInfo: {
-        ...prev.personalInfo,
-        [field]: value,
+  // Memoize resume templates
+  const resumeTemplates = useMemo(
+    () => [
+      {
+        id: "modern",
+        name: "Modern Professional",
+        description: "Clean and modern design with a focus on readability",
+        preview: "/templates/modern.png",
       },
-    }));
-  };
+      {
+        id: "executive",
+        name: "Executive",
+        description: "Traditional layout perfect for senior positions",
+        preview: "/templates/executive.png",
+      },
+      {
+        id: "minimal",
+        name: "Minimal",
+        description: "Simple and elegant design that lets your content shine",
+        preview: "/templates/minimal.png",
+      },
+      {
+        id: "creative",
+        name: "Creative Professional",
+        description: "Modern design with a creative touch",
+        preview: "/templates/creative.png",
+      },
+    ],
+    []
+  );
 
-  const handleProfileChange = (value: string) => {
+  // Memoize handlers
+  const handlePersonalInfoChange = useCallback(
+    (field: keyof typeof resumeData.personalInfo, value: string) => {
+      setResumeData((prev) => ({
+        ...prev,
+        personalInfo: {
+          ...prev.personalInfo,
+          [field]: value,
+        },
+      }));
+    },
+    []
+  );
+
+  const handleProfileChange = useCallback((value: string) => {
     setResumeData((prev) => ({
       ...prev,
       profile: value,
     }));
-  };
+  }, []);
 
-  const handleExperienceChange = (
-    index: number,
-    field: keyof (typeof resumeData.experience)[0],
-    value: string | string[]
-  ) => {
-    setResumeData((prev) => ({
-      ...prev,
-      experience: prev.experience.map((exp, i) =>
-        i === index ? { ...exp, [field]: value } : exp
-      ),
-    }));
-  };
+  const handleExperienceChange = useCallback(
+    (
+      index: number,
+      field: keyof (typeof resumeData.experience)[0],
+      value: string | string[]
+    ) => {
+      setResumeData((prev) => ({
+        ...prev,
+        experience: prev.experience.map((exp, i) =>
+          i === index ? { ...exp, [field]: value } : exp
+        ),
+      }));
+    },
+    []
+  );
 
   const handleBulletPointChange = (
     expIndex: number,
@@ -331,8 +315,8 @@ const ResumeBuilder = () => {
   };
 
   const handleSuggestionSelect = (suggestion: string) => {
-    console.log("Active Section:", activeSection);
-    switch (activeSection) {
+    console.log("Active Section:", uiState.activeSection);
+    switch (uiState.activeSection) {
       case "personal":
         // Handle personal section suggestions
         break;
@@ -363,52 +347,250 @@ const ResumeBuilder = () => {
     }
   };
 
-  const handlePasteResume = async () => {
-    setParsing(true);
-    setParseError("");
-    try {
-      const response = await fetch("/.netlify/functions/parseResume", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: pastedResume }),
+  const handleGetSuggestions = () => {
+    if (!user) {
+      setPendingAction(() => () => {
+        // Your existing get suggestions logic here
       });
-      if (!response.ok) throw new Error("Failed to parse resume");
-      const data = await response.json();
-      setResumeData(data);
-      setShowPasteModal(false);
-      setPastedResume("");
-      const totalTokens = data.total_tokens || 0;
-      // Increment call count and totalTokens in Firestore
-      if (user) {
-        const userRef = doc(db, "users", user.uid);
-        try {
-          console.log(
-            "[Firestore] Attempting to increment callCount and totalTokens for:",
-            user.uid,
-            "Tokens:",
-            totalTokens
-          );
-          await setDoc(
-            userRef,
-            { callCount: increment(1), totalTokens: increment(totalTokens) },
-            { merge: true }
-          );
-          console.log(
-            "[Firestore] callCount and totalTokens incremented for:",
-            user.uid
-          );
-        } catch (e) {
-          console.error(
-            "[Firestore] Error incrementing callCount/totalTokens:",
-            e
-          );
-        }
-      }
-    } catch (e: any) {
-      setParseError("Could not parse resume. Please try again.");
+      setUiState((prev) => ({ ...prev, showSignInModal: true }));
+      return;
     }
-    setParsing(false);
+    // Your existing get suggestions logic here
   };
+
+  const handlePasteResume = () => {
+    if (!user) {
+      setPendingAction(() => () => {
+        setUiState((prev) => ({ ...prev, showPasteModal: true }));
+      });
+      setUiState((prev) => ({ ...prev, showSignInModal: true }));
+      return;
+    }
+    setUiState((prev) => ({ ...prev, showPasteModal: true }));
+  };
+
+  const handleSettingsClick = () => {
+    if (!user) {
+      setPendingAction(() => () => {
+        // Navigate to settings
+      });
+      setUiState((prev) => ({ ...prev, showSignInModal: true }));
+      return;
+    }
+    // Navigate to settings
+  };
+
+  const handleSignInSuccess = () => {
+    setUiState((prev) => ({ ...prev, showSignInModal: false }));
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  // On mount: check localStorage for user and resume
+  useEffect(() => {
+    // Auth: check localStorage first
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+      setIsAuthenticated(true);
+    } else {
+      // Only call Firebase if not in localStorage
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          setIsAuthenticated(true);
+          localStorage.setItem("user", JSON.stringify(firebaseUser));
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem("user");
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  // On mount: check localStorage for resume
+  useEffect(() => {
+    const storedResume = localStorage.getItem("resume");
+    if (storedResume) {
+      console.log("[ResumeBuilder] Loaded resume from localStorage");
+      setResumeData(JSON.parse(storedResume));
+      setLoading(false);
+    } else if (user && isAuthenticated) {
+      console.log(
+        "[ResumeBuilder] No resume in localStorage, fetching from Firestore"
+      );
+      // Only fetch from Firebase if not in localStorage
+      setLoading(true);
+      loadResumeData(user.uid).then((data) => {
+        if (data) {
+          setResumeData(data);
+          localStorage.setItem("resume", JSON.stringify(data));
+        }
+        setLoading(false);
+      });
+    }
+  }, [user, isAuthenticated]);
+
+  // On resume edit: update localStorage
+  const handleResumeEdit = useCallback((newResume: ResumeData) => {
+    setResumeData(newResume);
+    localStorage.setItem("resume", JSON.stringify(newResume));
+  }, []);
+
+  // On save: push localStorage resume to Firebase
+  const handleManualSave = useCallback(async () => {
+    if (!user || !isAuthenticated) {
+      setUiState((prev) => ({ ...prev, showSignInModal: true }));
+      setPendingAction(() => handleManualSave);
+      return;
+    }
+    setSaving(true);
+    setSaveStatus(null);
+    setFirestoreError(null);
+    try {
+      const resumeStr = localStorage.getItem("resume");
+      if (!resumeStr) throw new Error("No resume data in localStorage");
+      const resume = JSON.parse(resumeStr);
+      const token = await user.getIdToken(true);
+      const resumeDataToSave = {
+        ...resume,
+        lastUpdated: new Date().toISOString(),
+        userId: user.uid,
+        updatedBy: user.uid,
+      };
+      if (currentResumeId) {
+        const resumeDocRef = doc(db, "resumes", currentResumeId);
+        await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
+      } else {
+        const resumesCol = collection(db, "resumes");
+        const docRef = await addDoc(resumesCol, resumeDataToSave);
+        const resumeId = docRef.id;
+        setCurrentResumeId(resumeId);
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, { resumeIds: arrayUnion(resumeId) });
+      }
+      setSaveStatus("saved");
+      setTimeout(() => {
+        setSaveStatus(null);
+      }, 2000);
+      // Update localStorage with latest
+      localStorage.setItem("resume", JSON.stringify(resumeDataToSave));
+    } catch (error) {
+      let message = "Failed to save resume. Please try again.";
+      if (error instanceof Error) message = error.message;
+      setFirestoreError(message);
+      setSaveStatus("error");
+    } finally {
+      setSaving(false);
+    }
+  }, [user, isAuthenticated, currentResumeId]);
+
+  // On logout: clear localStorage
+  const handleLogout = useCallback(async () => {
+    await auth.signOut();
+    localStorage.removeItem("user");
+    localStorage.removeItem("userData");
+    localStorage.removeItem("resume");
+    // Add any other keys you use for sensitive data here
+    setUser(null);
+    setIsAuthenticated(false);
+    setResumeData(initialResumeData);
+  }, []);
+
+  // Improve the load resume data function with auth handling
+  const loadResumeData = useCallback(
+    async (userId: string) => {
+      if (!isAuthenticated) {
+        setFirestoreError("Please sign in to load your resume");
+        return;
+      }
+
+      setLoading(true);
+      setFirestoreError(null);
+
+      try {
+        // Ensure user is a Firebase User object
+        const firebaseUser = auth.currentUser;
+        if (!firebaseUser) {
+          throw new Error("No authenticated user found");
+        }
+        const token = await firebaseUser.getIdToken(true);
+
+        // Ensure Firestore is initialized
+        if (!db) {
+          throw new Error("Firestore is not initialized");
+        }
+
+        const docRef = doc(db, "users", userId, "resume", "main");
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data() as ResumeData;
+          // Validate the loaded data
+          if (data && typeof data === "object") {
+            return data;
+          } else {
+            throw new Error("Invalid resume data format");
+          }
+        }
+      } catch (error: any) {
+        console.error("[Firebase] Error loading resume:", error);
+        if (error.code === "permission-denied") {
+          setFirestoreError(
+            "You don't have permission to load this resume. Please try signing in again."
+          );
+          // Force re-authentication
+          await auth.signOut();
+          setUiState((prev) => ({ ...prev, showSignInModal: true }));
+        } else if (error.message === "Firestore is not initialized") {
+          setFirestoreError(
+            "Database connection error. Please try again later."
+          );
+        } else {
+          setFirestoreError(error.message || "Failed to load resume data");
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAuthenticated]
+  );
+
+  useEffect(() => {
+    const fetchAndLoadResume = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        // Fetch user's resumeIds
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.data();
+        const resumeIds = userData?.resumeIds || [];
+        if (resumeIds.length > 0) {
+          // Load the most recent resume (last in array)
+          const resumeId = resumeIds[resumeIds.length - 1];
+          const resumeRef = doc(db, "resumes", resumeId);
+          const resumeSnap = await getDoc(resumeRef);
+          if (resumeSnap.exists()) {
+            setResumeData(resumeSnap.data() as ResumeData);
+            setCurrentResumeId(resumeId);
+          }
+        }
+      } catch (error) {
+        setFirestoreError("Failed to load resume from resumes collection");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAndLoadResume();
+  }, [user]);
 
   const renderTemplates = () => (
     <div className="space-y-6">
@@ -417,35 +599,65 @@ const ResumeBuilder = () => {
         {resumeTemplates.map((template) => (
           <button
             key={template.id}
-            onClick={() => setSelectedTemplate(template.id)}
+            onClick={() =>
+              setUiState((prev) => ({
+                ...prev,
+                selectedTemplate: template.id,
+              }))
+            }
             className={`p-4 rounded-lg border ${
-              selectedTemplate === template.id
+              uiState.selectedTemplate === template.id
                 ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-50"
                 : "border-gray-200 hover:border-gray-300"
             }`}
           >
-            <img
-              src={template.preview}
-              alt={template.name}
-              className="w-full h-40 object-cover rounded-md mb-3"
-            />
-            <h4 className="font-medium text-gray-900">{template.name}</h4>
-            <p className="text-sm text-gray-500">{template.description}</p>
+            {/* PNG Icon for each template */}
+            {template.id === "modern" && (
+              <img
+                src="/svg/Businessprofessional.png"
+                alt="Modern Professional"
+                className="w-16 h-16 mx-auto mb-3 object-contain"
+              />
+            )}
+            {template.id === "executive" && (
+              <img
+                src="/svg/Executive.png"
+                alt="Executive"
+                className="w-16 h-16 mx-auto mb-3 object-contain"
+              />
+            )}
+            {template.id === "minimal" && (
+              <img
+                src="/svg/minimal.png"
+                alt="Minimal"
+                className="w-16 h-16 mx-auto mb-3 object-contain"
+              />
+            )}
+            {template.id === "creative" && (
+              <img
+                src="/svg/Creativethinking.png"
+                alt="Creative Professional"
+                className="w-16 h-16 mx-auto mb-3 object-contain"
+              />
+            )}
+            <div className="text-xs font-medium text-center mt-2">
+              {template.name}
+            </div>
           </button>
         ))}
       </div>
     </div>
   );
 
-  const renderEditSection = () => {
-    switch (activeSection) {
+  const renderEditSection = useCallback(() => {
+    switch (uiState.activeSection) {
       case "personal":
         // Debug log for job title and active section
         console.log(
           "Job Title:",
           resumeData.personalInfo.title,
           "Active Section:",
-          activeSection
+          uiState.activeSection
         );
         return (
           <div className="space-y-4">
@@ -529,11 +741,6 @@ const ResumeBuilder = () => {
                 />
               </div>
             </div>
-            <AIResumeAssistant
-              profession={resumeData.personalInfo.title}
-              onSuggestionSelect={handleSuggestionSelect}
-              section={activeSection}
-            />
           </div>
         );
 
@@ -552,7 +759,8 @@ const ResumeBuilder = () => {
             <AIResumeAssistant
               profession={resumeData.personalInfo.title}
               onSuggestionSelect={handleSuggestionSelect}
-              section={activeSection}
+              section="profile"
+              onSuggestionsChange={setSuggestions}
             />
           </div>
         );
@@ -847,10 +1055,123 @@ const ResumeBuilder = () => {
           </div>
         );
 
+      case "websites":
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">
+                Websites & Social Links
+              </h3>
+              <button
+                onClick={() => {
+                  setResumeData((prev) => ({
+                    ...prev,
+                    websites: [
+                      ...prev.websites,
+                      {
+                        label: "",
+                        url: "",
+                      },
+                    ],
+                  }));
+                }}
+                className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Website</span>
+              </button>
+            </div>
+            {resumeData.websites.map((website, index) => (
+              <div key={index} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Label
+                  </label>
+                  <input
+                    type="text"
+                    className="resume-input mt-1"
+                    value={website.label}
+                    onChange={(e) => {
+                      setResumeData((prev) => ({
+                        ...prev,
+                        websites: prev.websites.map((w, i) =>
+                          i === index ? { ...w, label: e.target.value } : w
+                        ),
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    URL
+                  </label>
+                  <input
+                    type="text"
+                    className="resume-input mt-1"
+                    value={website.url}
+                    onChange={(e) => {
+                      setResumeData((prev) => ({
+                        ...prev,
+                        websites: prev.websites.map((w, i) =>
+                          i === index ? { ...w, url: e.target.value } : w
+                        ),
+                      }));
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    setResumeData((prev) => ({
+                      ...prev,
+                      websites: prev.websites.filter((_, i) => i !== index),
+                    }));
+                  }}
+                  className="flex items-center space-x-2 text-red-600 hover:text-red-700"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                  <span>Remove</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+
       default:
         return null;
     }
-  };
+  }, [
+    uiState.activeSection,
+    resumeData,
+    handlePersonalInfoChange,
+    handleProfileChange,
+    handleExperienceChange,
+  ]);
+
+  // Memoize the section title
+  const sectionTitle = useMemo(() => {
+    switch (uiState.activeSection) {
+      case "personal":
+        return "Personal Information";
+      case "profile":
+        return "Professional Summary";
+      case "experience":
+        return "Work Experience";
+      case "education":
+        return "Education History";
+      case "websites":
+        return "Website Links";
+      default:
+        return "";
+    }
+  }, [uiState.activeSection]);
+
+  // Memoize the PDF document
+  const pdfDocument = useMemo(
+    () => (
+      <ResumePDF resumeData={resumeData} template={uiState.selectedTemplate} />
+    ),
+    [resumeData, uiState.selectedTemplate]
+  );
 
   function getFormattedTime(date: Date) {
     return date.toLocaleTimeString([], {
@@ -860,25 +1181,45 @@ const ResumeBuilder = () => {
     });
   }
 
-  // Timer to update the relative time message
-  useEffect(() => {
-    if (!lastSaved) return;
-    const interval = setInterval(() => {
-      setSaveStatus("saved");
-    }, 60000); // update every minute
-    return () => clearInterval(interval);
-  }, [lastSaved]);
+  // Add error display component
+  const ErrorDisplay = useCallback(() => {
+    if (!firestoreError) return null;
 
-  // Track unsaved changes
-  useEffect(() => {
-    if (!lastSaved) return;
-    setUnsaved(true);
-  }, [resumeData]);
+    return (
+      <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg z-50">
+        <div className="flex items-center">
+          <div className="py-1">
+            <svg
+              className="h-6 w-6 text-red-500 mr-4"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div>
+            <p className="font-bold">Error</p>
+            <p className="text-sm">{firestoreError}</p>
+          </div>
+          <button
+            onClick={() => setFirestoreError(null)}
+            className="ml-4 text-red-500 hover:text-red-700"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }, [firestoreError]);
 
-  // When saved, reset unsaved state
-  useEffect(() => {
-    if (saveStatus === "saved") setUnsaved(false);
-  }, [saveStatus]);
+  const navigate = useNavigate();
 
   if (loading)
     return (
@@ -908,524 +1249,467 @@ const ResumeBuilder = () => {
         </div>
       </div>
     );
-  if (!user) return <SignIn />;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-2">
-                <Link to="/" className="flex items-center space-x-2">
-                  <CpuChipIcon className="h-6 w-6 text-blue-600" />
-                  <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    ResumeAI
-                  </span>
-                </Link>
-              </div>
-              <div className="hidden md:flex space-x-4">
+    <div className="min-h-screen sticky z-[1000] backdrop-blur">
+      {/* Navigation Bar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
                 <Link
                   to="/"
-                  className="text-gray-600 hover:text-gray-900 flex items-center space-x-2"
+                  className="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  aria-label="Back"
                 >
-                  <HomeIcon className="h-5 w-5" />
-                  <span>Home</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-6 w-6 text-gray-700"
+                  >
+                    <polyline points="15 6 9 12 15 18" />
+                  </svg>
                 </Link>
-                <button
-                  onClick={() => setActiveTopTab("resume")}
-                  className={`text-gray-600 hover:text-gray-900 flex items-center space-x-2 ${
-                    activeTopTab === "resume"
-                      ? "font-bold border-b-2 border-blue-500"
-                      : ""
-                  }`}
-                >
-                  <DocumentIcon className="h-5 w-5" />
-                  <span>My Resume</span>
-                </button>
-                <button
-                  onClick={() => setActiveTopTab("coverLetter")}
-                  className={`text-gray-600 hover:text-gray-900 flex items-center space-x-2 ${
-                    activeTopTab === "coverLetter"
-                      ? "font-bold border-b-2 border-blue-500"
-                      : ""
-                  }`}
-                >
-                  <DocumentTextIcon className="h-5 w-5" />
-                  <span>Cover Letter</span>
-                </button>
+                <img
+                  src={bunny1}
+                  alt="ResumeAI Logo"
+                  className="h-8 w-8 mr-2"
+                />
+                <h1 className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black bg-clip-text text-transparent mr-6">
+                  Brightfolio
+                </h1>
+                <nav className="flex space-x-1 bg-transparent">
+                  <button
+                    className={`px-4 py-2 border border-gray-200 rounded-t-md bg-white text-gray-800 font-semibold ${
+                      uiState.activeTopTab === "myResumes"
+                        ? "border-b-0 font-bold"
+                        : "opacity-70"
+                    }`}
+                    onClick={() =>
+                      setUiState((prev) => ({
+                        ...prev,
+                        activeTopTab: "myResumes",
+                      }))
+                    }
+                  >
+                    My Resumes
+                  </button>
+                  <button
+                    className={`px-4 py-2 border border-gray-200 rounded-t-md bg-white text-gray-800 font-semibold ${
+                      uiState.activeTopTab === "help"
+                        ? "border-b-0 font-bold"
+                        : "opacity-70"
+                    }`}
+                    onClick={() =>
+                      setUiState((prev) => ({ ...prev, activeTopTab: "help" }))
+                    }
+                  >
+                    Help
+                  </button>
+                </nav>
               </div>
             </div>
-
             <div className="flex items-center space-x-4">
               <button
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                onClick={() => setShowPasteModal(true)}
+                onClick={() => (window.location.href = "/cover-letter")}
+                className="inline-flex items-center px-3 py-2 rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac]"
+                title="Cover Letter"
               >
-                <ArrowUpTrayIcon className="h-5 w-5" />
-                <span>Paste Resume</span>
+                <DocumentTextIcon className="w-5 h-5" />
+                <span className="ml-2 text-sm">Cover Letter</span>
               </button>
               <button
-                className={`flex items-center space-x-1 text-gray-600 disabled:opacity-50 ${
-                  unsaved
-                    ? "bg-orange-100 border border-orange-400 text-orange-700"
-                    : ""
-                } px-3 py-1 rounded`}
                 onClick={handleManualSave}
+                className={`inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] transition-all duration-200 ${
+                  saving ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                title={saveStatus || "Save Resume"}
                 disabled={saving}
               >
-                <CloudIcon className="h-5 w-5" />
-                <span>{saving ? "Saving..." : "Save"}</span>
+                {saving ? (
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <CloudIcon className="w-5 h-5" />
+                )}
               </button>
-              {saveStatus === "saved" && lastSaved && (
-                <span className="ml-2 text-sm text-green-600">
-                  Saved at {getFormattedTime(lastSaved)}
-                </span>
-              )}
-              {saveStatus && saveStatus !== "saved" && (
-                <span className={`ml-2 text-sm text-red-600`}>
-                  {saveStatus}
-                </span>
-              )}
-              <div className="flex items-center space-x-2">
-                <button className="p-2 rounded-full hover:bg-gray-100">
-                  <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-                </button>
-                <button className="p-2 rounded-full hover:bg-gray-100">
-                  <ArrowRightIcon className="h-5 w-5 text-gray-600" />
-                </button>
-                <PDFDownloadLink
-                  document={<ResumePDF resumeData={resumeData} />}
-                  fileName={`${resumeData.personalInfo.fullName.replace(
-                    /\s+/g,
-                    "_"
-                  )}_Resume.pdf`}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  {({ loading }) => (
-                    <>
-                      <PrinterIcon className="h-5 w-5" />
-                      <span>
-                        {loading ? "Preparing PDF..." : "Download PDF"}
-                      </span>
-                    </>
-                  )}
-                </PDFDownloadLink>
-              </div>
-              <Link
-                to="/settings"
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 ml-4"
+              <button
+                onClick={() => {
+                  if (!user)
+                    setUiState((prev) => ({ ...prev, showSignInModal: true }));
+                  else window.location.href = "/account";
+                }}
+                className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#16aeac] flex items-center justify-center bg-white hover:bg-gray-50 transition-colors"
+                title="Account"
               >
-                <Cog6ToothIcon className="h-5 w-5" />
-                <span>Settings</span>
-              </Link>
+                <span className="text-[#16aeac] font-semibold text-sm">
+                  {user?.displayName?.[0]?.toUpperCase() ||
+                    user?.email?.[0]?.toUpperCase() ||
+                    "?"}
+                </span>
+              </button>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
-          {activeTopTab === "coverLetter" ? (
-            <CoverLetterCreator resumeData={resumeData} />
-          ) : (
-            // Resume builder UI (left and right side)
-            <>
-              {/* Left Side - Form */}
-              <div className="w-1/3 space-y-4">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex space-x-4">
-                      <button
-                        onClick={() => setShowTemplates(false)}
-                        className={`px-4 py-2 rounded-md flex items-center space-x-2 ${
-                          !showTemplates
-                            ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                            : "text-gray-600 hover:text-gray-900"
-                        }`}
-                      >
-                        <DocumentTextIcon className="h-5 w-5" />
-                        <span>Create</span>
-                      </button>
-                      <button
-                        onClick={() => setShowTemplates(true)}
-                        className={`px-4 py-2 rounded-md flex items-center space-x-2 ${
-                          showTemplates
-                            ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                            : "text-gray-600 hover:text-gray-900"
-                        }`}
-                      >
-                        <SwatchIcon className="h-5 w-5" />
-                        <span>Templates</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {showTemplates ? (
-                    <div className="p-4">{renderTemplates()}</div>
-                  ) : (
-                    <div className="divide-y divide-gray-200">
-                      {/* Personal Information Section */}
-                      <div>
-                        <button
-                          onClick={() =>
-                            setActiveSection(
-                              activeSection === "personal" ? "" : "personal"
-                            )
-                          }
-                          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <UserIcon className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-900 font-medium">
-                              Personal Information
-                            </span>
-                          </div>
-                          <ChevronDownIcon
-                            className={`h-5 w-5 text-gray-400 transition-transform ${
-                              activeSection === "personal"
-                                ? "transform rotate-180"
-                                : ""
-                            }`}
-                          />
-                        </button>
-                        {activeSection === "personal" && (
-                          <div className="p-4 bg-gray-50">
-                            {renderEditSection()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Professional Summary Section */}
-                      <div>
-                        <button
-                          onClick={() =>
-                            setActiveSection(
-                              activeSection === "profile" ? "" : "profile"
-                            )
-                          }
-                          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-900 font-medium">
-                              Professional Summary
-                            </span>
-                          </div>
-                          <ChevronDownIcon
-                            className={`h-5 w-5 text-gray-400 transition-transform ${
-                              activeSection === "profile"
-                                ? "transform rotate-180"
-                                : ""
-                            }`}
-                          />
-                        </button>
-                        {activeSection === "profile" && (
-                          <div className="p-4 bg-gray-50">
-                            {renderEditSection()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Experience Section */}
-                      <div>
-                        <button
-                          onClick={() =>
-                            setActiveSection(
-                              activeSection === "experience" ? "" : "experience"
-                            )
-                          }
-                          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <BriefcaseIcon className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-900 font-medium">
-                              Employment History
-                            </span>
-                          </div>
-                          <ChevronDownIcon
-                            className={`h-5 w-5 text-gray-400 transition-transform ${
-                              activeSection === "experience"
-                                ? "transform rotate-180"
-                                : ""
-                            }`}
-                          />
-                        </button>
-                        {activeSection === "experience" && (
-                          <div className="p-4 bg-gray-50">
-                            {renderEditSection()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Education Section */}
-                      <div>
-                        <button
-                          onClick={() =>
-                            setActiveSection(
-                              activeSection === "education" ? "" : "education"
-                            )
-                          }
-                          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <AcademicCapIcon className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-900 font-medium">
-                              Education
-                            </span>
-                          </div>
-                          <ChevronDownIcon
-                            className={`h-5 w-5 text-gray-400 transition-transform ${
-                              activeSection === "education"
-                                ? "transform rotate-180"
-                                : ""
-                            }`}
-                          />
-                        </button>
-                        {activeSection === "education" && (
-                          <div className="p-4 bg-gray-50">
-                            {renderEditSection()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Websites Section */}
-                      <div>
-                        <button
-                          onClick={() =>
-                            setActiveSection(
-                              activeSection === "websites" ? "" : "websites"
-                            )
-                          }
-                          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <LinkIcon className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-900 font-medium">
-                              Websites & Social Links
-                            </span>
-                          </div>
-                          <ChevronDownIcon
-                            className={`h-5 w-5 text-gray-400 transition-transform ${
-                              activeSection === "websites"
-                                ? "transform rotate-180"
-                                : ""
-                            }`}
-                          />
-                        </button>
-                        {activeSection === "websites" && (
-                          <div className="p-4 bg-gray-50">
-                            {renderEditSection()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="backdrop-blur rounded-2xl shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Resume Builder
+                </h1>
               </div>
-
-              {/* Right Side - Preview */}
-              <div className="w-2/3">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8">
-                  <div
-                    className="mx-auto bg-white shadow-lg overflow-x-auto"
-                    style={{
-                      width: "100%",
-                      maxWidth: "8.5in",
-                      aspectRatio: "8.5/11",
-                      minHeight: "0",
-                      height: "auto",
-                      boxSizing: "border-box",
-                      borderRadius: "0.5rem",
-                    }}
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handlePasteResume}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac]"
+                >
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                   >
-                    <div
-                      className="p-4 sm:p-8"
-                      style={{
-                        fontFamily: "Times New Roman, Times, serif",
-                        color: "#111",
-                      }}
-                    >
-                      {/* Header */}
-                      <div className="mb-8">
-                        <h1
-                          className="text-2xl sm:text-3xl font-bold mb-2 text-center"
-                          style={{
-                            fontFamily: "Times New Roman, Times, serif",
-                          }}
-                        >
-                          {resumeData.personalInfo.fullName}
-                        </h1>
-                        <div className="w-full border-t border-t-[1px] border-gray-300 my-2" />
-                        <div
-                          className="text-gray-800 text-xs sm:text-sm text-center pb-2 border-b-2 border-gray-400 mb-6"
-                          style={{
-                            fontFamily: "Times New Roman, Times, serif",
-                          }}
-                        >
-                          Location: {resumeData.personalInfo.location} | Phone:{" "}
-                          {resumeData.personalInfo.phone} | Email:{" "}
-                          {resumeData.personalInfo.email}
-                          {resumeData.websites && resumeData.websites.length > 0
-                            ? ` | Portfolio: ${resumeData.websites[0].url}`
-                            : ""}
-                        </div>
-                      </div>
-                      {/* Summary */}
-                      <div className="mb-6">
-                        <div
-                          className="text-base sm:text-lg font-bold pb-1 mb-2"
-                          style={{
-                            fontFamily: "Times New Roman, Times, serif",
-                          }}
-                        >
-                          Summary
-                        </div>
-                        <div
-                          style={{
-                            fontFamily: "Times New Roman, Times, serif",
-                          }}
-                        >
-                          {resumeData.profile}
-                        </div>
-                      </div>
-                      {/* Experience */}
-                      <div className="mb-6">
-                        <div
-                          className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2"
-                          style={{
-                            fontFamily: "Times New Roman, Times, serif",
-                          }}
-                        >
-                          Experience
-                        </div>
-                        {resumeData.experience.map((exp: any, idx: number) => (
-                          <div key={idx} className="mb-4">
-                            <div>
-                              <span
-                                className="font-bold"
-                                style={{
-                                  fontFamily: "Times New Roman, Times, serif",
-                                }}
-                              >
-                                {exp.company}
-                              </span>
-                              {exp.company && exp.title ? ", " : ""}
-                              <span
-                                className="italic"
-                                style={{
-                                  fontFamily: "Times New Roman, Times, serif",
-                                }}
-                              >
-                                {exp.title}
-                              </span>
-                              {exp.company || exp.title ? " | " : ""}
-                              <span
-                                style={{
-                                  fontFamily: "Times New Roman, Times, serif",
-                                }}
-                              >
-                                {exp.startDate
-                                  ? formatMonthYear(exp.startDate)
-                                  : ""}
-                                {exp.endDate
-                                  ? ` - ${formatMonthYear(exp.endDate)}`
-                                  : ""}
-                              </span>
-                            </div>
-                            {exp.description.length > 0 && (
-                              <ul
-                                className="list-disc ml-6 mt-1"
-                                style={{
-                                  fontFamily: "Times New Roman, Times, serif",
-                                }}
-                              >
-                                {exp.description.map(
-                                  (bullet: string, bidx: number) => (
-                                    <li key={bidx}>{bullet}</li>
-                                  )
-                                )}
-                              </ul>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                  Paste Resume
+                </button>
+                <PDFDownloadLink
+                  document={pdfDocument}
+                  fileName="resume.pdf"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac]"
+                >
+                  {({ loading }) => (
+                    <>
+                      <PrinterIcon className="w-5 h-5 mr-2" />
+                      {loading ? "Preparing PDF..." : "Download PDF"}
+                    </>
+                  )}
+                </PDFDownloadLink>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Sections */}
+          <div className="p-6">
+            <div className="grid grid-cols-12 gap-6">
+              {/* Left Side - Edit Sections */}
+              <div className="col-span-5">
+                <div className="space-y-6">
+                  {/* Templates Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <h2 className="text-lg font-semibold text-gray-900 p-4 border-b border-gray-200">
+                      Choose a Template
+                    </h2>
+                    <div className="p-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        {resumeTemplates.map((template) => (
+                          <button
+                            key={template.id}
+                            onClick={() =>
+                              setUiState((prev) => ({
+                                ...prev,
+                                selectedTemplate: template.id,
+                              }))
+                            }
+                            className={`p-4 rounded-lg border ${
+                              uiState.selectedTemplate === template.id
+                                ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-50"
+                                : "border-gray-200 hover:border-gray-300"
+                            }`}
+                          >
+                            {/* PNG Icon for each template */}
+                            {template.id === "modern" && (
+                              <img
+                                src="/svg/Businessprofessional.png"
+                                alt="Modern Professional"
+                                className="w-16 h-16 mx-auto mb-3 object-contain"
+                              />
                             )}
-                          </div>
-                        ))}
-                      </div>
-                      {/* Education */}
-                      <div className="mb-6">
-                        <div
-                          className="text-base sm:text-lg font-bold border-b-2 border-gray-400 pb-1 mb-2"
-                          style={{
-                            fontFamily: "Times New Roman, Times, serif",
-                          }}
-                        >
-                          Education
-                        </div>
-                        {resumeData.education.map((edu: any, idx: number) => (
-                          <div key={idx} className="mb-2">
-                            <span
-                              className="font-bold"
-                              style={{
-                                fontFamily: "Times New Roman, Times, serif",
-                              }}
-                            >
-                              {edu.degree}
-                            </span>
-                            {edu.degree && edu.school ? ", " : ""}
-                            <span
-                              style={{
-                                fontFamily: "Times New Roman, Times, serif",
-                              }}
-                            >
-                              {formatMonthYear(edu.startDate)}
-                              {edu.endDate
-                                ? ` - ${formatMonthYear(edu.endDate)}`
-                                : ""}
-                            </span>
-                          </div>
+                            {template.id === "executive" && (
+                              <img
+                                src="/svg/Executive.png"
+                                alt="Executive"
+                                className="w-16 h-16 mx-auto mb-3 object-contain"
+                              />
+                            )}
+                            {template.id === "minimal" && (
+                              <img
+                                src="/svg/minimal.png"
+                                alt="Minimal"
+                                className="w-16 h-16 mx-auto mb-3 object-contain"
+                              />
+                            )}
+                            {template.id === "creative" && (
+                              <img
+                                src="/svg/Creativethinking.png"
+                                alt="Creative Professional"
+                                className="w-16 h-16 mx-auto mb-3 object-contain"
+                              />
+                            )}
+                            <div className="text-xs font-medium text-center mt-2">
+                              {template.name}
+                            </div>
+                          </button>
                         ))}
                       </div>
                     </div>
                   </div>
+
+                  {/* Personal Information Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() =>
+                        setUiState((prev) => ({
+                          ...prev,
+                          activeSection:
+                            uiState.activeSection === "personal"
+                              ? null
+                              : "personal",
+                        }))
+                      }
+                      className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                    >
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Personal Information
+                      </h2>
+                      <ChevronDownIcon
+                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                          uiState.activeSection === "personal"
+                            ? "transform rotate-180"
+                            : ""
+                        }`}
+                      />
+                    </button>
+                    {uiState.activeSection === "personal" && (
+                      <div className="p-6">{renderEditSection()}</div>
+                    )}
+                  </div>
+
+                  {/* Professional Summary Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() =>
+                        setUiState((prev) => ({
+                          ...prev,
+                          activeSection:
+                            uiState.activeSection === "profile"
+                              ? null
+                              : "profile",
+                        }))
+                      }
+                      className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                    >
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Professional Summary
+                      </h2>
+                      <ChevronDownIcon
+                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                          uiState.activeSection === "profile"
+                            ? "transform rotate-180"
+                            : ""
+                        }`}
+                      />
+                    </button>
+                    {uiState.activeSection === "profile" && (
+                      <div className="p-6">{renderEditSection()}</div>
+                    )}
+                  </div>
+
+                  {/* Work Experience Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() =>
+                        setUiState((prev) => ({
+                          ...prev,
+                          activeSection:
+                            uiState.activeSection === "experience"
+                              ? null
+                              : "experience",
+                        }))
+                      }
+                      className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                    >
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Work Experience
+                      </h2>
+                      <ChevronDownIcon
+                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                          uiState.activeSection === "experience"
+                            ? "transform rotate-180"
+                            : ""
+                        }`}
+                      />
+                    </button>
+                    {uiState.activeSection === "experience" && (
+                      <div className="p-6">{renderEditSection()}</div>
+                    )}
+                  </div>
+
+                  {/* Education Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() =>
+                        setUiState((prev) => ({
+                          ...prev,
+                          activeSection:
+                            uiState.activeSection === "education"
+                              ? null
+                              : "education",
+                        }))
+                      }
+                      className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                    >
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Education
+                      </h2>
+                      <ChevronDownIcon
+                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                          uiState.activeSection === "education"
+                            ? "transform rotate-180"
+                            : ""
+                        }`}
+                      />
+                    </button>
+                    {uiState.activeSection === "education" && (
+                      <div className="p-6">{renderEditSection()}</div>
+                    )}
+                  </div>
+
+                  {/* Websites Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() =>
+                        setUiState((prev) => ({
+                          ...prev,
+                          activeSection:
+                            uiState.activeSection === "websites"
+                              ? null
+                              : "websites",
+                        }))
+                      }
+                      className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                    >
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Websites & Social Links
+                      </h2>
+                      <ChevronDownIcon
+                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                          uiState.activeSection === "websites"
+                            ? "transform rotate-180"
+                            : ""
+                        }`}
+                      />
+                    </button>
+                    {uiState.activeSection === "websites" && (
+                      <div className="p-6">{renderEditSection()}</div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </>
+
+              {/* Right Side - Resume Preview */}
+              <div className="col-span-7">
+                <div className="sticky top-6 z-[1000]">
+                  <ResumePreview
+                    resumeData={resumeData}
+                    template={uiState.selectedTemplate}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sign In Modal */}
+          <SignInModal
+            isOpen={uiState.showSignInModal}
+            onClose={() =>
+              setUiState((prev) => ({ ...prev, showSignInModal: false }))
+            }
+            onSuccess={() =>
+              setUiState((prev) => ({ ...prev, showSignInModal: false }))
+            }
+          />
+
+          {/* Paste Resume Modal */}
+          {uiState.showPasteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+              <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg relative">
+                <button
+                  onClick={() =>
+                    setUiState((prev) => ({ ...prev, showPasteModal: false }))
+                  }
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Paste Your Resume
+                </h3>
+                <textarea
+                  ref={textareaRef}
+                  value={pastedResume}
+                  onChange={(e) => setPastedResume(e.target.value)}
+                  className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Paste your resume text here..."
+                />
+                <div className="mt-4 flex justify-end space-x-3">
+                  <button
+                    onClick={() =>
+                      setUiState((prev) => ({ ...prev, showPasteModal: false }))
+                    }
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePasteResume}
+                    disabled={parsing || !pastedResume.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {parsing ? "Parsing..." : "Parse Resume"}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
-
-      {/* Paste Resume Modal */}
-      {showPasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-              onClick={() => setShowPasteModal(false)}
-            >
-              ×
-            </button>
-            <h2 className="text-xl font-bold mb-4">Paste Your Resume</h2>
-            <textarea
-              ref={textareaRef}
-              className="w-full h-40 border border-gray-300 rounded p-2 mb-4 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Paste your resume text here..."
-              value={pastedResume}
-              onChange={(e) => setPastedResume(e.target.value)}
-            />
-            {parseError && (
-              <div className="text-red-600 mb-2">{parseError}</div>
-            )}
-            <button
-              className="w-full py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition-colors"
-              onClick={handlePasteResume}
-              disabled={parsing || !pastedResume.trim()}
-            >
-              {parsing ? "Parsing..." : "Parse and Prefill"}
-            </button>
-          </div>
-        </div>
-      )}
+      <ErrorDisplay />
     </div>
   );
 };
