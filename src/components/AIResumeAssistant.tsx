@@ -34,6 +34,18 @@ const AIResumeAssistant = ({
     }
   }, [suggestions, onSuggestionsChange]);
 
+  function buildPrompt(profession: string, section: string | null) {
+    if (!profession) return "";
+    if (section === "profile") {
+      return `Generate 5 professional summary statements tailored for a ${profession}. Each summary should be concise, compelling, and highlight the candidate's strengths for this role. Focus on their overall professional identity, key skills, and career goals. Return as bullet points.`;
+    }
+    if (section === "employment") {
+      return `Given the job title: ${profession}, generate 5 impactful resume bullet points describing achievements, responsibilities, or results that would impress a recruiter. Use action verbs, quantify results where possible, and keep each point concise. Return as bullet points.`;
+    }
+    // Add more cases as needed
+    return "";
+  }
+
   const generateSuggestions = async () => {
     if (!user) {
       setError("Please sign in to use this feature");
@@ -46,6 +58,7 @@ const AIResumeAssistant = ({
 
     try {
       const token = await user.getIdToken();
+      const prompt = buildPrompt(profession, section);
       const response = await fetch("/.netlify/functions/generateResume", {
         method: "POST",
         headers: {
@@ -53,6 +66,7 @@ const AIResumeAssistant = ({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          prompt,
           profession,
           section,
         }),

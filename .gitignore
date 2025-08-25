@@ -32,3 +32,6 @@ dist-ssr
 .env.production.local 
 # Local Netlify folder
 .netlify
+
+# Ignore Google Cloud service account key
+serviceAccountKey.json
