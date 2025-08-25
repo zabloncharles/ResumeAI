@@ -2,16 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  getDocs,
   doc,
   getDoc,
-  where,
-  setDoc,
-  increment,
+  updateDoc,
 } from "firebase/firestore";
 import Navbar from "./Navbar";
 import {
@@ -25,7 +18,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Globe from "react-globe.gl";
-import MeditationStatsCard from "./MeditationStatsCard";
 import { useNavigate } from "react-router-dom";
 
 interface UserData {
@@ -43,50 +35,21 @@ interface UserData {
   state: string;
 }
 
-interface ActivityStats {
-  totalUsers: number;
-  totalResumes: number;
-  resumesThisWeek: number;
-}
-
-interface ArcData {
-  startLat: number;
-  startLng: number;
-  endLat: number;
-  endLng: number;
-  color: string;
-}
-
 const Dashboard = () => {
   console.log("Dashboard component rendered");
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [totalResumes, setTotalResumes] = useState(0);
-  const [totalApiCalls, setTotalApiCalls] = useState(0);
-  const [totalTokens, setTotalTokens] = useState(0);
-  const [activityStats, setActivityStats] = useState<ActivityStats>({
-    totalUsers: 0,
-    totalResumes: 0,
-    resumesThisWeek: 0,
-  });
-  const [coverLettersThisWeek, setCoverLettersThisWeek] = useState(0);
-  const [totalPaths, setTotalPaths] = useState(0);
-  const [recentPathProfessions, setRecentPathProfessions] = useState<string[]>(
-    []
-  );
-  const [recentUsers, setRecentUsers] = useState<UserData[]>([]);
-  const [activeUsers, setActiveUsers] = useState<UserData[]>([]);
-  const [userLocations, setUserLocations] = useState<any[]>([]);
-  const [locationArcs, setLocationArcs] = useState<any[]>([]);
-  const [topStates, setTopStates] = useState<
+  const [recentUsers] = useState<UserData[]>([]);
+  const [userLocations] = useState<any[]>([]);
+  const [locationArcs] = useState<any[]>([]);
+  const [topStates] = useState<
     { state: string; count: number; percent: number }[]
   >([]);
   const globeRef = useRef<any>(null);
   const navigate = useNavigate();
 
   // Dynamic data for the chart
-  const [profileImpressionData, setProfileImpressionData] = useState([
+  const [profileImpressionData] = useState([
     { month: "Jan", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
     { month: "Feb", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
     { month: "Mar", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
@@ -117,8 +80,6 @@ const Dashboard = () => {
     { month: "Dec", apiCalls: 0, tokens: 0 },
   ]);
 
-  const geoUrl = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json";
-
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -139,12 +100,11 @@ const Dashboard = () => {
       // Increment API call count for the user
       try {
         const userRef = doc(db, "users", user.uid);
-        await setDoc(
+        await updateDoc(
           userRef,
           {
-            totalApiCalls: increment(1),
-          },
-          { merge: true }
+            totalApiCalls: 1,
+          }
         );
       } catch (error) {
         console.error("[Dashboard] Error incrementing API call count:", error);
@@ -183,31 +143,6 @@ const Dashboard = () => {
       globeRef.current.pointOfView({ altitude: 10 }, 0);
     }
   }, []);
-
-  // Calculate max value for chart Y-axis based on current state
-  const chartMax =
-    Math.max(
-      ...profileImpressionData.map((d) =>
-        Math.max(d.resume, d.coverLetter, d.careerPath)
-      ),
-      0
-    ) + 5;
-
-  console.log(
-    "[Dashboard] Render metrics: totalApiCalls:",
-    totalApiCalls,
-    "totalTokens:",
-    totalTokens
-  );
-
-  useEffect(() => {
-    console.log(
-      "[Dashboard] State updated: totalApiCalls:",
-      totalApiCalls,
-      "totalTokens:",
-      totalTokens
-    );
-  }, [totalApiCalls, totalTokens]);
 
   // Aggregate API calls and tokens per month after users are loaded
   useEffect(() => {
@@ -418,7 +353,7 @@ const Dashboard = () => {
                   </h3>
                 </div>
                 <p className="text-3xl font-bold text-blue-600 mb-1">
-                  {totalUsers}
+                  {recentUsers.length}
                 </p>
                 <p className="text-xs text-gray-500">
                   All registered users on the platform
@@ -444,7 +379,10 @@ const Dashboard = () => {
                   </h3>
                 </div>
                 <p className="text-3xl font-bold text-green-600 mb-1">
-                  {totalResumes}
+                  {profileImpressionData.reduce(
+                    (sum, month) => sum + month.resume,
+                    0
+                  )}
                 </p>
                 <p className="text-xs text-gray-500">
                   Resumes created by all users
@@ -469,9 +407,9 @@ const Dashboard = () => {
                     Total API Calls
                   </h3>
                 </div>
-                <p className="text-3xl font-bold text-indigo-600 mb-1">
-                  {totalApiCalls}
-                </p>
+                                  <p className="text-3xl font-bold text-indigo-600 mb-1">
+                   {userData?.totalApiCalls || 0}
+                  </p>
                 <p className="text-xs text-gray-500">
                   API requests made by all users
                 </p>
@@ -495,9 +433,9 @@ const Dashboard = () => {
                     Total Tokens
                   </h3>
                 </div>
-                <p className="text-3xl font-bold text-pink-600 mb-1">
-                  {totalTokens}
-                </p>
+                                  <p className="text-3xl font-bold text-pink-600 mb-1">
+                   {userData?.totalTokens || 0}
+                  </p>
                 <p className="text-xs text-gray-500">
                   Tokens used by all users
                 </p>
@@ -522,7 +460,11 @@ const Dashboard = () => {
                   </h3>
                 </div>
                 <p className="text-3xl font-bold text-orange-600 mb-1">
-                  {activityStats.resumesThisWeek}
+                  {recentUsers.filter(
+                    (user) =>
+                      new Date(user.createdAt).getTime() >=
+                      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
+                  ).length}
                 </p>
                 <p className="text-xs text-gray-500">
                   New resumes created in the last 7 days
@@ -615,7 +557,7 @@ const Dashboard = () => {
                         Total Active Users
                       </h3>
                       <p className="text-2xl font-bold text-blue-600">
-                        {totalUsers}
+                        {recentUsers.length}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         Across 6 continents
@@ -1322,7 +1264,11 @@ const Dashboard = () => {
                     Resumes Created
                   </span>
                   <span className="text-xl font-bold text-orange-700">
-                    {activityStats.resumesThisWeek}
+                    {recentUsers.filter(
+                      (user) =>
+                        new Date(user.createdAt).getTime() >=
+                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
+                    ).length}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
@@ -1414,7 +1360,10 @@ const Dashboard = () => {
                     Cover Letters Created
                   </span>
                   <span className="text-xl font-bold text-green-700">
-                    {coverLettersThisWeek}
+                    {profileImpressionData.reduce(
+                      (sum, month) => sum + month.coverLetter,
+                      0
+                    )}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
@@ -1506,18 +1455,28 @@ const Dashboard = () => {
                     Paths Created
                   </span>
                   <span className="text-xl font-bold text-blue-700">
-                    {totalPaths}
+                    {profileImpressionData.reduce(
+                      (sum, month) => sum + month.careerPath,
+                      0
+                    )}
                   </span>
                 </div>
-                {totalPaths > 0 && recentPathProfessions.length > 0 && (
+                {profileImpressionData.reduce(
+                  (sum, month) => sum + month.careerPath,
+                  0
+                ) > 0 && (
                   <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 px-4 py-3 mt-2">
                     <div className="text-xs text-gray-500 mb-1 font-semibold">
                       Last 3 Professions
                     </div>
                     <ul className="list-disc list-inside text-sm text-gray-700">
-                      {recentPathProfessions.map((prof, idx) => (
-                        <li key={idx}>{prof}</li>
-                      ))}
+                      {profileImpressionData
+                        .filter((month) => month.careerPath > 0)
+                        .map((month, idx) => (
+                          <li key={idx}>
+                            {month.careerPath} users in {month.month}
+                          </li>
+                        ))}
                     </ul>
                   </div>
                 )}

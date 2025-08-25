@@ -19,7 +19,6 @@ const Navbar = () => {
   const [user, setUser] = useState<User | null>(null);
   const [firstName, setFirstName] = useState("");
   const [showSignInModal, setShowSignInModal] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();

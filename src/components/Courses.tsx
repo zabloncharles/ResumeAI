@@ -1,8 +1,8 @@
 import Navbar from "./Navbar";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
-import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { db } from "../firebase";
+// import { onAuthStateChanged, User } from "firebase/auth";
 import {
   doc,
   setDoc,

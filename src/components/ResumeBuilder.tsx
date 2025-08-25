@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -318,10 +318,6 @@ const ResumeBuilder = () => {
     setUiState((prev) => ({ ...prev, showPasteModal: true }));
   };
 
-  const handleSignInSuccess = () => {
-    setUiState((prev) => ({ ...prev, showSignInModal: false }));
-  };
-
   // On mount: check localStorage for user and resume
   useEffect(() => {
     // Auth: check localStorage first
@@ -369,12 +365,6 @@ const ResumeBuilder = () => {
     }
   }, [user, isAuthenticated]);
 
-  // On resume edit: update localStorage
-  const handleResumeEdit = useCallback((newResume: ResumeData) => {
-    setResumeData(newResume);
-    localStorage.setItem("resume", JSON.stringify(newResume));
-  }, []);
-
   // On save: push localStorage resume to Firebase
   const handleManualSave = useCallback(async () => {
     if (!user || !isAuthenticated) {
@@ -389,7 +379,7 @@ const ResumeBuilder = () => {
       const resumeStr = localStorage.getItem("resume");
       if (!resumeStr) throw new Error("No resume data in localStorage");
       const resume = JSON.parse(resumeStr);
-      const token = await user.getIdToken(true);
+              // const token = await user.getIdToken(true);
       const resumeDataToSave = {
         ...resume,
         lastUpdated: new Date().toISOString(),
@@ -422,18 +412,6 @@ const ResumeBuilder = () => {
       setSaving(false);
     }
   }, [user, isAuthenticated, currentResumeId]);
-
-  // On logout: clear localStorage
-  const handleLogout = useCallback(async () => {
-    await auth.signOut();
-    localStorage.removeItem("user");
-    localStorage.removeItem("userData");
-    localStorage.removeItem("resume");
-    // Add any other keys you use for sensitive data here
-    setUser(null);
-    setIsAuthenticated(false);
-    setResumeData(initialResumeData);
-  }, []);
 
   // Improve the load resume data function with auth handling
   const loadResumeData = useCallback(
@@ -1025,22 +1003,22 @@ const ResumeBuilder = () => {
   ]);
 
   // Memoize the section title
-  const sectionTitle = useMemo(() => {
-    switch (uiState.activeSection) {
-      case "personal":
-        return "Personal Information";
-      case "profile":
-        return "Professional Summary";
-      case "experience":
-        return "Work Experience";
-      case "education":
-        return "Education History";
-      case "websites":
-        return "Website Links";
-      default:
-        return "";
-    }
-  }, [uiState.activeSection]);
+  // const sectionTitle = useMemo(() => {
+  //   switch (uiState.activeSection) {
+  //     case "personal":
+  //       return "Personal Information";
+  //     case "profile":
+  //       return "Professional Summary";
+  //     case "experience":
+  //       return "Work Experience";
+  //     case "education":
+  //       return "Education History";
+  //     case "websites":
+  //       return "Website Links";
+  //     default:
+  //       return "";
+  //   }
+  // }, [uiState.activeSection]);
 
   // Memoize the PDF document
   const pdfDocument = useMemo(
@@ -1049,14 +1027,6 @@ const ResumeBuilder = () => {
     ),
     [resumeData, uiState.selectedTemplate]
   );
-
-  function getFormattedTime(date: Date) {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  }
 
   // Add error display component
   const ErrorDisplay = useCallback(() => {
@@ -1096,7 +1066,7 @@ const ResumeBuilder = () => {
     );
   }, [firestoreError]);
 
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   if (loading)
     return (

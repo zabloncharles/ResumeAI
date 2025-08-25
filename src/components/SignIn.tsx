@@ -10,7 +10,6 @@ import {
 import { doc, setDoc } from "firebase/firestore";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { Link } from "react-router-dom";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
