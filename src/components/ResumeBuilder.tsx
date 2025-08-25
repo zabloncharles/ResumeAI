@@ -3,27 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CloudIcon,
   ChevronDownIcon,
   PlusIcon,
   TrashIcon,
   CalendarIcon,
   PrinterIcon,
-  UserIcon,
   DocumentTextIcon,
-  BriefcaseIcon,
-  AcademicCapIcon,
-  LinkIcon,
-  SwatchIcon,
-  HomeIcon,
-  DocumentIcon,
-  CpuChipIcon,
-  ArrowUpTrayIcon,
-  Cog6ToothIcon,
   XMarkIcon,
-  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import ResumePDF from "./ResumePDF";
 import { PDFDownloadLink } from "@react-pdf/renderer";
@@ -35,23 +21,15 @@ import {
   doc,
   getDoc,
   setDoc,
-  increment,
-  collection,
-  addDoc,
   updateDoc,
+  addDoc,
+  collection,
   arrayUnion,
 } from "firebase/firestore";
 import SignInModal from "./SignInModal";
 import bunny1 from "../bunny1.png";
 import ResumePreview from "./ResumePreview";
-import TemplatesPage from "./TemplatesPage";
-
-interface ResumeTemplate {
-  id: string;
-  name: string;
-  description: string;
-  preview: string;
-}
+// import TemplatesPage from "./TemplatesPage";
 
 const initialResumeData: ResumeData = {
   personalInfo: {
@@ -105,16 +83,6 @@ const formatDateForState = (date: Date | null): string => {
   return `${year}-${month}`;
 };
 
-// Helper to display month and year correctly in preview
-const formatMonthYear = (dateStr: string): string => {
-  if (!dateStr) return "";
-  const [year, month] = dateStr.split("-");
-  if (!year || !month) return "";
-  // Month is 1-based, so subtract 1 for Date constructor
-  const date = new Date(Number(year), Number(month) - 1);
-  return date.toLocaleString("default", { month: "long", year: "numeric" });
-};
-
 const ResumeBuilder = () => {
   // Consolidate related state into a single object
   const [uiState, setUiState] = useState({
@@ -137,16 +105,11 @@ const ResumeBuilder = () => {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [pastedResume, setPastedResume] = useState("");
-  const [parsing, setParsing] = useState(false);
-  const [parseError, setParseError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [firestoreError, setFirestoreError] = useState<string | null>(null);
 
   // Add auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   // Memoize resume templates
   const resumeTemplates = useMemo(
@@ -347,45 +310,16 @@ const ResumeBuilder = () => {
     }
   };
 
-  const handleGetSuggestions = () => {
-    if (!user) {
-      setPendingAction(() => () => {
-        // Your existing get suggestions logic here
-      });
-      setUiState((prev) => ({ ...prev, showSignInModal: true }));
-      return;
-    }
-    // Your existing get suggestions logic here
-  };
-
   const handlePasteResume = () => {
     if (!user) {
-      setPendingAction(() => () => {
-        setUiState((prev) => ({ ...prev, showPasteModal: true }));
-      });
       setUiState((prev) => ({ ...prev, showSignInModal: true }));
       return;
     }
     setUiState((prev) => ({ ...prev, showPasteModal: true }));
   };
 
-  const handleSettingsClick = () => {
-    if (!user) {
-      setPendingAction(() => () => {
-        // Navigate to settings
-      });
-      setUiState((prev) => ({ ...prev, showSignInModal: true }));
-      return;
-    }
-    // Navigate to settings
-  };
-
   const handleSignInSuccess = () => {
     setUiState((prev) => ({ ...prev, showSignInModal: false }));
-    if (pendingAction) {
-      pendingAction();
-      setPendingAction(null);
-    }
   };
 
   // On mount: check localStorage for user and resume
@@ -445,7 +379,7 @@ const ResumeBuilder = () => {
   const handleManualSave = useCallback(async () => {
     if (!user || !isAuthenticated) {
       setUiState((prev) => ({ ...prev, showSignInModal: true }));
-      setPendingAction(() => handleManualSave);
+      // setPendingAction(() => handleManualSave);
       return;
     }
     setSaving(true);
@@ -518,7 +452,7 @@ const ResumeBuilder = () => {
         if (!firebaseUser) {
           throw new Error("No authenticated user found");
         }
-        const token = await firebaseUser.getIdToken(true);
+        // const token = await firebaseUser.getIdToken(true);
 
         // Ensure Firestore is initialized
         if (!db) {
@@ -591,63 +525,6 @@ const ResumeBuilder = () => {
     };
     fetchAndLoadResume();
   }, [user]);
-
-  const renderTemplates = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-medium text-gray-900">Choose a Template</h3>
-      <div className="grid grid-cols-2 gap-4">
-        {resumeTemplates.map((template) => (
-          <button
-            key={template.id}
-            onClick={() =>
-              setUiState((prev) => ({
-                ...prev,
-                selectedTemplate: template.id,
-              }))
-            }
-            className={`p-4 rounded-lg border ${
-              uiState.selectedTemplate === template.id
-                ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            {/* PNG Icon for each template */}
-            {template.id === "modern" && (
-              <img
-                src="/svg/Businessprofessional.png"
-                alt="Modern Professional"
-                className="w-16 h-16 mx-auto mb-3 object-contain"
-              />
-            )}
-            {template.id === "executive" && (
-              <img
-                src="/svg/Executive.png"
-                alt="Executive"
-                className="w-16 h-16 mx-auto mb-3 object-contain"
-              />
-            )}
-            {template.id === "minimal" && (
-              <img
-                src="/svg/minimal.png"
-                alt="Minimal"
-                className="w-16 h-16 mx-auto mb-3 object-contain"
-              />
-            )}
-            {template.id === "creative" && (
-              <img
-                src="/svg/Creativethinking.png"
-                alt="Creative Professional"
-                className="w-16 h-16 mx-auto mb-3 object-contain"
-              />
-            )}
-            <div className="text-xs font-medium text-center mt-2">
-              {template.name}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 
   const renderEditSection = useCallback(() => {
     switch (uiState.activeSection) {
@@ -760,7 +637,7 @@ const ResumeBuilder = () => {
               profession={resumeData.personalInfo.title}
               onSuggestionSelect={handleSuggestionSelect}
               section="profile"
-              onSuggestionsChange={setSuggestions}
+              onSuggestionsChange={() => {}}
             />
           </div>
         );
@@ -1354,7 +1231,20 @@ const ResumeBuilder = () => {
                     ></path>
                   </svg>
                 ) : (
-                  <CloudIcon className="w-5 h-5" />
+                  <svg
+                    className="w-5 h-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                 )}
               </button>
               <button
@@ -1698,10 +1588,10 @@ const ResumeBuilder = () => {
                   </button>
                   <button
                     onClick={handlePasteResume}
-                    disabled={parsing || !pastedResume.trim()}
+                    disabled={!pastedResume.trim()}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {parsing ? "Parsing..." : "Parse Resume"}
+                    {"Parse Resume"}
                   </button>
                 </div>
               </div>

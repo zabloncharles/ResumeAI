@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import ResumePreview from "./ResumePreview";
 
 // Sample resume data
@@ -70,7 +69,6 @@ const resumeTemplates = [
 ];
 
 const TemplatesPage = () => {
-  const navigate = useNavigate();
   const [selected, setSelected] = useState(resumeTemplates[0]);
 
   return (
