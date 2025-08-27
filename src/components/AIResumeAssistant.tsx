@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 import Orb from "./Orb";
+import SignInModal from "./SignInModal";
 
 interface AIResumeAssistantProps {
   profession: string;
@@ -22,6 +23,7 @@ const AIResumeAssistant = ({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -48,7 +50,7 @@ const AIResumeAssistant = ({
 
   const generateSuggestions = async () => {
     if (!user) {
-      setError("Please sign in to use this feature");
+      setShowSignInModal(true);
       return;
     }
 
@@ -147,45 +149,38 @@ const AIResumeAssistant = ({
             </div>
           )}
 
-          {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
-          <div className="pt-4">
+          <div className="flex items-center justify-between">
             <button
               onClick={generateSuggestions}
               disabled={disabled || isLoading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md text-white bg-gradient-to-r from-[#16aeac] to-black hover:from-[#139b99] hover:to-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#16aeac] hover:bg-[#16aeac]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
-              {isLoading ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                "Get Suggestions"
-              )}
+              {isLoading ? "Generating..." : "Generate Suggestions"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSuccess={() => {
+          setShowSignInModal(false);
+          // Optionally auto-generate suggestions after successful sign-in
+          setTimeout(() => {
+            if (auth.currentUser) {
+              generateSuggestions();
+            }
+          }, 1000);
+        }}
+      />
     </div>
   );
 };

@@ -8,8 +8,6 @@ import {
   LightBulbIcon,
 } from "@heroicons/react/24/outline";
 import { Link } from "react-router-dom";
-import AOS from "aos";
-import "aos/dist/aos.css";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import videoBg from "../video.mp4";
@@ -112,14 +110,6 @@ const faq = [
 const LandingPage = () => {
   const [showSignInModal, setShowSignInModal] = useState(false);
 
-  useEffect(() => {
-    AOS.init({
-      duration: 1000,
-      once: true,
-      easing: "ease-out",
-    });
-  }, []);
-
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -139,11 +129,7 @@ const LandingPage = () => {
         <div className="relative z-10">
           {/* Hero Section */}
           <div className="pt-32 pb-16 text-center">
-            <div
-              className="flex items-center justify-center space-x-2 mb-8"
-              data-aos="fade-down"
-              data-aos-delay="100"
-            >
+            <div className="flex items-center justify-center space-x-2 mb-8">
               <span>📝</span>
               <span>→</span>
               <img
@@ -154,29 +140,17 @@ const LandingPage = () => {
               <span>→</span>
               <span>💼</span>
             </div>
-            <h1
-              className="text-6xl font-bold tracking-tight text-gray-900 mb-8"
-              data-aos="fade-up"
-              data-aos-delay="200"
-            >
+            <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-8">
               Create Your Future,
               <br />
               Build Your Perfect Resume Now!
             </h1>
-            <p
-              className="text-xl text-gray-600 max-w-3xl mx-auto mb-12"
-              data-aos="fade-up"
-              data-aos-delay="300"
-            >
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
               Transform your career journey with AI-powered resume creation. We
               specialize in crafting professional resumes that stand out and get
               you noticed.
             </p>
-            <div
-              className="mt-8 flex justify-center"
-              data-aos="fade-up"
-              data-aos-delay="400"
-            >
+            <div className="mt-8 flex justify-center">
               <Link
                 to="/loading"
                 className="inline-block px-8 py-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl text-lg font-semibold flex items-center"
@@ -200,7 +174,7 @@ const LandingPage = () => {
           </div>
           {/* AI Cover Letter Feature Section */}
           <div
-            className="mt-12 max-w-2xl mx-auto bg-gradient-to-r from-green-50 to-yellow-50 border border-green-200 rounded-xl p-8 flex flex-col items-center text-center"
+            className="mt-12 max-w-2xl mx-auto bg-gradient-to-r from-green-50 to-yellow-50 border-2 border-gradient-to-r from-green-200 to-yellow-200 rounded-xl p-8 flex flex-col items-center text-center shadow-lg"
             data-aos="fade-up"
             data-aos-delay="300"
           >
@@ -218,7 +192,7 @@ const LandingPage = () => {
             </p>
             <Link
               to="/cover-letter"
-              className="px-6 py-2.5 bg-white text-gray-900 rounded-full border border-gray-200 hover:bg-gray-50 transition-all"
+              className="px-6 py-2.5 bg-white text-gray-900 rounded-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
             >
               Try the Cover Letter Creator
             </Link>
@@ -230,12 +204,7 @@ const LandingPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20">
           {stats.map((stat, index) => (
-            <div
-              key={stat.value}
-              className="text-center"
-              data-aos="zoom-in"
-              data-aos-delay={index * 100}
-            >
+            <div key={stat.value} className="text-center">
               <div className="text-4xl font-bold text-gray-900 mb-2">
                 {stat.value}
               </div>
@@ -246,9 +215,9 @@ const LandingPage = () => {
       </div>
 
       {/* AI Features Section */}
-      <div className="py-20" data-aos="fade-up">
+      <div className="py-20">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center" data-aos="fade-right">
+          <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">
               AI-powered resume building for better results
             </h2>
@@ -283,11 +252,11 @@ const LandingPage = () => {
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100"
+                className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-gradient-to-br from-gray-100 to-gray-200 hover:border-green-300 hover:scale-105"
                 data-aos="fade-up"
                 data-aos-delay={index * 100}
               >
-                <div className="bg-green-50 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 w-14 h-14 rounded-xl flex items-center justify-center mb-6 border border-green-200">
                   <feature.icon className="w-7 h-7 text-green-600" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
@@ -320,7 +289,7 @@ const LandingPage = () => {
           {templates.map((template, index) => (
             <div
               key={template.title}
-              className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+              className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-gray-200 hover:border-blue-300 hover:scale-105"
               data-aos="flip-left"
               data-aos-delay={index * 200}
             >
@@ -331,7 +300,7 @@ const LandingPage = () => {
               />
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-green-600">
+                  <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
                     {template.type}
                   </span>
                 </div>
@@ -346,7 +315,7 @@ const LandingPage = () => {
       </div>
 
       {/* Steps */}
-      <div className="bg-green-50 py-20">
+      <div className="bg-gradient-to-br from-green-50 to-blue-50 py-20 border-t-2 border-b-2 border-gradient-to-r from-green-200 to-blue-200">
         <div className="max-w-7xl mx-auto px-4">
           <h2
             className="text-3xl font-bold text-gray-900 mb-4"
@@ -358,11 +327,11 @@ const LandingPage = () => {
             {steps.map((step, index) => (
               <div
                 key={step.title}
-                className="bg-white p-6 rounded-xl"
+                className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-green-300 shadow-lg hover:shadow-xl transition-all duration-300"
                 data-aos="fade-right"
                 data-aos-delay={index * 200}
               >
-                <div className="text-green-600 font-medium mb-4">
+                <div className="text-green-600 font-medium mb-4 bg-green-50 px-3 py-1 rounded-full border border-green-200 inline-block">
                   Step {index + 1}
                 </div>
                 <h3 className="font-medium text-gray-900 mb-2">{step.title}</h3>
@@ -376,7 +345,7 @@ const LandingPage = () => {
       {/* Testimonial */}
       <div className="max-w-7xl mx-auto px-4 py-20">
         <div
-          className="bg-gray-900 text-white rounded-2xl p-12 relative overflow-hidden"
+          className="bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-2xl p-12 relative overflow-hidden border-2 border-gray-700 shadow-2xl"
           data-aos="fade-up"
           data-aos-duration="1200"
         >
@@ -387,7 +356,7 @@ const LandingPage = () => {
               landed interviews at my dream companies within weeks."
             </p>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gray-600 rounded-full" />
+              <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full border-2 border-gray-500" />
               <div>
                 <div className="font-medium">Sarah Chen</div>
                 <div className="text-gray-400">Software Engineer at Google</div>
@@ -409,7 +378,7 @@ const LandingPage = () => {
           {faq.map((question, index) => (
             <div
               key={question}
-              className="flex items-center justify-between p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all cursor-pointer"
+              className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 transition-all cursor-pointer border-2 border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md"
               data-aos="fade-left"
               data-aos-delay={index * 100}
             >
@@ -433,7 +402,7 @@ const LandingPage = () => {
       </div>
 
       {/* CTA */}
-      <div className="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-32 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-32 relative overflow-hidden border-t-2 border-b-2 border-gradient-to-r from-green-200 via-blue-200 to-purple-200">
         <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:75px_75px]"></div>
         <div
           className="max-w-7xl mx-auto px-4 text-center relative"
@@ -444,7 +413,7 @@ const LandingPage = () => {
           <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-40 h-40 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-full blur-3xl"></div>
 
           <span
-            className="inline-flex items-center rounded-full px-4 py-1 text-sm font-medium bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 mb-8"
+            className="inline-flex items-center rounded-full px-4 py-1 text-sm font-medium bg-blue-50 text-blue-700 ring-2 ring-inset ring-blue-300 mb-8 border border-blue-200"
             data-aos="fade-up"
             data-aos-delay="100"
           >
@@ -475,7 +444,7 @@ const LandingPage = () => {
           >
             <Link
               to="/loading"
-              className="px-8 py-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group"
+              className="px-8 py-4 bg-gradient-to-r from-black to-gray-800 text-white rounded-full hover:from-gray-800 hover:to-gray-900 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group border-2 border-gray-700"
             >
               Create Your Resume
               <svg
@@ -492,7 +461,7 @@ const LandingPage = () => {
                 />
               </svg>
             </Link>
-            <button className="px-8 py-4 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-all border border-gray-200 flex items-center">
+            <button className="px-8 py-4 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-all border-2 border-gray-300 hover:border-blue-400 shadow-lg hover:shadow-xl flex items-center">
               <svg
                 className="w-5 h-5 mr-2"
                 fill="none"
@@ -515,7 +484,7 @@ const LandingPage = () => {
             data-aos="fade-up"
             data-aos-delay="500"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-green-200 shadow-sm">
               <svg
                 className="w-5 h-5 text-green-500"
                 fill="none"
@@ -531,9 +500,9 @@ const LandingPage = () => {
               </svg>
               <span className="text-gray-600">Free Templates</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-blue-200 shadow-sm">
               <svg
-                className="w-5 h-5 text-green-500"
+                className="w-5 h-5 text-blue-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -547,9 +516,9 @@ const LandingPage = () => {
               </svg>
               <span className="text-gray-600">AI Powered</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-purple-200 shadow-sm">
               <svg
-                className="w-5 h-5 text-green-500"
+                className="w-5 h-5 text-purple-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

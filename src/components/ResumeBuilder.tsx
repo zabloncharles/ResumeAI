@@ -418,6 +418,7 @@ const ResumeBuilder = () => {
     async (userId: string) => {
       if (!isAuthenticated) {
         setFirestoreError("Please sign in to load your resume");
+        setUiState((prev) => ({ ...prev, showSignInModal: true }));
         return;
       }
 

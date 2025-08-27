@@ -46,6 +46,9 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   const getFriendlyError = (error: any) => {
     if (!error || typeof error !== "object")
       return "An unexpected error occurred. Please try again.";
+    
+    console.log("Auth error:", error);
+    
     const code =
       error.code ||
       (error.message && error.message.match(/auth\/(\w|-)+/g)?.[0]);
@@ -63,13 +66,20 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
         return "Please enter a valid email address.";
       case "auth/weak-password":
         return "Password should be at least 6 characters.";
+      case "auth/network-request-failed":
+        return "Network error. Please check your internet connection and try again.";
+      case "auth/popup-closed-by-user":
+        return "Sign-in was cancelled.";
+      case "auth/popup-blocked":
+        return "Pop-up was blocked. Please allow pop-ups for this site and try again.";
       default:
-        return "An unexpected error occurred. Please try again.";
+        return `Authentication error: ${error.message || "Please try again."}`;
     }
   };
 
   // Helper: Fetch coordinates for a zip code using Zippopotam.us API
   const getRandomCoordForZip = async (zip: string) => {
+    if (!zip || zip.trim() === "") return "";
     try {
       const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
       if (!res.ok) return "";
@@ -81,7 +91,8 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
       const randLat = lat + (Math.random() - 0.5) * 0.02;
       const randLng = lng + (Math.random() - 0.5) * 0.02;
       return `${randLat},${randLng}`;
-    } catch {
+    } catch (error) {
+      console.log("Location API error (non-critical):", error);
       return "";
     }
   };
@@ -95,12 +106,20 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
           setError("Please accept the privacy policy to continue");
           return;
         }
-        const location = await getRandomCoordForZip(zip);
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
+        
+        // Try to get location, but don't fail if it doesn't work
+        let location = "";
+        try {
+          location = await getRandomCoordForZip(zip);
+        } catch (locationError) {
+          console.log("Location fetch failed, continuing without location");
+        }
+        
         await setDoc(doc(db, "users", userCredential.user.uid), {
           email: userCredential.user.email,
           firstName,
@@ -129,9 +148,9 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const location = await getRandomCoordForZip(zip);
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
+      
       // Extract first/last name from displayName if available
       let firstName = "";
       let lastName = "";
@@ -140,6 +159,15 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
         firstName = parts[0] || "";
         lastName = parts.slice(1).join(" ") || "";
       }
+      
+      // Try to get location, but don't fail if it doesn't work
+      let location = "";
+      try {
+        location = await getRandomCoordForZip(zip);
+      } catch (locationError) {
+        console.log("Location fetch failed, continuing without location");
+      }
+      
       await setDoc(doc(db, "users", userCredential.user.uid), {
         email: userCredential.user.email,
         firstName,

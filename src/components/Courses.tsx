@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import Footer from "./Footer";
 import { useAuth } from "../contexts/AuthContext";
+import SignInModal from "./SignInModal";
 
 // MOCKED STEPS DATA FOR DEMO (replace with real API data structure as needed)
 const mockSteps = [
@@ -143,6 +144,7 @@ const Courses = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<"timeline" | "board">("timeline");
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +154,7 @@ const Courses = () => {
     try {
       console.log("Current user state:", user);
       if (!user) {
-        setError("Please sign in to use this feature");
+        setShowSignInModal(true);
         setLoading(false);
         return;
       }
@@ -237,45 +239,68 @@ const Courses = () => {
         {/* Hero Section */}
         <div className="w-full flex flex-col items-center justify-center pt-28 pb-10 mb-0">
           <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">
-              Find Your Path to Success
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+              Discover Your
+              <br />
+              <span className="text-[#16aeac]">Career Path</span>
             </h1>
-            <p className="text-lg text-gray-500 mb-8">
-              Enter your dream profession and get a personalized, actionable
-              roadmap with the best courses and certifications to land your next
-              job.
+            <p className="text-xl text-gray-600 mb-8 max-w-2xl">
+              Get personalized career guidance and step-by-step roadmap to achieve
+              your professional goals
             </p>
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-xl mx-auto w-full mb-2"
-            >
-              <input
-                type="text"
-                className="flex-1 px-6 py-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white text-gray-900 text-lg shadow-sm transition-all placeholder:text-gray-400"
-                placeholder="e.g. Data Scientist, UX Designer, Cloud Engineer"
-                value={profession}
-                onChange={(e) => setProfession(e.target.value)}
-                required
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-lg shadow-md hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-60"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="animate-pulse">Loading...</span>
-                ) : (
-                  <>
-                    <ArrowRightIcon className="w-5 h-5" />
-                    Get My Roadmap
-                  </>
-                )}
-              </button>
+
+            <form onSubmit={handleSubmit} className="w-full max-w-md">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  value={profession}
+                  onChange={(e) => setProfession(e.target.value)}
+                  placeholder="Enter your profession (e.g., Software Engineer)"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !profession.trim()}
+                  className="px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#16aeac]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                >
+                  {loading ? (
+                    <div className="flex items-center">
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Generating...
+                    </div>
+                  ) : (
+                    <>
+                      Generate Path
+                      <ArrowRightIcon className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
+
             {error && (
-              <div className="text-red-500 text-center mt-2 font-medium animate-pulse">
-                {error}
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg max-w-md">
+                <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
           </div>
@@ -392,6 +417,21 @@ const Courses = () => {
           .scrollbar-hide::-webkit-scrollbar { display: none; }
           .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
+
+        {/* Sign In Modal */}
+        <SignInModal
+          isOpen={showSignInModal}
+          onClose={() => setShowSignInModal(false)}
+          onSuccess={() => {
+            setShowSignInModal(false);
+            // Optionally auto-submit the form after successful sign-in
+            setTimeout(() => {
+              if (profession.trim()) {
+                handleSubmit(new Event('submit') as any);
+              }
+            }, 1000);
+          }}
+        />
       </div>
     </>
   );

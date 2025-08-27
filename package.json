@@ -22,10 +22,10 @@
     "react": "^18.2.0",
     "react-datepicker": "^8.2.1",
     "react-dom": "^18.2.0",
-    "react-globe.gl": "^2.33.2",
+    "react-globe.gl": "^2.35.0",
     "react-router-dom": "^7.4.0",
     "react-simple-maps": "^3.0.0",
-    "recharts": "^2.15.3",
+    "recharts": "^2.15.4",
     "three": "^0.177.0",
     "topojson-client": "^3.1.0",
     "zipcodes": "^8.0.0"

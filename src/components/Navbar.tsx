@@ -4,7 +4,7 @@ import {
   DocumentIcon,
   DocumentTextIcon,
   BriefcaseIcon,
-  NewspaperIcon,
+  AcademicCapIcon,
 } from "@heroicons/react/24/outline";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
@@ -147,13 +147,13 @@ const Navbar = () => {
               <span>Jobs</span>
             </Link>
             <Link
-              to="/news"
+              to="/study"
               className={`text-gray-600 hover:text-gray-900 flex items-center space-x-2 ${
-                isActive("/news") ? "font-bold border-b-2 border-blue-500" : ""
+                isActive("/study") ? "font-bold border-b-2 border-blue-500" : ""
               }`}
             >
-              <NewspaperIcon className="h-5 w-5" />
-              <span>News</span>
+              <AcademicCapIcon className="h-5 w-5" />
+              <span>Study</span>
             </Link>
           </div>
 
@@ -340,14 +340,14 @@ const Navbar = () => {
               </div>
             </Link>
             <Link
-              to="/news"
+              to="/study"
               className={`block px-3 py-2 text-gray-600 hover:text-gray-900 ${
-                isActive("/news") ? "font-bold border-l-2 border-blue-500" : ""
+                isActive("/study") ? "font-bold border-l-2 border-blue-500" : ""
               }`}
             >
               <div className="flex items-center space-x-2">
-                <NewspaperIcon className="h-5 w-5" />
-                <span>News</span>
+                <AcademicCapIcon className="h-5 w-5" />
+                <span>Study</span>
               </div>
             </Link>
             <div className="pt-4 flex flex-col space-y-4">

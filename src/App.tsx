@@ -10,7 +10,7 @@ import LoadingPage from "./components/LoadingPage";
 import AccountSettings from "./components/AccountSettings";
 import Courses from "./components/Courses";
 import Jobs from "./components/Jobs";
-import News from "./components/News";
+import Study from "./components/Study";
 import Dashboard from "./components/Dashboard";
 import CoverLetterCreator from "./components/CoverLetterCreator";
 import SplashCursor from "./components/SplashCursor";
@@ -32,7 +32,7 @@ const AppContent = () => {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/jobs" element={<Jobs />} />
-        <Route path="/news" element={<News />} />
+        <Route path="/study" element={<Study />} />
         <Route path="/templates" element={<TemplatesPage />} />
         <Route
           path="/cover-letter"
