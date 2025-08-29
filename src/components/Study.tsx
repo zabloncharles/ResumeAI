@@ -1,10 +1,26 @@
-import { useState, useEffect } from "react";
-import Navbar from "./Navbar";
-import Footer from "./Footer";
-import {
-  AcademicCapIcon,
-  BookOpenIcon,
-  ClockIcon,
+import { useState, useEffect } from 'react';
+import Navbar from './Navbar';
+import Footer from './Footer';
+import { auth, db } from '../firebase';
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp,
+  onSnapshot
+} from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
+import { 
+  AcademicCapIcon, 
+  BookOpenIcon, 
+  ClockIcon, 
   CheckCircleIcon,
   XCircleIcon,
   ArrowLeftIcon,
@@ -12,16 +28,23 @@ import {
   PlayIcon,
   PauseIcon,
   ChartBarIcon,
-} from "@heroicons/react/24/outline";
+  PlusIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline';
 
 interface Flashcard {
   id: string;
   front: string;
   back: string;
   category: string;
-  difficulty: "easy" | "medium" | "hard";
+  difficulty: 'easy' | 'medium' | 'hard';
   lastReviewed?: Date;
   mastery: number; // 0-100
+  createdBy: string;
+  isPublic: boolean;
+  createdAt: Date;
 }
 
 interface StudySet {
@@ -33,156 +56,143 @@ interface StudySet {
   flashcards: Flashcard[];
   createdAt: Date;
   lastStudied?: Date;
+  createdBy: string;
+  isPublic: boolean;
 }
 
 const Study = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [studySets, setStudySets] = useState<StudySet[]>([]);
   const [currentSet, setCurrentSet] = useState<StudySet | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyMode, setStudyMode] = useState<
-    "flashcards" | "quiz" | "matching"
-  >("flashcards");
+  const [studyMode, setStudyMode] = useState<'flashcards' | 'quiz' | 'matching'>('flashcards');
   const [isStudying, setIsStudying] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateCardModal, setShowCreateCardModal] = useState(false);
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'my' | 'public'>('all');
 
-  // Sample study sets data
+  // Form states
+  const [newSetForm, setNewSetForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    isPublic: false
+  });
+
+  const [newCardForm, setNewCardForm] = useState({
+    front: '',
+    back: '',
+    category: '',
+    difficulty: 'medium' as 'easy' | 'medium' | 'hard',
+    isPublic: false
+  });
+
+  // Authentication effect
   useEffect(() => {
-    const sampleSets: StudySet[] = [
-      {
-        id: "1",
-        title: "JavaScript Fundamentals",
-        description: "Core JavaScript concepts and syntax",
-        category: "Programming",
-        cardCount: 25,
-        flashcards: [
-          {
-            id: "1",
-            front: "What is a variable?",
-            back: "A container that stores data values",
-            category: "Basics",
-            difficulty: "easy",
-            mastery: 85,
-          },
-          {
-            id: "2",
-            front: "What is the difference between let, const, and var?",
-            back: "let: block-scoped, const: block-scoped and immutable, var: function-scoped",
-            category: "Basics",
-            difficulty: "medium",
-            mastery: 60,
-          },
-          {
-            id: "3",
-            front: "What is a closure?",
-            back: "A function that has access to variables in its outer scope",
-            category: "Advanced",
-            difficulty: "hard",
-            mastery: 30,
-          },
-          {
-            id: "4",
-            front: "What is the event loop?",
-            back: "A mechanism that handles asynchronous operations in JavaScript",
-            category: "Advanced",
-            difficulty: "hard",
-            mastery: 20,
-          },
-          {
-            id: "5",
-            front: "What is destructuring?",
-            back: "A way to extract values from objects or arrays into distinct variables",
-            category: "ES6",
-            difficulty: "medium",
-            mastery: 70,
-          },
-        ],
-        createdAt: new Date("2024-01-15"),
-        lastStudied: new Date("2024-01-20"),
-      },
-      {
-        id: "2",
-        title: "React Hooks",
-        description: "Essential React hooks and their usage",
-        category: "Programming",
-        cardCount: 15,
-        flashcards: [
-          {
-            id: "1",
-            front: "What is useState?",
-            back: "A hook that lets you add state to functional components",
-            category: "Hooks",
-            difficulty: "easy",
-            mastery: 90,
-          },
-          {
-            id: "2",
-            front: "What is useEffect?",
-            back: "A hook that lets you perform side effects in functional components",
-            category: "Hooks",
-            difficulty: "medium",
-            mastery: 75,
-          },
-          {
-            id: "3",
-            front: "What is useContext?",
-            back: "A hook that lets you consume context in functional components",
-            category: "Hooks",
-            difficulty: "medium",
-            mastery: 50,
-          },
-        ],
-        createdAt: new Date("2024-01-10"),
-        lastStudied: new Date("2024-01-18"),
-      },
-      {
-        id: "3",
-        title: "Interview Questions",
-        description: "Common technical interview questions",
-        category: "Career",
-        cardCount: 30,
-        flashcards: [
-          {
-            id: "1",
-            front: "What is the time complexity of binary search?",
-            back: "O(log n)",
-            category: "Algorithms",
-            difficulty: "medium",
-            mastery: 80,
-          },
-          {
-            id: "2",
-            front: "Explain REST API",
-            back: "Representational State Transfer - an architectural style for designing networked applications",
-            category: "Web Development",
-            difficulty: "medium",
-            mastery: 65,
-          },
-          {
-            id: "3",
-            front: "What is the difference between SQL and NoSQL?",
-            back: "SQL: relational, structured data. NoSQL: non-relational, flexible schema",
-            category: "Databases",
-            difficulty: "medium",
-            mastery: 70,
-          },
-        ],
-        createdAt: new Date("2024-01-05"),
-        lastStudied: new Date("2024-01-22"),
-      },
-    ];
-    setStudySets(sampleSets);
-  }, []);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setIsLoading(false);
+    } else {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          localStorage.setItem("user", JSON.stringify(firebaseUser));
+        } else {
+          navigate("/");
+        }
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [navigate]);
+
+  // Redirect if user is not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
+
+  // Load study sets from Firebase
+  useEffect(() => {
+    if (!user) return;
+
+    const loadStudySets = async () => {
+      try {
+        let q;
+        if (filter === 'my') {
+          q = query(
+            collection(db, 'studySets'),
+            where('createdBy', '==', user.uid),
+            orderBy('createdAt', 'desc')
+          );
+        } else if (filter === 'public') {
+          q = query(
+            collection(db, 'studySets'),
+            where('isPublic', '==', true),
+            orderBy('createdAt', 'desc')
+          );
+        } else {
+          q = query(
+            collection(db, 'studySets'),
+            orderBy('createdAt', 'desc')
+          );
+        }
+
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+          const sets: StudySet[] = [];
+          for (const doc of snapshot.docs) {
+            const setData = doc.data();
+            // Load flashcards for each set
+            const flashcardsQuery = query(
+              collection(db, 'studySets', doc.id, 'flashcards'),
+              orderBy('createdAt', 'asc')
+            );
+            const flashcardsSnapshot = await getDocs(flashcardsQuery);
+            const flashcards = flashcardsSnapshot.docs.map(cardDoc => ({
+              id: cardDoc.id,
+              ...cardDoc.data(),
+              createdAt: cardDoc.data().createdAt?.toDate() || new Date(),
+              lastReviewed: cardDoc.data().lastReviewed?.toDate()
+            })) as Flashcard[];
+
+            sets.push({
+              id: doc.id,
+              ...setData,
+              flashcards,
+              cardCount: flashcards.length,
+              createdAt: setData.createdAt?.toDate() || new Date(),
+              lastStudied: setData.lastStudied?.toDate()
+            } as StudySet);
+          }
+          setStudySets(sets);
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        console.error('Error loading study sets:', error);
+      }
+    };
+
+    loadStudySets();
+  }, [user, filter]);
 
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isTimerRunning) {
       interval = setInterval(() => {
-        setTimer((prev) => prev + 1);
+      setTimer(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -199,7 +209,18 @@ const Study = () => {
     setIsTimerRunning(true);
   };
 
-  const endStudySession = () => {
+  const endStudySession = async () => {
+    if (currentSet) {
+      // Update last studied time
+      try {
+        await updateDoc(doc(db, 'studySets', currentSet.id), {
+          lastStudied: serverTimestamp()
+        });
+      } catch (error) {
+        console.error('Error updating last studied:', error);
+      }
+    }
+    
     setIsStudying(false);
     setCurrentSet(null);
     setIsTimerRunning(false);
@@ -226,40 +247,100 @@ const Study = () => {
     }
   };
 
-  const markCard = (difficulty: "easy" | "medium" | "hard") => {
-    if (currentSet) {
-      const updatedSets = studySets.map((set) => {
-        if (set.id === currentSet.id) {
-          const updatedFlashcards = set.flashcards.map((card, index) => {
-            if (index === currentCardIndex) {
-              let newMastery = card.mastery;
-              if (difficulty === "easy")
-                newMastery = Math.min(100, card.mastery + 10);
-              else if (difficulty === "medium")
-                newMastery = Math.min(100, card.mastery + 5);
-              else newMastery = Math.max(0, card.mastery - 5);
-
-              return {
-                ...card,
-                mastery: newMastery,
-                lastReviewed: new Date(),
-              };
-            }
-            return card;
-          });
-          return { ...set, flashcards: updatedFlashcards };
-        }
-        return set;
-      });
-      setStudySets(updatedSets);
+  const markCard = async (difficulty: 'easy' | 'medium' | 'hard') => {
+    if (currentSet && user) {
+      const currentCard = currentSet.flashcards[currentCardIndex];
+      let newMastery = currentCard.mastery;
+      if (difficulty === 'easy') newMastery = Math.min(100, currentCard.mastery + 10);
+      else if (difficulty === 'medium') newMastery = Math.min(100, currentCard.mastery + 5);
+      else newMastery = Math.max(0, currentCard.mastery - 5);
+      
+      try {
+        await updateDoc(doc(db, 'studySets', currentSet.id, 'flashcards', currentCard.id), {
+          mastery: newMastery,
+          lastReviewed: serverTimestamp()
+        });
+      } catch (error) {
+        console.error('Error updating card mastery:', error);
+      }
+      
       nextCard();
+    }
+  };
+
+  const createStudySet = async () => {
+    if (!user) return;
+    
+    try {
+      const docRef = await addDoc(collection(db, 'studySets'), {
+        title: newSetForm.title,
+        description: newSetForm.description,
+        category: newSetForm.category,
+        createdBy: user.uid,
+        isPublic: newSetForm.isPublic,
+        createdAt: serverTimestamp(),
+        lastStudied: null
+      });
+      
+      setNewSetForm({ title: '', description: '', category: '', isPublic: false });
+      setShowCreateModal(false);
+      setSelectedSetId(docRef.id);
+      setShowCreateCardModal(true);
+    } catch (error) {
+      console.error('Error creating study set:', error);
+    }
+  };
+
+  const createFlashcard = async () => {
+    if (!user || !selectedSetId) return;
+    
+    try {
+      await addDoc(collection(db, 'studySets', selectedSetId, 'flashcards'), {
+        front: newCardForm.front,
+        back: newCardForm.back,
+        category: newCardForm.category,
+        difficulty: newCardForm.difficulty,
+        mastery: 0,
+        createdBy: user.uid,
+        isPublic: newCardForm.isPublic,
+        createdAt: serverTimestamp(),
+        lastReviewed: null
+      });
+      
+      setNewCardForm({ 
+        front: '', 
+        back: '', 
+        category: '', 
+        difficulty: 'medium', 
+        isPublic: false 
+      });
+      setShowCreateCardModal(false);
+      setSelectedSetId(null);
+    } catch (error) {
+      console.error('Error creating flashcard:', error);
+    }
+  };
+
+  const deleteStudySet = async (setId: string) => {
+    if (!user) return;
+    
+    try {
+      // Delete all flashcards first
+      const flashcardsSnapshot = await getDocs(collection(db, 'studySets', setId, 'flashcards'));
+      const deletePromises = flashcardsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      // Delete the study set
+      await deleteDoc(doc(db, 'studySets', setId));
+    } catch (error) {
+      console.error('Error deleting study set:', error);
     }
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getProgressPercentage = () => {
@@ -268,28 +349,38 @@ const Study = () => {
   };
 
   const getMasteryColor = (mastery: number) => {
-    if (mastery >= 80) return "text-green-600";
-    if (mastery >= 60) return "text-yellow-600";
-    return "text-red-600";
+    if (mastery >= 80) return 'text-green-600';
+    if (mastery >= 60) return 'text-yellow-600';
+    return 'text-red-600';
   };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
 
   if (isStudying && currentSet) {
     const currentCard = currentSet.flashcards[currentCardIndex];
-
+    
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
           {/* Study Header */}
           <div className="max-w-4xl mx-auto mb-8">
             <div className="flex items-center justify-between bg-white rounded-xl p-6 shadow-lg">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {currentSet.title}
-                </h1>
-                <p className="text-gray-600">
-                  Card {currentCardIndex + 1} of {currentSet.flashcards.length}
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">{currentSet.title}</h1>
+                <p className="text-gray-600">Card {currentCardIndex + 1} of {currentSet.flashcards.length}</p>
               </div>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 text-gray-600">
@@ -304,19 +395,15 @@ const Study = () => {
                 </button>
               </div>
             </div>
-
+            
             {/* Progress Bar */}
             <div className="mt-4 bg-white rounded-xl p-4 shadow-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">
-                  Progress
-                </span>
-                <span className="text-sm text-gray-500">
-                  {Math.round(getProgressPercentage())}%
-                </span>
+                <span className="text-sm font-medium text-gray-700">Progress</span>
+                <span className="text-sm text-gray-500">{Math.round(getProgressPercentage())}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
+                <div 
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${getProgressPercentage()}%` }}
                 ></div>
@@ -333,8 +420,8 @@ const Study = () => {
                     {currentCard.category}
                   </span>
                 </div>
-
-                <div
+                
+                <div 
                   className="min-h-[300px] flex items-center justify-center cursor-pointer"
                   onClick={flipCard}
                 >
@@ -343,7 +430,7 @@ const Study = () => {
                       {isFlipped ? currentCard.back : currentCard.front}
                     </h2>
                     <p className="text-gray-500 text-sm">
-                      Click to {isFlipped ? "show question" : "show answer"}
+                      Click to {isFlipped ? 'show question' : 'show answer'}
                     </p>
                   </div>
                 </div>
@@ -352,11 +439,7 @@ const Study = () => {
                 <div className="mt-6 text-center">
                   <div className="flex items-center justify-center space-x-2">
                     <span className="text-sm text-gray-600">Mastery:</span>
-                    <span
-                      className={`text-sm font-medium ${getMasteryColor(
-                        currentCard.mastery
-                      )}`}
-                    >
+                    <span className={`text-sm font-medium ${getMasteryColor(currentCard.mastery)}`}>
                       {currentCard.mastery}%
                     </span>
                   </div>
@@ -379,20 +462,20 @@ const Study = () => {
 
               <div className="flex space-x-3">
                 <button
-                  onClick={() => markCard("hard")}
+                  onClick={() => markCard('hard')}
                   className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
                 >
                   <XCircleIcon className="h-5 w-5" />
                   <span>Hard</span>
                 </button>
                 <button
-                  onClick={() => markCard("medium")}
+                  onClick={() => markCard('medium')}
                   className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
                 >
                   <span>Medium</span>
                 </button>
                 <button
-                  onClick={() => markCard("easy")}
+                  onClick={() => markCard('easy')}
                   className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
                 >
                   <CheckCircleIcon className="h-5 w-5" />
@@ -429,9 +512,54 @@ const Study = () => {
             </h1>
           </div>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Master new skills with interactive flashcards, quizzes, and study
-            sessions. Track your progress and improve your knowledge retention.
+            Master new skills with interactive flashcards, quizzes, and study sessions. Track your progress and improve your knowledge retention.
           </p>
+        </section>
+
+        {/* Filter and Create Button */}
+        <section className="max-w-7xl mx-auto mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  filter === 'all' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                All Sets
+              </button>
+              <button
+                onClick={() => setFilter('my')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  filter === 'my' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                My Sets
+              </button>
+              <button
+                onClick={() => setFilter('public')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  filter === 'public' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Public Sets
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span>Create New Set</span>
+            </button>
+          </div>
         </section>
 
         {/* Study Sets Grid */}
@@ -447,41 +575,39 @@ const Study = () => {
                     <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                       {set.category}
                     </span>
-                    <div className="flex items-center space-x-2 text-gray-500">
-                      <BookOpenIcon className="h-4 w-4" />
-                      <span className="text-sm">{set.cardCount} cards</span>
+                    <div className="flex items-center space-x-2">
+                      {set.isPublic ? (
+                        <EyeIcon className="h-4 w-4 text-green-600" title="Public" />
+                      ) : (
+                        <EyeSlashIcon className="h-4 w-4 text-gray-400" title="Private" />
+                      )}
+                      <div className="flex items-center space-x-2 text-gray-500">
+                        <BookOpenIcon className="h-4 w-4" />
+                        <span className="text-sm">{set.cardCount} cards</span>
+                      </div>
                     </div>
                   </div>
-
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {set.title}
-                  </h3>
+                  
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{set.title}</h3>
                   <p className="text-gray-600 mb-4">{set.description}</p>
-
+                  
                   {/* Progress Overview */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                       <span>Average Mastery</span>
                       <span className="font-medium">
-                        {Math.round(
-                          set.flashcards.reduce(
-                            (acc, card) => acc + card.mastery,
-                            0
-                          ) / set.flashcards.length
-                        )}
-                        %
+                        {set.flashcards.length > 0 
+                          ? Math.round(set.flashcards.reduce((acc, card) => acc + card.mastery, 0) / set.flashcards.length)
+                          : 0}%
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
+                      <div 
                         className="bg-blue-600 h-2 rounded-full"
-                        style={{
-                          width: `${
-                            set.flashcards.reduce(
-                              (acc, card) => acc + card.mastery,
-                              0
-                            ) / set.flashcards.length
-                          }%`,
+                        style={{ 
+                          width: `${set.flashcards.length > 0 
+                            ? set.flashcards.reduce((acc, card) => acc + card.mastery, 0) / set.flashcards.length
+                            : 0}%` 
                         }}
                       ></div>
                     </div>
@@ -490,34 +616,226 @@ const Study = () => {
                   <div className="flex items-center justify-between">
                     <button
                       onClick={() => startStudySession(set)}
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      disabled={set.flashcards.length === 0}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <PlayIcon className="h-5 w-5" />
                       <span>Start Studying</span>
                     </button>
-
-                    <div className="text-right">
-                      {set.lastStudied && (
-                        <p className="text-xs text-gray-500">
-                          Last studied: {set.lastStudied.toLocaleDateString()}
-                        </p>
+                    
+                    <div className="flex items-center space-x-2">
+                      {set.createdBy === user.uid && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedSetId(set.id);
+                              setShowCreateCardModal(true);
+                            }}
+                            className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                            title="Add Card"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteStudySet(set.id)}
+                            className="p-2 text-gray-600 hover:text-red-600 transition-colors"
+                            title="Delete Set"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
+
+                  {set.lastStudied && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Last studied: {set.lastStudied.toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Create New Set Button */}
-          <div className="mt-12 text-center">
-            <button className="inline-flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              <BookOpenIcon className="h-5 w-5" />
-              <span>Create New Study Set</span>
-            </button>
-          </div>
+          {studySets.length === 0 && (
+            <div className="text-center py-12">
+              <BookOpenIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No study sets found</h3>
+              <p className="text-gray-600 mb-4">
+                {filter === 'my' 
+                  ? "You haven't created any study sets yet."
+                  : filter === 'public'
+                  ? "No public study sets available."
+                  : "No study sets available."
+                }
+              </p>
+              {filter === 'my' && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <PlusIcon className="h-5 w-5" />
+                  <span>Create Your First Set</span>
+                </button>
+              )}
+            </div>
+          )}
         </section>
       </div>
+
+      {/* Create Study Set Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Create New Study Set</h2>
+            <form onSubmit={(e) => { e.preventDefault(); createStudySet(); }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={newSetForm.title}
+                    onChange={(e) => setNewSetForm({...newSetForm, title: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={newSetForm.description}
+                    onChange={(e) => setNewSetForm({...newSetForm, description: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <input
+                    type="text"
+                    value={newSetForm.category}
+                    onChange={(e) => setNewSetForm({...newSetForm, category: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={newSetForm.isPublic}
+                    onChange={(e) => setNewSetForm({...newSetForm, isPublic: e.target.checked})}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-900">
+                    Make this set public
+                  </label>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Create Set
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Flashcard Modal */}
+      {showCreateCardModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Add New Flashcard</h2>
+            <form onSubmit={(e) => { e.preventDefault(); createFlashcard(); }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+                  <textarea
+                    value={newCardForm.front}
+                    onChange={(e) => setNewCardForm({...newCardForm, front: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Answer</label>
+                  <textarea
+                    value={newCardForm.back}
+                    onChange={(e) => setNewCardForm({...newCardForm, back: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <input
+                    type="text"
+                    value={newCardForm.category}
+                    onChange={(e) => setNewCardForm({...newCardForm, category: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                  <select
+                    value={newCardForm.difficulty}
+                    onChange={(e) => setNewCardForm({...newCardForm, difficulty: e.target.value as 'easy' | 'medium' | 'hard'})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="cardIsPublic"
+                    checked={newCardForm.isPublic}
+                    onChange={(e) => setNewCardForm({...newCardForm, isPublic: e.target.checked})}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="cardIsPublic" className="ml-2 block text-sm text-gray-900">
+                    Make this card public
+                  </label>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCardModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Add Card
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   );
