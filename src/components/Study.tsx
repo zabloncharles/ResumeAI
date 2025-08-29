@@ -226,12 +226,28 @@ const Study = () => {
             let progress: "not_started" | "started" | "completed" =
               "not_started";
             if (setData.lastStudied) {
+              const lastStudiedDate = setData.lastStudied.toDate ? setData.lastStudied.toDate() : new Date(setData.lastStudied);
+              const today = new Date();
+              const daysSinceLastStudy = Math.floor((today.getTime() - lastStudiedDate.getTime()) / (1000 * 60 * 60 * 24));
+              
               const avgMastery =
                 flashcards.length > 0
                   ? flashcards.reduce((acc, card) => acc + card.mastery, 0) /
                     flashcards.length
                   : 0;
-              progress = avgMastery >= 80 ? "completed" : "started";
+              
+              // If completed (80%+ mastery), stay completed
+              if (avgMastery >= 80) {
+                progress = "completed";
+              }
+              // If studied within last day, stay started
+              else if (daysSinceLastStudy <= 1) {
+                progress = "started";
+              }
+              // If more than 1 day since last study, go back to not started
+              else {
+                progress = "not_started";
+              }
             }
 
             sets.push({
@@ -543,14 +559,21 @@ const Study = () => {
         console.error("Error updating user stats:", error);
       }
 
-      // Calculate average mastery to determine if completed
-      const avgMastery =
-        currentSet.flashcards.length > 0
-          ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) /
-            currentSet.flashcards.length
-          : 0;
+              // Calculate average mastery to determine if completed
+        const avgMastery =
+          currentSet.flashcards.length > 0
+            ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) /
+              currentSet.flashcards.length
+            : 0;
 
-      const newProgress = avgMastery >= 80 ? "completed" : "started";
+        // Determine progress based on mastery and recent study activity
+        let newProgress: "not_started" | "started" | "completed";
+        if (avgMastery >= 80) {
+          newProgress = "completed";
+        } else {
+          // Since we just studied, it should be "started"
+          newProgress = "started";
+        }
 
       // Update study set stats
       try {
@@ -630,7 +653,15 @@ const Study = () => {
         const avgMastery =
           updatedFlashcards.reduce((acc, card) => acc + card.mastery, 0) /
           updatedFlashcards.length;
-        const newProgress = avgMastery >= 80 ? "completed" : "started";
+        
+        // Determine progress based on mastery and recent study activity
+        let newProgress: "not_started" | "started" | "completed";
+        if (avgMastery >= 80) {
+          newProgress = "completed";
+        } else {
+          // Since we just studied, it should be "started"
+          newProgress = "started";
+        }
 
         await updateDoc(doc(db, "studySets", currentSet.id), {
           progress: newProgress,
@@ -967,20 +998,37 @@ const Study = () => {
               <div className="absolute inset-0 bg-gradient-to-b from-sky-300 to-sky-200">
                 {/* Sun/Moon based on streak */}
                 {userStats.currentStreak > 0 ? (
-                  <div className="absolute top-4 right-4 text-4xl animate-pulse">☀️</div>
+                  <div className="absolute top-4 right-4 text-4xl animate-pulse">
+                    ☀️
+                  </div>
                 ) : (
                   <div className="absolute top-4 right-4 text-4xl">🌙</div>
                 )}
-                
+
                 {/* Clouds - more clouds for higher streaks */}
                 {userStats.currentStreak > 0 && (
                   <>
-                    <div className="absolute top-8 left-8 text-2xl animate-bounce" style={{animationDelay: '0s'}}>☁️</div>
+                    <div
+                      className="absolute top-8 left-8 text-2xl animate-bounce"
+                      style={{ animationDelay: "0s" }}
+                    >
+                      ☁️
+                    </div>
                     {userStats.currentStreak > 3 && (
-                      <div className="absolute top-12 left-24 text-xl animate-bounce" style={{animationDelay: '1s'}}>☁️</div>
+                      <div
+                        className="absolute top-12 left-24 text-xl animate-bounce"
+                        style={{ animationDelay: "1s" }}
+                      >
+                        ☁️
+                      </div>
                     )}
                     {userStats.currentStreak > 7 && (
-                      <div className="absolute top-6 left-40 text-lg animate-bounce" style={{animationDelay: '2s'}}>☁️</div>
+                      <div
+                        className="absolute top-6 left-40 text-lg animate-bounce"
+                        style={{ animationDelay: "2s" }}
+                      >
+                        ☁️
+                      </div>
                     )}
                   </>
                 )}
@@ -992,8 +1040,18 @@ const Study = () => {
               {/* Village Buildings */}
               <div className="absolute bottom-16 left-0 right-0 flex justify-center items-end space-x-2 px-4">
                 {/* Building 1 - Always present but changes based on streak */}
-                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
-                  <div className={`w-8 h-12 ${userStats.currentStreak > 0 ? 'bg-yellow-400' : 'bg-gray-400'} rounded-t-lg border border-gray-600`}>
+                <div
+                  className={`transition-all duration-1000 ${
+                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-12 ${
+                      userStats.currentStreak > 0
+                        ? "bg-yellow-400"
+                        : "bg-gray-400"
+                    } rounded-t-lg border border-gray-600`}
+                  >
                     <div className="w-2 h-2 bg-blue-300 rounded-sm mx-auto mt-1"></div>
                   </div>
                 </div>
@@ -1044,34 +1102,50 @@ const Study = () => {
               {/* Villagers */}
               <div className="absolute bottom-16 left-0 right-0 flex justify-center items-end space-x-1 px-4">
                 {/* Villager 1 - Always present but changes based on streak */}
-                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                <div
+                  className={`transition-all duration-1000 ${
+                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
+                  }`}
+                >
                   <div className="text-lg">👤</div>
                 </div>
 
                 {/* Villager 2 - Appears at streak 3+ */}
                 {userStats.currentStreak >= 3 && (
-                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '0.5s'}}>
+                  <div
+                    className="transition-all duration-1000 animate-bounce"
+                    style={{ animationDelay: "0.5s" }}
+                  >
                     <div className="text-lg">👤</div>
                   </div>
                 )}
 
                 {/* Villager 3 - Appears at streak 7+ */}
                 {userStats.currentStreak >= 7 && (
-                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '1s'}}>
+                  <div
+                    className="transition-all duration-1000 animate-bounce"
+                    style={{ animationDelay: "1s" }}
+                  >
                     <div className="text-lg">👤</div>
                   </div>
                 )}
 
                 {/* Villager 4 - Appears at streak 12+ */}
                 {userStats.currentStreak >= 12 && (
-                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '1.5s'}}>
+                  <div
+                    className="transition-all duration-1000 animate-bounce"
+                    style={{ animationDelay: "1.5s" }}
+                  >
                     <div className="text-lg">👤</div>
                   </div>
                 )}
 
                 {/* Villager 5 - Appears at streak 20+ */}
                 {userStats.currentStreak >= 20 && (
-                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '2s'}}>
+                  <div
+                    className="transition-all duration-1000 animate-bounce"
+                    style={{ animationDelay: "2s" }}
+                  >
                     <div className="text-lg">👤</div>
                   </div>
                 )}
@@ -1080,12 +1154,20 @@ const Study = () => {
               {/* Trees and Nature */}
               <div className="absolute bottom-16 left-0 right-0 flex justify-between items-end px-2">
                 {/* Left Tree */}
-                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                <div
+                  className={`transition-all duration-1000 ${
+                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
+                  }`}
+                >
                   <div className="text-2xl">🌳</div>
                 </div>
 
                 {/* Right Tree */}
-                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                <div
+                  className={`transition-all duration-1000 ${
+                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
+                  }`}
+                >
                   <div className="text-2xl">🌳</div>
                 </div>
 
@@ -1097,7 +1179,10 @@ const Study = () => {
                 )}
 
                 {userStats.currentStreak >= 10 && (
-                  <div className="absolute bottom-4 right-1/4 transition-all duration-1000 animate-pulse" style={{animationDelay: '0.5s'}}>
+                  <div
+                    className="absolute bottom-4 right-1/4 transition-all duration-1000 animate-pulse"
+                    style={{ animationDelay: "0.5s" }}
+                  >
                     <div className="text-sm">🌺</div>
                   </div>
                 )}
@@ -1107,9 +1192,30 @@ const Study = () => {
               {userStats.currentStreak > 0 && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1">
                   <div className="text-sm animate-pulse">🍎</div>
-                  {userStats.currentStreak >= 5 && <div className="text-sm animate-pulse" style={{animationDelay: '0.3s'}}>🥖</div>}
-                  {userStats.currentStreak >= 10 && <div className="text-sm animate-pulse" style={{animationDelay: '0.6s'}}>🧀</div>}
-                  {userStats.currentStreak >= 15 && <div className="text-sm animate-pulse" style={{animationDelay: '0.9s'}}>🍖</div>}
+                  {userStats.currentStreak >= 5 && (
+                    <div
+                      className="text-sm animate-pulse"
+                      style={{ animationDelay: "0.3s" }}
+                    >
+                      🥖
+                    </div>
+                  )}
+                  {userStats.currentStreak >= 10 && (
+                    <div
+                      className="text-sm animate-pulse"
+                      style={{ animationDelay: "0.6s" }}
+                    >
+                      🧀
+                    </div>
+                  )}
+                  {userStats.currentStreak >= 15 && (
+                    <div
+                      className="text-sm animate-pulse"
+                      style={{ animationDelay: "0.9s" }}
+                    >
+                      🍖
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1118,7 +1224,9 @@ const Study = () => {
                 <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-4xl mb-2">💀</div>
-                    <div className="text-white text-sm font-bold">Village Starved</div>
+                    <div className="text-white text-sm font-bold">
+                      Village Starved
+                    </div>
                   </div>
                 </div>
               )}
@@ -1129,13 +1237,19 @@ const Study = () => {
               {userStats.currentStreak > 0 ? (
                 <div className="text-center">
                   <h2 className="text-2xl font-bold text-green-600 mb-2">
-                    🏘️ {userStats.currentStreak} Day{userStats.currentStreak !== 1 ? "s" : ""} Streak!
+                    🏘️ {userStats.currentStreak} Day
+                    {userStats.currentStreak !== 1 ? "s" : ""} Streak!
                   </h2>
                   <p className="text-gray-600">
-                    Your study village is thriving! {userStats.currentStreak >= 5 ? 'The villagers are happy and well-fed!' : 'Keep studying to help it grow!'}
+                    Your study village is thriving!{" "}
+                    {userStats.currentStreak >= 5
+                      ? "The villagers are happy and well-fed!"
+                      : "Keep studying to help it grow!"}
                   </p>
                   {userStats.currentStreak >= 10 && (
-                    <p className="text-sm text-green-600 mt-1">🌟 Your village has become prosperous!</p>
+                    <p className="text-sm text-green-600 mt-1">
+                      🌟 Your village has become prosperous!
+                    </p>
                   )}
                 </div>
               ) : (
@@ -1144,7 +1258,8 @@ const Study = () => {
                     💀 Village Starved
                   </h2>
                   <p className="text-gray-600">
-                    Your study village has died of starvation! Start studying to rebuild it.
+                    Your study village has died of starvation! Start studying to
+                    rebuild it.
                   </p>
                 </div>
               )}
