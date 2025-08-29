@@ -6,7 +6,9 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -14,6 +16,7 @@ import {
   orderBy,
   serverTimestamp,
   onSnapshot,
+  arrayUnion,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +50,30 @@ interface Flashcard {
   createdAt: Date;
 }
 
+interface StudySession {
+  id: string;
+  studySetId: string;
+  startTime: Date;
+  endTime?: Date;
+  duration: number; // in seconds
+  cardsReviewed: number;
+  correctAnswers: number;
+  xpEarned: number;
+  achievements: string[];
+}
+
+interface UserStats {
+  totalStudyTime: number; // in seconds
+  totalSessions: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastStudyDate?: Date;
+  totalXP: number;
+  level: number;
+  achievements: string[];
+  studyHistory: StudySession[];
+}
+
 interface StudySet {
   id: string;
   title: string;
@@ -59,6 +86,9 @@ interface StudySet {
   createdBy: string;
   isPublic: boolean;
   progress?: 'not_started' | 'started' | 'completed';
+  totalStudyTime: number; // in seconds
+  totalSessions: number;
+  averageScore: number; // percentage
 }
 
 const Study = () => {
@@ -84,6 +114,18 @@ const Study = () => {
   const [filter, setFilter] = useState<"all" | "my" | "public">("all");
   const [isEditingSet, setIsEditingSet] = useState(false);
   const [editingSet, setEditingSet] = useState<StudySet | null>(null);
+  const [userStats, setUserStats] = useState<UserStats>({
+    totalStudyTime: 0,
+    totalSessions: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    totalXP: 0,
+    level: 1,
+    achievements: [],
+    studyHistory: []
+  });
+  const [currentSession, setCurrentSession] = useState<StudySession | null>(null);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
   // Form states
   const [newSetForm, setNewSetForm] = useState({
@@ -209,6 +251,134 @@ const Study = () => {
     loadStudySets();
   }, [user, filter]);
 
+  const loadUserStats = async () => {
+    if (!user) return;
+    
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUserStats({
+          totalStudyTime: data.totalStudyTime || 0,
+          totalSessions: data.totalSessions || 0,
+          currentStreak: data.currentStreak || 0,
+          longestStreak: data.longestStreak || 0,
+          lastStudyDate: data.lastStudyDate?.toDate(),
+          totalXP: data.totalXP || 0,
+          level: data.level || 1,
+          achievements: data.achievements || [],
+          studyHistory: data.studyHistory || []
+        });
+      } else {
+        // Create user stats document if it doesn't exist
+        await setDoc(doc(db, 'users', user.uid), {
+          totalStudyTime: 0,
+          totalSessions: 0,
+          currentStreak: 0,
+          longestStreak: 0,
+          totalXP: 0,
+          level: 1,
+          achievements: [],
+          studyHistory: [],
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+    }
+  };
+
+  const calculateXP = (sessionDuration: number, cardsReviewed: number, correctAnswers: number): number => {
+    // Base XP for time spent (1 XP per minute)
+    const timeXP = Math.floor(sessionDuration / 60);
+    
+    // XP for cards reviewed (2 XP per card)
+    const reviewXP = cardsReviewed * 2;
+    
+    // Bonus XP for accuracy (5 XP per correct answer)
+    const accuracyXP = correctAnswers * 5;
+    
+    // Streak bonus (10 XP per day in current streak)
+    const streakBonus = userStats.currentStreak * 10;
+    
+    return timeXP + reviewXP + accuracyXP + streakBonus;
+  };
+
+  const checkAchievements = (session: StudySession): string[] => {
+    const newAchievements: string[] = [];
+    
+    // First Study Session
+    if (userStats.totalSessions === 0) {
+      newAchievements.push('First Study Session');
+    }
+    
+    // Perfect Score
+    if (session.cardsReviewed > 0 && session.correctAnswers === session.cardsReviewed) {
+      newAchievements.push('Perfect Score');
+    }
+    
+    // 7-Day Streak
+    if (userStats.currentStreak >= 7 && !userStats.achievements.includes('7-Day Streak')) {
+      newAchievements.push('7-Day Streak');
+    }
+    
+    // Study Time Milestones
+    const totalTimeHours = (userStats.totalStudyTime + session.duration) / 3600;
+    if (totalTimeHours >= 1 && !userStats.achievements.includes('1 Hour Studied')) {
+      newAchievements.push('1 Hour Studied');
+    }
+    if (totalTimeHours >= 5 && !userStats.achievements.includes('5 Hours Studied')) {
+      newAchievements.push('5 Hours Studied');
+    }
+    
+    // Session Count Milestones
+    const totalSessions = userStats.totalSessions + 1;
+    if (totalSessions >= 10 && !userStats.achievements.includes('10 Sessions')) {
+      newAchievements.push('10 Sessions');
+    }
+    if (totalSessions >= 50 && !userStats.achievements.includes('50 Sessions')) {
+      newAchievements.push('50 Sessions');
+    }
+    
+    return newAchievements;
+  };
+
+  const updateStreak = async (): Promise<number> => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const lastStudy = userStats.lastStudyDate;
+    const lastStudyDate = lastStudy ? new Date(lastStudy) : null;
+    if (lastStudyDate) {
+      lastStudyDate.setHours(0, 0, 0, 0);
+    }
+    
+    let newStreak = userStats.currentStreak;
+    
+    if (!lastStudyDate) {
+      // First study session
+      newStreak = 1;
+    } else if (lastStudyDate.getTime() === today.getTime()) {
+      // Already studied today
+      newStreak = userStats.currentStreak;
+    } else if (lastStudyDate.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
+      // Studied yesterday, continue streak
+      newStreak = userStats.currentStreak + 1;
+    } else {
+      // Break in streak, reset to 1
+      newStreak = 1;
+    }
+    
+    return newStreak;
+  };
+
+  // Load user stats
+  useEffect(() => {
+    if (user) {
+      loadUserStats();
+    }
+  }, [user]);
+
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -221,6 +391,9 @@ const Study = () => {
   }, [isTimerRunning]);
 
   const startStudySession = async (set: StudySet) => {
+    const startTime = new Date();
+    setSessionStartTime(startTime);
+    
     setCurrentSet(set);
     setCurrentCardIndex(0);
     setIsFlipped(false);
@@ -229,6 +402,19 @@ const Study = () => {
     setScore({ correct: 0, total: 0 });
     setTimer(0);
     setIsTimerRunning(true);
+
+    // Create new study session
+    const newSession: StudySession = {
+      id: `session_${Date.now()}`,
+      studySetId: set.id,
+      startTime,
+      duration: 0,
+      cardsReviewed: 0,
+      correctAnswers: 0,
+      xpEarned: 0,
+      achievements: []
+    };
+    setCurrentSession(newSession);
 
     // Update progress to 'started' if it's not already started or completed
     if (set.progress === 'not_started' || !set.progress) {
@@ -243,7 +429,71 @@ const Study = () => {
   };
 
   const endStudySession = async () => {
-    if (currentSet) {
+    if (currentSet && currentSession && sessionStartTime) {
+      const endTime = new Date();
+      const sessionDuration = Math.floor((endTime.getTime() - sessionStartTime.getTime()) / 1000);
+      
+      // Calculate session stats
+      const cardsReviewed = currentCardIndex + 1;
+      const correctAnswers = score.correct;
+      const xpEarned = calculateXP(sessionDuration, cardsReviewed, correctAnswers);
+      
+      // Update session with final data
+      const completedSession: StudySession = {
+        ...currentSession,
+        endTime,
+        duration: sessionDuration,
+        cardsReviewed,
+        correctAnswers,
+        xpEarned,
+        achievements: []
+      };
+      
+      // Check for new achievements
+      const newAchievements = checkAchievements(completedSession);
+      completedSession.achievements = newAchievements;
+      
+      // Update streak
+      const newStreak = await updateStreak();
+      
+      // Calculate new user stats
+      const newTotalStudyTime = userStats.totalStudyTime + sessionDuration;
+      const newTotalSessions = userStats.totalSessions + 1;
+      const newTotalXP = userStats.totalXP + xpEarned;
+      const newLevel = Math.floor(newTotalXP / 1000) + 1;
+      const newAchievementsList = [...userStats.achievements, ...newAchievements];
+      
+      // Update user stats in Firebase
+      try {
+        await updateDoc(doc(db, 'users', user!.uid), {
+          totalStudyTime: newTotalStudyTime,
+          totalSessions: newTotalSessions,
+          currentStreak: newStreak,
+          longestStreak: Math.max(userStats.longestStreak, newStreak),
+          lastStudyDate: serverTimestamp(),
+          totalXP: newTotalXP,
+          level: newLevel,
+          achievements: newAchievementsList,
+          studyHistory: arrayUnion(completedSession)
+        });
+        
+        // Update local state
+        setUserStats(prev => ({
+          ...prev,
+          totalStudyTime: newTotalStudyTime,
+          totalSessions: newTotalSessions,
+          currentStreak: newStreak,
+          longestStreak: Math.max(prev.longestStreak, newStreak),
+          lastStudyDate: endTime,
+          totalXP: newTotalXP,
+          level: newLevel,
+          achievements: newAchievementsList,
+          studyHistory: [...prev.studyHistory, completedSession]
+        }));
+      } catch (error) {
+        console.error('Error updating user stats:', error);
+      }
+      
       // Calculate average mastery to determine if completed
       const avgMastery = currentSet.flashcards.length > 0 
         ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) / currentSet.flashcards.length 
@@ -251,19 +501,24 @@ const Study = () => {
       
       const newProgress = avgMastery >= 80 ? 'completed' : 'started';
 
-      // Update last studied time and progress
+      // Update study set stats
       try {
         await updateDoc(doc(db, "studySets", currentSet.id), {
           lastStudied: serverTimestamp(),
           progress: newProgress,
+          totalStudyTime: (currentSet.totalStudyTime || 0) + sessionDuration,
+          totalSessions: (currentSet.totalSessions || 0) + 1,
+          averageScore: ((currentSet.averageScore || 0) * (currentSet.totalSessions || 0) + (correctAnswers / cardsReviewed * 100)) / ((currentSet.totalSessions || 0) + 1)
         });
       } catch (error) {
-        console.error("Error updating last studied:", error);
+        console.error("Error updating study set stats:", error);
       }
     }
 
     setIsStudying(false);
     setCurrentSet(null);
+    setCurrentSession(null);
+    setSessionStartTime(null);
     setIsTimerRunning(false);
     setTimer(0);
   };
@@ -297,6 +552,13 @@ const Study = () => {
       else if (difficulty === "medium")
         newMastery = Math.min(100, currentCard.mastery + 5);
       else newMastery = Math.max(0, currentCard.mastery - 5);
+
+      // Update score for session tracking
+      const isCorrect = difficulty === "easy" || difficulty === "medium";
+      setScore(prev => ({
+        correct: prev.correct + (isCorrect ? 1 : 0),
+        total: prev.total + 1
+      }));
 
       try {
         await updateDoc(
@@ -600,6 +862,111 @@ const Study = () => {
             Master new skills with interactive flashcards, quizzes, and study
             sessions. Track your progress and improve your knowledge retention.
           </p>
+        </section>
+
+        {/* Stats Dashboard */}
+        <section className="max-w-7xl mx-auto mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Study Stats</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Study Streak */}
+            <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm">Current Streak</p>
+                  <p className="text-3xl font-bold">{userStats.currentStreak}</p>
+                  <p className="text-orange-100 text-xs">days</p>
+                </div>
+                <div className="text-4xl">🔥</div>
+              </div>
+            </div>
+
+            {/* Total Study Time */}
+            <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Total Study Time</p>
+                  <p className="text-3xl font-bold">{Math.floor(userStats.totalStudyTime / 3600)}</p>
+                  <p className="text-blue-100 text-xs">hours</p>
+                </div>
+                <div className="text-4xl">⏱️</div>
+              </div>
+            </div>
+
+            {/* Total XP */}
+            <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm">Total XP</p>
+                  <p className="text-3xl font-bold">{userStats.totalXP}</p>
+                  <p className="text-purple-100 text-xs">Level {userStats.level}</p>
+                </div>
+                <div className="text-4xl">⭐</div>
+              </div>
+            </div>
+
+            {/* Total Sessions */}
+            <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm">Study Sessions</p>
+                  <p className="text-3xl font-bold">{userStats.totalSessions}</p>
+                  <p className="text-green-100 text-xs">completed</p>
+                </div>
+                <div className="text-4xl">📚</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Achievements */}
+          {userStats.achievements.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Achievements</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {userStats.achievements.map((achievement, index) => (
+                  <div key={index} className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-4 text-white text-center">
+                    <div className="text-2xl mb-2">🏆</div>
+                    <p className="text-sm font-medium">{achievement}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Study Session History */}
+          {userStats.studyHistory.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Study Sessions</h3>
+              <div className="space-y-3">
+                {userStats.studyHistory.slice(-5).reverse().map((session, index) => {
+                  const studySet = studySets.find(set => set.id === session.studySetId);
+                  const accuracy = session.cardsReviewed > 0 ? Math.round((session.correctAnswers / session.cardsReviewed) * 100) : 0;
+                  const durationMinutes = Math.floor(session.duration / 60);
+                  
+                  return (
+                    <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-2xl">
+                          {accuracy >= 80 ? '🟢' : accuracy >= 60 ? '🟡' : '🔴'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{studySet?.title || 'Unknown Set'}</p>
+                          <p className="text-sm text-gray-600">
+                            {session.cardsReviewed} cards • {accuracy}% accuracy • {durationMinutes}m
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">+{session.xpEarned} XP</p>
+                        <p className="text-xs text-gray-500">
+                          {session.startTime.toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Kanban Board */}
