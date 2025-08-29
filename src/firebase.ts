@@ -2,8 +2,11 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+// Debug: Check if environment variable is loaded
+console.log("Firebase API Key from env:", import.meta.env.VITE_FIREBASE_API_KEY ? "Loaded" : "Not loaded");
+
 const firebaseConfig = {
-  apiKey: "AIzaSyB80i6Tn6JCPZQikqWJ3cefzT-q-cNfVtM",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_NEW_API_KEY_HERE", // Replace with your new API key
   authDomain: "resumeai-69b70.firebaseapp.com",
   projectId: "resumeai-69b70",
   storageBucket: "resumeai-69b70.appspot.com",
