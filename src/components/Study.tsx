@@ -75,7 +75,7 @@ const Study = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCreateCardModal, setShowCreateCardModal] = useState(false);
+  const [showCreateCardForm, setShowCreateCardForm] = useState(false);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'my' | 'public'>('all');
 
@@ -295,7 +295,7 @@ const Study = () => {
       setNewSetForm({ title: '', description: '', category: '', isPublic: false });
       setShowCreateModal(false);
       setSelectedSetId(docRef.id);
-      setShowCreateCardModal(true);
+      setShowCreateCardForm(true);
     } catch (error) {
       console.error('Error creating study set:', error);
     }
@@ -324,7 +324,7 @@ const Study = () => {
         difficulty: 'medium', 
         isPublic: false 
       });
-      setShowCreateCardModal(false);
+      setShowCreateCardForm(false);
       setSelectedSetId(null);
     } catch (error) {
       console.error('Error creating flashcard:', error);
@@ -639,7 +639,7 @@ const Study = () => {
                           <button
                             onClick={() => {
                               setSelectedSetId(set.id);
-                              setShowCreateCardModal(true);
+                              setShowCreateCardForm(true);
                             }}
                             className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
                             title="Add Card"
@@ -692,6 +692,143 @@ const Study = () => {
             </div>
           )}
         </section>
+
+        {/* Inline Flashcard Creation Form */}
+        {showCreateCardForm && selectedSetId && (
+          <section className="max-w-7xl mx-auto mt-8">
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Add New Flashcard</h2>
+                <button
+                  onClick={() => {
+                    setShowCreateCardForm(false);
+                    setSelectedSetId(null);
+                    setNewCardForm({ 
+                      front: '', 
+                      back: '', 
+                      category: '', 
+                      difficulty: 'medium', 
+                      isPublic: false 
+                    });
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <form onSubmit={(e) => { e.preventDefault(); createFlashcard(); }}>
+                <div className="space-y-6">
+                  {/* Question Side */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm mr-3">
+                        Q
+                      </div>
+                      <h3 className="text-lg font-semibold text-blue-900">Question</h3>
+                    </div>
+                    <textarea
+                      value={newCardForm.front}
+                      onChange={(e) => setNewCardForm({...newCardForm, front: e.target.value})}
+                      className="w-full px-4 py-4 bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                      rows={4}
+                      placeholder="Enter your question here..."
+                      required
+                    />
+                  </div>
+
+                  {/* Answer Side */}
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm mr-3">
+                        A
+                      </div>
+                      <h3 className="text-lg font-semibold text-green-900">Answer</h3>
+                    </div>
+                    <textarea
+                      value={newCardForm.back}
+                      onChange={(e) => setNewCardForm({...newCardForm, back: e.target.value})}
+                      className="w-full px-4 py-4 bg-white border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                      rows={4}
+                      placeholder="Enter the answer here..."
+                      required
+                    />
+                  </div>
+
+                  {/* Additional Options */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                      <input
+                        type="text"
+                        value={newCardForm.category}
+                        onChange={(e) => setNewCardForm({...newCardForm, category: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
+                        placeholder="e.g., Basics, Advanced, Concepts"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Difficulty</label>
+                      <select
+                        value={newCardForm.difficulty}
+                        onChange={(e) => setNewCardForm({...newCardForm, difficulty: e.target.value as 'easy' | 'medium' | 'hard'})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 transition-all duration-200"
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Public/Private Toggle */}
+                  <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <input
+                      type="checkbox"
+                      id="cardIsPublic"
+                      checked={newCardForm.isPublic}
+                      onChange={(e) => setNewCardForm({...newCardForm, isPublic: e.target.checked})}
+                      className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
+                    />
+                    <label htmlFor="cardIsPublic" className="ml-3 block text-sm text-gray-700">
+                      <span className="font-semibold">Make this card public</span>
+                      <span className="block text-gray-500 mt-1">Other users can discover and use this card</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex space-x-4 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateCardForm(false);
+                      setSelectedSetId(null);
+                      setNewCardForm({ 
+                        front: '', 
+                        back: '', 
+                        category: '', 
+                        difficulty: 'medium', 
+                        isPublic: false 
+                      });
+                    }}
+                    className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
+                  >
+                    Add Card
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Create Study Set Modal */}
@@ -787,122 +924,7 @@ const Study = () => {
         </div>
       )}
 
-      {/* Create Flashcard Modal */}
-      {showCreateCardModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-gray-900">Add New Flashcard</h2>
-              <button
-                onClick={() => setShowCreateCardModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => { e.preventDefault(); createFlashcard(); }}>
-              <div className="space-y-6">
-                {/* Question Side */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm mr-3">
-                      Q
-                    </div>
-                    <h3 className="text-lg font-semibold text-blue-900">Question</h3>
-                  </div>
-                  <textarea
-                    value={newCardForm.front}
-                    onChange={(e) => setNewCardForm({...newCardForm, front: e.target.value})}
-                    className="w-full px-4 py-4 bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
-                    rows={4}
-                    placeholder="Enter your question here..."
-                    required
-                  />
-                </div>
 
-                {/* Answer Side */}
-                <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm mr-3">
-                      A
-                    </div>
-                    <h3 className="text-lg font-semibold text-green-900">Answer</h3>
-                  </div>
-                  <textarea
-                    value={newCardForm.back}
-                    onChange={(e) => setNewCardForm({...newCardForm, back: e.target.value})}
-                    className="w-full px-4 py-4 bg-white border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
-                    rows={4}
-                    placeholder="Enter the answer here..."
-                    required
-                  />
-                </div>
-
-                {/* Additional Options */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
-                    <input
-                      type="text"
-                      value={newCardForm.category}
-                      onChange={(e) => setNewCardForm({...newCardForm, category: e.target.value})}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
-                      placeholder="e.g., Basics, Advanced, Concepts"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Difficulty</label>
-                    <select
-                      value={newCardForm.difficulty}
-                      onChange={(e) => setNewCardForm({...newCardForm, difficulty: e.target.value as 'easy' | 'medium' | 'hard'})}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 transition-all duration-200"
-                    >
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Public/Private Toggle */}
-                <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <input
-                    type="checkbox"
-                    id="cardIsPublic"
-                    checked={newCardForm.isPublic}
-                    onChange={(e) => setNewCardForm({...newCardForm, isPublic: e.target.checked})}
-                    className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
-                  />
-                  <label htmlFor="cardIsPublic" className="ml-3 block text-sm text-gray-700">
-                    <span className="font-semibold">Make this card public</span>
-                    <span className="block text-gray-500 mt-1">Other users can discover and use this card</span>
-                  </label>
-                </div>
-              </div>
-              
-              <div className="flex space-x-4 mt-8">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateCardModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
-                >
-                  Add Card
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       <Footer />
     </>
