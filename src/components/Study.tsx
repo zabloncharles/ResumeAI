@@ -85,7 +85,7 @@ interface StudySet {
   lastStudied?: Date;
   createdBy: string;
   isPublic: boolean;
-  progress?: 'not_started' | 'started' | 'completed';
+  progress?: "not_started" | "started" | "completed";
   totalStudyTime: number; // in seconds
   totalSessions: number;
   averageScore: number; // percentage
@@ -122,9 +122,11 @@ const Study = () => {
     totalXP: 0,
     level: 1,
     achievements: [],
-    studyHistory: []
+    studyHistory: [],
   });
-  const [currentSession, setCurrentSession] = useState<StudySession | null>(null);
+  const [currentSession, setCurrentSession] = useState<StudySession | null>(
+    null
+  );
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
   // Form states
@@ -221,12 +223,15 @@ const Study = () => {
             })) as Flashcard[];
 
             // Determine progress based on study activity and mastery
-            let progress: 'not_started' | 'started' | 'completed' = 'not_started';
+            let progress: "not_started" | "started" | "completed" =
+              "not_started";
             if (setData.lastStudied) {
-              const avgMastery = flashcards.length > 0 
-                ? flashcards.reduce((acc, card) => acc + card.mastery, 0) / flashcards.length 
-                : 0;
-              progress = avgMastery >= 80 ? 'completed' : 'started';
+              const avgMastery =
+                flashcards.length > 0
+                  ? flashcards.reduce((acc, card) => acc + card.mastery, 0) /
+                    flashcards.length
+                  : 0;
+              progress = avgMastery >= 80 ? "completed" : "started";
             }
 
             sets.push({
@@ -253,9 +258,9 @@ const Study = () => {
 
   const loadUserStats = async () => {
     if (!user) return;
-    
+
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         setUserStats({
@@ -269,13 +274,19 @@ const Study = () => {
           achievements: data.achievements || [],
           studyHistory: (data.studyHistory || []).map((session: any) => ({
             ...session,
-            startTime: session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime),
-            endTime: session.endTime?.toDate ? session.endTime.toDate() : (session.endTime ? new Date(session.endTime) : undefined)
-          }))
+            startTime: session.startTime?.toDate
+              ? session.startTime.toDate()
+              : new Date(session.startTime),
+            endTime: session.endTime?.toDate
+              ? session.endTime.toDate()
+              : session.endTime
+              ? new Date(session.endTime)
+              : undefined,
+          })),
         });
       } else {
         // Create user stats document if it doesn't exist
-        await setDoc(doc(db, 'users', user.uid), {
+        await setDoc(doc(db, "users", user.uid), {
           totalStudyTime: 0,
           totalSessions: 0,
           currentStreak: 0,
@@ -284,95 +295,120 @@ const Study = () => {
           level: 1,
           achievements: [],
           studyHistory: [],
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
         });
       }
     } catch (error) {
-      console.error('Error loading user stats:', error);
+      console.error("Error loading user stats:", error);
     }
   };
 
-  const calculateXP = (sessionDuration: number, cardsReviewed: number, correctAnswers: number): number => {
+  const calculateXP = (
+    sessionDuration: number,
+    cardsReviewed: number,
+    correctAnswers: number
+  ): number => {
     // Base XP for time spent (1 XP per minute)
     const timeXP = Math.floor(sessionDuration / 60);
-    
+
     // XP for cards reviewed (2 XP per card)
     const reviewXP = cardsReviewed * 2;
-    
+
     // Bonus XP for accuracy (5 XP per correct answer)
     const accuracyXP = correctAnswers * 5;
-    
+
     // Streak bonus (10 XP per day in current streak)
     const streakBonus = userStats.currentStreak * 10;
-    
+
     return timeXP + reviewXP + accuracyXP + streakBonus;
   };
 
   const checkAchievements = (session: StudySession): string[] => {
     const newAchievements: string[] = [];
-    
+
     // First Study Session
     if (userStats.totalSessions === 0) {
-      newAchievements.push('First Study Session');
+      newAchievements.push("First Study Session");
     }
-    
+
     // Perfect Score
-    if (session.cardsReviewed > 0 && session.correctAnswers === session.cardsReviewed) {
-      newAchievements.push('Perfect Score');
+    if (
+      session.cardsReviewed > 0 &&
+      session.correctAnswers === session.cardsReviewed
+    ) {
+      newAchievements.push("Perfect Score");
     }
-    
+
     // 7-Day Streak
-    if (userStats.currentStreak >= 7 && !userStats.achievements.includes('7-Day Streak')) {
-      newAchievements.push('7-Day Streak');
+    if (
+      userStats.currentStreak >= 7 &&
+      !userStats.achievements.includes("7-Day Streak")
+    ) {
+      newAchievements.push("7-Day Streak");
     }
-    
+
     // Study Time Milestones
     const totalTimeHours = (userStats.totalStudyTime + session.duration) / 3600;
-    if (totalTimeHours >= 1 && !userStats.achievements.includes('1 Hour Studied')) {
-      newAchievements.push('1 Hour Studied');
+    if (
+      totalTimeHours >= 1 &&
+      !userStats.achievements.includes("1 Hour Studied")
+    ) {
+      newAchievements.push("1 Hour Studied");
     }
-    if (totalTimeHours >= 5 && !userStats.achievements.includes('5 Hours Studied')) {
-      newAchievements.push('5 Hours Studied');
+    if (
+      totalTimeHours >= 5 &&
+      !userStats.achievements.includes("5 Hours Studied")
+    ) {
+      newAchievements.push("5 Hours Studied");
     }
-    
+
     // Session Count Milestones
     const totalSessions = userStats.totalSessions + 1;
-    if (totalSessions >= 10 && !userStats.achievements.includes('10 Sessions')) {
-      newAchievements.push('10 Sessions');
+    if (
+      totalSessions >= 10 &&
+      !userStats.achievements.includes("10 Sessions")
+    ) {
+      newAchievements.push("10 Sessions");
     }
-    if (totalSessions >= 50 && !userStats.achievements.includes('50 Sessions')) {
-      newAchievements.push('50 Sessions');
+    if (
+      totalSessions >= 50 &&
+      !userStats.achievements.includes("50 Sessions")
+    ) {
+      newAchievements.push("50 Sessions");
     }
-    
+
     return newAchievements;
   };
 
   const updateStreak = async (): Promise<number> => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const lastStudy = userStats.lastStudyDate;
     const lastStudyDate = lastStudy ? new Date(lastStudy) : null;
     if (lastStudyDate) {
       lastStudyDate.setHours(0, 0, 0, 0);
     }
-    
+
     let newStreak = userStats.currentStreak;
-    
+
     if (!lastStudyDate) {
       // First study session
       newStreak = 1;
     } else if (lastStudyDate.getTime() === today.getTime()) {
       // Already studied today
       newStreak = userStats.currentStreak;
-    } else if (lastStudyDate.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
+    } else if (
+      lastStudyDate.getTime() ===
+      today.getTime() - 24 * 60 * 60 * 1000
+    ) {
       // Studied yesterday, continue streak
       newStreak = userStats.currentStreak + 1;
     } else {
       // Break in streak, reset to 1
       newStreak = 1;
     }
-    
+
     return newStreak;
   };
 
@@ -397,7 +433,7 @@ const Study = () => {
   const startStudySession = async (set: StudySet) => {
     const startTime = new Date();
     setSessionStartTime(startTime);
-    
+
     setCurrentSet(set);
     setCurrentCardIndex(0);
     setIsFlipped(false);
@@ -416,15 +452,15 @@ const Study = () => {
       cardsReviewed: 0,
       correctAnswers: 0,
       xpEarned: 0,
-      achievements: []
+      achievements: [],
     };
     setCurrentSession(newSession);
 
     // Update progress to 'started' if it's not already started or completed
-    if (set.progress === 'not_started' || !set.progress) {
+    if (set.progress === "not_started" || !set.progress) {
       try {
         await updateDoc(doc(db, "studySets", set.id), {
-          progress: 'started',
+          progress: "started",
         });
       } catch (error) {
         console.error("Error updating study set progress:", error);
@@ -435,13 +471,19 @@ const Study = () => {
   const endStudySession = async () => {
     if (currentSet && currentSession && sessionStartTime) {
       const endTime = new Date();
-      const sessionDuration = Math.floor((endTime.getTime() - sessionStartTime.getTime()) / 1000);
-      
+      const sessionDuration = Math.floor(
+        (endTime.getTime() - sessionStartTime.getTime()) / 1000
+      );
+
       // Calculate session stats
       const cardsReviewed = currentCardIndex + 1;
       const correctAnswers = score.correct;
-      const xpEarned = calculateXP(sessionDuration, cardsReviewed, correctAnswers);
-      
+      const xpEarned = calculateXP(
+        sessionDuration,
+        cardsReviewed,
+        correctAnswers
+      );
+
       // Update session with final data
       const completedSession: StudySession = {
         ...currentSession,
@@ -450,26 +492,29 @@ const Study = () => {
         cardsReviewed,
         correctAnswers,
         xpEarned,
-        achievements: []
+        achievements: [],
       };
-      
+
       // Check for new achievements
       const newAchievements = checkAchievements(completedSession);
       completedSession.achievements = newAchievements;
-      
+
       // Update streak
       const newStreak = await updateStreak();
-      
+
       // Calculate new user stats
       const newTotalStudyTime = userStats.totalStudyTime + sessionDuration;
       const newTotalSessions = userStats.totalSessions + 1;
       const newTotalXP = userStats.totalXP + xpEarned;
       const newLevel = Math.floor(newTotalXP / 1000) + 1;
-      const newAchievementsList = [...userStats.achievements, ...newAchievements];
-      
+      const newAchievementsList = [
+        ...userStats.achievements,
+        ...newAchievements,
+      ];
+
       // Update user stats in Firebase
       try {
-        await updateDoc(doc(db, 'users', user!.uid), {
+        await updateDoc(doc(db, "users", user!.uid), {
           totalStudyTime: newTotalStudyTime,
           totalSessions: newTotalSessions,
           currentStreak: newStreak,
@@ -478,11 +523,11 @@ const Study = () => {
           totalXP: newTotalXP,
           level: newLevel,
           achievements: newAchievementsList,
-          studyHistory: arrayUnion(completedSession)
+          studyHistory: arrayUnion(completedSession),
         });
-        
+
         // Update local state
-        setUserStats(prev => ({
+        setUserStats((prev) => ({
           ...prev,
           totalStudyTime: newTotalStudyTime,
           totalSessions: newTotalSessions,
@@ -492,18 +537,20 @@ const Study = () => {
           totalXP: newTotalXP,
           level: newLevel,
           achievements: newAchievementsList,
-          studyHistory: [...prev.studyHistory, completedSession]
+          studyHistory: [...prev.studyHistory, completedSession],
         }));
       } catch (error) {
-        console.error('Error updating user stats:', error);
+        console.error("Error updating user stats:", error);
       }
-      
+
       // Calculate average mastery to determine if completed
-      const avgMastery = currentSet.flashcards.length > 0 
-        ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) / currentSet.flashcards.length 
-        : 0;
-      
-      const newProgress = avgMastery >= 80 ? 'completed' : 'started';
+      const avgMastery =
+        currentSet.flashcards.length > 0
+          ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) /
+            currentSet.flashcards.length
+          : 0;
+
+      const newProgress = avgMastery >= 80 ? "completed" : "started";
 
       // Update study set stats
       try {
@@ -512,7 +559,10 @@ const Study = () => {
           progress: newProgress,
           totalStudyTime: (currentSet.totalStudyTime || 0) + sessionDuration,
           totalSessions: (currentSet.totalSessions || 0) + 1,
-          averageScore: ((currentSet.averageScore || 0) * (currentSet.totalSessions || 0) + (correctAnswers / cardsReviewed * 100)) / ((currentSet.totalSessions || 0) + 1)
+          averageScore:
+            ((currentSet.averageScore || 0) * (currentSet.totalSessions || 0) +
+              (correctAnswers / cardsReviewed) * 100) /
+            ((currentSet.totalSessions || 0) + 1),
         });
       } catch (error) {
         console.error("Error updating study set stats:", error);
@@ -559,9 +609,9 @@ const Study = () => {
 
       // Update score for session tracking
       const isCorrect = difficulty === "easy" || difficulty === "medium";
-      setScore(prev => ({
+      setScore((prev) => ({
         correct: prev.correct + (isCorrect ? 1 : 0),
-        total: prev.total + 1
+        total: prev.total + 1,
       }));
 
       try {
@@ -574,12 +624,14 @@ const Study = () => {
         );
 
         // Update study set progress based on overall mastery
-        const updatedFlashcards = currentSet.flashcards.map(card => 
+        const updatedFlashcards = currentSet.flashcards.map((card) =>
           card.id === currentCard.id ? { ...card, mastery: newMastery } : card
         );
-        const avgMastery = updatedFlashcards.reduce((acc, card) => acc + card.mastery, 0) / updatedFlashcards.length;
-        const newProgress = avgMastery >= 80 ? 'completed' : 'started';
-        
+        const avgMastery =
+          updatedFlashcards.reduce((acc, card) => acc + card.mastery, 0) /
+          updatedFlashcards.length;
+        const newProgress = avgMastery >= 80 ? "completed" : "started";
+
         await updateDoc(doc(db, "studySets", currentSet.id), {
           progress: newProgress,
         });
@@ -868,6 +920,15 @@ const Study = () => {
           0%, 100% { transform: rotate(12deg); }
           50% { transform: rotate(-12deg); }
         }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes villageGrow {
+          0% { transform: scale(0.9); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
         .flying-bird {
           animation: fly 3s ease-in-out infinite;
         }
@@ -876,6 +937,12 @@ const Study = () => {
         }
         .wing-right {
           animation: wingFlapRight 0.5s ease-in-out infinite;
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.8s ease-out;
+        }
+        .village-container {
+          animation: villageGrow 1s ease-out;
         }
       `}</style>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
@@ -892,80 +959,192 @@ const Study = () => {
             sessions. Track your progress and improve your knowledge retention.
           </p>
 
-          {/* Bird Animation Section */}
+          {/* Village Animation Section */}
           <div className="relative">
-            {/* Bird Container */}
-            <div className={`transition-all duration-1000 ease-in-out ${userStats.currentStreak > 0 ? 'flying-bird' : ''}`}>
-              {userStats.currentStreak > 0 ? (
-                // Happy Flying Bird
-                <div className="relative">
-                  {/* Bird Body */}
-                  <div className="w-24 h-16 bg-blue-500 rounded-full mx-auto relative">
-                    {/* Bird Head */}
-                    <div className="w-8 h-8 bg-blue-400 rounded-full absolute -top-2 -left-2">
-                      {/* Eye */}
-                      <div className="w-2 h-2 bg-white rounded-full absolute top-1 left-1">
-                        <div className="w-1 h-1 bg-black rounded-full absolute top-0.5 left-0.5"></div>
-                      </div>
-                      {/* Beak */}
-                      <div className="w-3 h-2 bg-yellow-400 absolute -right-1 top-2 transform rotate-45"></div>
-                    </div>
-                    {/* Wings */}
-                    <div className="absolute -top-4 left-4 w-6 h-8 bg-blue-300 rounded-full wing-left"></div>
-                    <div className="absolute -top-4 right-4 w-6 h-8 bg-blue-300 rounded-full wing-right"></div>
-                    {/* Tail */}
-                    <div className="w-4 h-3 bg-blue-600 absolute -right-2 top-6 transform rotate-45"></div>
-                  </div>
-                  {/* Flying Animation */}
-                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-                    <div className="text-2xl animate-ping">✨</div>
+            {/* Village Container */}
+            <div className="relative w-full max-w-4xl mx-auto h-48 bg-gradient-to-b from-sky-300 to-green-200 rounded-xl overflow-hidden village-container">
+              {/* Sky */}
+              <div className="absolute inset-0 bg-gradient-to-b from-sky-300 to-sky-200">
+                {/* Sun/Moon based on streak */}
+                {userStats.currentStreak > 0 ? (
+                  <div className="absolute top-4 right-4 text-4xl animate-pulse">☀️</div>
+                ) : (
+                  <div className="absolute top-4 right-4 text-4xl">🌙</div>
+                )}
+                
+                {/* Clouds - more clouds for higher streaks */}
+                {userStats.currentStreak > 0 && (
+                  <>
+                    <div className="absolute top-8 left-8 text-2xl animate-bounce" style={{animationDelay: '0s'}}>☁️</div>
+                    {userStats.currentStreak > 3 && (
+                      <div className="absolute top-12 left-24 text-xl animate-bounce" style={{animationDelay: '1s'}}>☁️</div>
+                    )}
+                    {userStats.currentStreak > 7 && (
+                      <div className="absolute top-6 left-40 text-lg animate-bounce" style={{animationDelay: '2s'}}>☁️</div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Ground */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-green-600 to-green-400"></div>
+
+              {/* Village Buildings */}
+              <div className="absolute bottom-16 left-0 right-0 flex justify-center items-end space-x-2 px-4">
+                {/* Building 1 - Always present but changes based on streak */}
+                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                  <div className={`w-8 h-12 ${userStats.currentStreak > 0 ? 'bg-yellow-400' : 'bg-gray-400'} rounded-t-lg border border-gray-600`}>
+                    <div className="w-2 h-2 bg-blue-300 rounded-sm mx-auto mt-1"></div>
                   </div>
                 </div>
-              ) : (
-                // Dead Bird
-                <div className="relative">
-                  {/* Bird Body (Gray) */}
-                  <div className="w-24 h-16 bg-gray-400 rounded-full mx-auto relative">
-                    {/* Bird Head */}
-                    <div className="w-8 h-8 bg-gray-300 rounded-full absolute -top-2 -left-2">
-                      {/* X Eyes */}
-                      <div className="absolute top-1 left-1 text-red-500 text-xs font-bold">X</div>
-                      <div className="absolute top-1 right-1 text-red-500 text-xs font-bold">X</div>
-                      {/* Beak */}
-                      <div className="w-3 h-2 bg-gray-500 absolute -right-1 top-2 transform rotate-45"></div>
+
+                {/* Building 2 - Appears at streak 2+ */}
+                {userStats.currentStreak >= 2 && (
+                  <div className="transition-all duration-1000 animate-fade-in">
+                    <div className="w-10 h-14 bg-red-400 rounded-t-lg border border-gray-600">
+                      <div className="w-2 h-2 bg-blue-300 rounded-sm mx-auto mt-1"></div>
+                      <div className="w-1 h-1 bg-yellow-300 rounded-full mx-auto mt-1"></div>
                     </div>
-                    {/* Wings (Droopy) */}
-                    <div className="absolute -bottom-2 left-4 w-6 h-4 bg-gray-300 rounded-full transform rotate-90"></div>
-                    <div className="absolute -bottom-2 right-4 w-6 h-4 bg-gray-300 rounded-full transform -rotate-90"></div>
-                    {/* Tail */}
-                    <div className="w-4 h-3 bg-gray-500 absolute -right-2 top-6 transform rotate-45"></div>
                   </div>
-                  {/* RIP Sign */}
-                  <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-red-500 text-white text-xs px-2 py-1 rounded">RIP</div>
+                )}
+
+                {/* Building 3 - Appears at streak 5+ */}
+                {userStats.currentStreak >= 5 && (
+                  <div className="transition-all duration-1000 animate-fade-in">
+                    <div className="w-12 h-16 bg-blue-400 rounded-t-lg border border-gray-600">
+                      <div className="w-3 h-3 bg-blue-300 rounded-sm mx-auto mt-1"></div>
+                      <div className="w-2 h-2 bg-yellow-300 rounded-full mx-auto mt-1"></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Building 4 - Appears at streak 10+ */}
+                {userStats.currentStreak >= 10 && (
+                  <div className="transition-all duration-1000 animate-fade-in">
+                    <div className="w-14 h-18 bg-purple-400 rounded-t-lg border border-gray-600">
+                      <div className="w-3 h-3 bg-purple-300 rounded-sm mx-auto mt-1"></div>
+                      <div className="w-2 h-2 bg-yellow-300 rounded-full mx-auto mt-1"></div>
+                      <div className="w-1 h-1 bg-red-300 rounded-full mx-auto mt-1"></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Building 5 - Appears at streak 15+ */}
+                {userStats.currentStreak >= 15 && (
+                  <div className="transition-all duration-1000 animate-fade-in">
+                    <div className="w-16 h-20 bg-green-400 rounded-t-lg border border-gray-600">
+                      <div className="w-4 h-4 bg-green-300 rounded-sm mx-auto mt-1"></div>
+                      <div className="w-2 h-2 bg-yellow-300 rounded-full mx-auto mt-1"></div>
+                      <div className="w-1 h-1 bg-blue-300 rounded-full mx-auto mt-1"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Villagers */}
+              <div className="absolute bottom-16 left-0 right-0 flex justify-center items-end space-x-1 px-4">
+                {/* Villager 1 - Always present but changes based on streak */}
+                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                  <div className="text-lg">👤</div>
+                </div>
+
+                {/* Villager 2 - Appears at streak 3+ */}
+                {userStats.currentStreak >= 3 && (
+                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '0.5s'}}>
+                    <div className="text-lg">👤</div>
+                  </div>
+                )}
+
+                {/* Villager 3 - Appears at streak 7+ */}
+                {userStats.currentStreak >= 7 && (
+                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '1s'}}>
+                    <div className="text-lg">👤</div>
+                  </div>
+                )}
+
+                {/* Villager 4 - Appears at streak 12+ */}
+                {userStats.currentStreak >= 12 && (
+                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '1.5s'}}>
+                    <div className="text-lg">👤</div>
+                  </div>
+                )}
+
+                {/* Villager 5 - Appears at streak 20+ */}
+                {userStats.currentStreak >= 20 && (
+                  <div className="transition-all duration-1000 animate-bounce" style={{animationDelay: '2s'}}>
+                    <div className="text-lg">👤</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Trees and Nature */}
+              <div className="absolute bottom-16 left-0 right-0 flex justify-between items-end px-2">
+                {/* Left Tree */}
+                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                  <div className="text-2xl">🌳</div>
+                </div>
+
+                {/* Right Tree */}
+                <div className={`transition-all duration-1000 ${userStats.currentStreak > 0 ? 'opacity-100' : 'opacity-30'}`}>
+                  <div className="text-2xl">🌳</div>
+                </div>
+
+                {/* Flowers - appear with higher streaks */}
+                {userStats.currentStreak >= 5 && (
+                  <div className="absolute bottom-4 left-1/4 transition-all duration-1000 animate-pulse">
+                    <div className="text-sm">🌸</div>
+                  </div>
+                )}
+
+                {userStats.currentStreak >= 10 && (
+                  <div className="absolute bottom-4 right-1/4 transition-all duration-1000 animate-pulse" style={{animationDelay: '0.5s'}}>
+                    <div className="text-sm">🌺</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Food/Resources - more food for higher streaks */}
+              {userStats.currentStreak > 0 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                  <div className="text-sm animate-pulse">🍎</div>
+                  {userStats.currentStreak >= 5 && <div className="text-sm animate-pulse" style={{animationDelay: '0.3s'}}>🥖</div>}
+                  {userStats.currentStreak >= 10 && <div className="text-sm animate-pulse" style={{animationDelay: '0.6s'}}>🧀</div>}
+                  {userStats.currentStreak >= 15 && <div className="text-sm animate-pulse" style={{animationDelay: '0.9s'}}>🍖</div>}
+                </div>
+              )}
+
+              {/* Dead village overlay for zero streak */}
+              {userStats.currentStreak === 0 && (
+                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">💀</div>
+                    <div className="text-white text-sm font-bold">Village Starved</div>
                   </div>
                 </div>
               )}
             </div>
-            
-            {/* Streak Message */}
+
+            {/* Village Status Message */}
             <div className="mt-4">
               {userStats.currentStreak > 0 ? (
                 <div className="text-center">
                   <h2 className="text-2xl font-bold text-green-600 mb-2">
-                    🔥 {userStats.currentStreak} Day{userStats.currentStreak !== 1 ? 's' : ''} Streak!
+                    🏘️ {userStats.currentStreak} Day{userStats.currentStreak !== 1 ? "s" : ""} Streak!
                   </h2>
                   <p className="text-gray-600">
-                    Your study bird is happy and flying! Keep it alive by studying today.
+                    Your study village is thriving! {userStats.currentStreak >= 5 ? 'The villagers are happy and well-fed!' : 'Keep studying to help it grow!'}
                   </p>
+                  {userStats.currentStreak >= 10 && (
+                    <p className="text-sm text-green-600 mt-1">🌟 Your village has become prosperous!</p>
+                  )}
                 </div>
               ) : (
                 <div className="text-center">
                   <h2 className="text-2xl font-bold text-red-600 mb-2">
-                    💀 No Active Streak
+                    💀 Village Starved
                   </h2>
                   <p className="text-gray-600">
-                    Your study bird needs you! Start studying to bring it back to life.
+                    Your study village has died of starvation! Start studying to rebuild it.
                   </p>
                 </div>
               )}
@@ -975,14 +1154,18 @@ const Study = () => {
 
         {/* Stats Dashboard */}
         <section className="max-w-7xl mx-auto mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Study Stats</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Your Study Stats
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {/* Study Streak */}
             <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100 text-sm">Current Streak</p>
-                  <p className="text-3xl font-bold">{userStats.currentStreak}</p>
+                  <p className="text-3xl font-bold">
+                    {userStats.currentStreak}
+                  </p>
                   <p className="text-orange-100 text-xs">days</p>
                 </div>
                 <div className="text-4xl">🔥</div>
@@ -994,7 +1177,9 @@ const Study = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm">Total Study Time</p>
-                  <p className="text-3xl font-bold">{Math.floor(userStats.totalStudyTime / 3600)}</p>
+                  <p className="text-3xl font-bold">
+                    {Math.floor(userStats.totalStudyTime / 3600)}
+                  </p>
                   <p className="text-blue-100 text-xs">hours</p>
                 </div>
                 <div className="text-4xl">⏱️</div>
@@ -1007,7 +1192,9 @@ const Study = () => {
                 <div>
                   <p className="text-purple-100 text-sm">Total XP</p>
                   <p className="text-3xl font-bold">{userStats.totalXP}</p>
-                  <p className="text-purple-100 text-xs">Level {userStats.level}</p>
+                  <p className="text-purple-100 text-xs">
+                    Level {userStats.level}
+                  </p>
                 </div>
                 <div className="text-4xl">⭐</div>
               </div>
@@ -1018,7 +1205,9 @@ const Study = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm">Study Sessions</p>
-                  <p className="text-3xl font-bold">{userStats.totalSessions}</p>
+                  <p className="text-3xl font-bold">
+                    {userStats.totalSessions}
+                  </p>
                   <p className="text-green-100 text-xs">completed</p>
                 </div>
                 <div className="text-4xl">📚</div>
@@ -1029,10 +1218,15 @@ const Study = () => {
           {/* Achievements */}
           {userStats.achievements.length > 0 && (
             <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Achievements</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Achievements
+              </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {userStats.achievements.map((achievement, index) => (
-                  <div key={index} className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-4 text-white text-center">
+                  <div
+                    key={index}
+                    className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-4 text-white text-center"
+                  >
                     <div className="text-2xl mb-2">🏆</div>
                     <p className="text-sm font-medium">{achievement}</p>
                   </div>
@@ -1044,38 +1238,66 @@ const Study = () => {
           {/* Study Session History */}
           {userStats.studyHistory.length > 0 && (
             <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Study Sessions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Recent Study Sessions
+              </h3>
               <div className="space-y-3">
-                {userStats.studyHistory.slice(-5).reverse().map((session, index) => {
-                  const studySet = studySets.find(set => set.id === session.studySetId);
-                  const accuracy = session.cardsReviewed > 0 ? Math.round((session.correctAnswers / session.cardsReviewed) * 100) : 0;
-                  const durationMinutes = Math.floor(session.duration / 60);
-                  
-                  // Ensure startTime is a Date object
-                  const startTime = session.startTime instanceof Date ? session.startTime : new Date(session.startTime);
-                  
-                  return (
-                    <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="text-2xl">
-                          {accuracy >= 80 ? '🟢' : accuracy >= 60 ? '🟡' : '🔴'}
+                {userStats.studyHistory
+                  .slice(-5)
+                  .reverse()
+                  .map((session, index) => {
+                    const studySet = studySets.find(
+                      (set) => set.id === session.studySetId
+                    );
+                    const accuracy =
+                      session.cardsReviewed > 0
+                        ? Math.round(
+                            (session.correctAnswers / session.cardsReviewed) *
+                              100
+                          )
+                        : 0;
+                    const durationMinutes = Math.floor(session.duration / 60);
+
+                    // Ensure startTime is a Date object
+                    const startTime =
+                      session.startTime instanceof Date
+                        ? session.startTime
+                        : new Date(session.startTime);
+
+                    return (
+                      <div
+                        key={session.id}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="text-2xl">
+                            {accuracy >= 80
+                              ? "🟢"
+                              : accuracy >= 60
+                              ? "🟡"
+                              : "🔴"}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {studySet?.title || "Unknown Set"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {session.cardsReviewed} cards • {accuracy}%
+                              accuracy • {durationMinutes}m
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{studySet?.title || 'Unknown Set'}</p>
-                          <p className="text-sm text-gray-600">
-                            {session.cardsReviewed} cards • {accuracy}% accuracy • {durationMinutes}m
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">
+                            +{session.xpEarned} XP
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {startTime.toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-green-600">+{session.xpEarned} XP</p>
-                        <p className="text-xs text-gray-500">
-                          {startTime.toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -1083,29 +1305,52 @@ const Study = () => {
 
         {/* Kanban Board */}
         <section className="max-w-7xl mx-auto mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Study Progress</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Study Progress
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Not Started */}
             <div className="bg-gray-50 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-700">Not Started</h3>
+                <h3 className="text-lg font-semibold text-gray-700">
+                  Not Started
+                </h3>
                 <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm font-medium">
-                  {studySets.filter(set => !set.progress || set.progress === 'not_started').length}
+                  {
+                    studySets.filter(
+                      (set) => !set.progress || set.progress === "not_started"
+                    ).length
+                  }
                 </span>
               </div>
               <div className="space-y-3">
                 {studySets
-                  .filter(set => !set.progress || set.progress === 'not_started')
+                  .filter(
+                    (set) => !set.progress || set.progress === "not_started"
+                  )
                   .slice(0, 3)
                   .map((set) => (
-                    <div key={set.id} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
-                      <h4 className="font-medium text-gray-900 text-sm mb-1">{set.title}</h4>
-                      <p className="text-gray-500 text-xs">{set.cardCount} cards</p>
+                    <div
+                      key={set.id}
+                      className="bg-white rounded-lg p-3 shadow-sm border border-gray-200"
+                    >
+                      <h4 className="font-medium text-gray-900 text-sm mb-1">
+                        {set.title}
+                      </h4>
+                      <p className="text-gray-500 text-xs">
+                        {set.cardCount} cards
+                      </p>
                     </div>
                   ))}
-                {studySets.filter(set => !set.progress || set.progress === 'not_started').length > 3 && (
+                {studySets.filter(
+                  (set) => !set.progress || set.progress === "not_started"
+                ).length > 3 && (
                   <div className="text-center text-gray-500 text-sm">
-                    +{studySets.filter(set => !set.progress || set.progress === 'not_started').length - 3} more
+                    +
+                    {studySets.filter(
+                      (set) => !set.progress || set.progress === "not_started"
+                    ).length - 3}{" "}
+                    more
                   </div>
                 )}
               </div>
@@ -1114,34 +1359,56 @@ const Study = () => {
             {/* Started Studying */}
             <div className="bg-blue-50 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-blue-700">Started Studying</h3>
+                <h3 className="text-lg font-semibold text-blue-700">
+                  Started Studying
+                </h3>
                 <span className="bg-blue-200 text-blue-700 px-2 py-1 rounded-full text-sm font-medium">
-                  {studySets.filter(set => set.progress === 'started').length}
+                  {studySets.filter((set) => set.progress === "started").length}
                 </span>
               </div>
               <div className="space-y-3">
                 {studySets
-                  .filter(set => set.progress === 'started')
+                  .filter((set) => set.progress === "started")
                   .slice(0, 3)
                   .map((set) => (
-                    <div key={set.id} className="bg-white rounded-lg p-3 shadow-sm border border-blue-200">
-                      <h4 className="font-medium text-gray-900 text-sm mb-1">{set.title}</h4>
+                    <div
+                      key={set.id}
+                      className="bg-white rounded-lg p-3 shadow-sm border border-blue-200"
+                    >
+                      <h4 className="font-medium text-gray-900 text-sm mb-1">
+                        {set.title}
+                      </h4>
                       <div className="flex items-center justify-between">
-                        <p className="text-gray-500 text-xs">{set.cardCount} cards</p>
+                        <p className="text-gray-500 text-xs">
+                          {set.cardCount} cards
+                        </p>
                         <div className="w-16 bg-gray-200 rounded-full h-1">
-                          <div 
-                            className="bg-blue-500 h-1 rounded-full" 
+                          <div
+                            className="bg-blue-500 h-1 rounded-full"
                             style={{
-                              width: `${set.flashcards.length > 0 ? Math.round(set.flashcards.reduce((acc, card) => acc + card.mastery, 0) / set.flashcards.length) : 0}%`
+                              width: `${
+                                set.flashcards.length > 0
+                                  ? Math.round(
+                                      set.flashcards.reduce(
+                                        (acc, card) => acc + card.mastery,
+                                        0
+                                      ) / set.flashcards.length
+                                    )
+                                  : 0
+                              }%`,
                             }}
                           ></div>
                         </div>
                       </div>
                     </div>
                   ))}
-                {studySets.filter(set => set.progress === 'started').length > 3 && (
+                {studySets.filter((set) => set.progress === "started").length >
+                  3 && (
                   <div className="text-center text-blue-500 text-sm">
-                    +{studySets.filter(set => set.progress === 'started').length - 3} more
+                    +
+                    {studySets.filter((set) => set.progress === "started")
+                      .length - 3}{" "}
+                    more
                   </div>
                 )}
               </div>
@@ -1150,29 +1417,53 @@ const Study = () => {
             {/* Completed */}
             <div className="bg-green-50 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-green-700">Completed</h3>
+                <h3 className="text-lg font-semibold text-green-700">
+                  Completed
+                </h3>
                 <span className="bg-green-200 text-green-700 px-2 py-1 rounded-full text-sm font-medium">
-                  {studySets.filter(set => set.progress === 'completed').length}
+                  {
+                    studySets.filter((set) => set.progress === "completed")
+                      .length
+                  }
                 </span>
               </div>
               <div className="space-y-3">
                 {studySets
-                  .filter(set => set.progress === 'completed')
+                  .filter((set) => set.progress === "completed")
                   .slice(0, 3)
                   .map((set) => (
-                    <div key={set.id} className="bg-white rounded-lg p-3 shadow-sm border border-green-200">
+                    <div
+                      key={set.id}
+                      className="bg-white rounded-lg p-3 shadow-sm border border-green-200"
+                    >
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-gray-900 text-sm">{set.title}</h4>
-                        <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <h4 className="font-medium text-gray-900 text-sm">
+                          {set.title}
+                        </h4>
+                        <svg
+                          className="h-4 w-4 text-green-500"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </div>
-                      <p className="text-gray-500 text-xs">{set.cardCount} cards</p>
+                      <p className="text-gray-500 text-xs">
+                        {set.cardCount} cards
+                      </p>
                     </div>
                   ))}
-                {studySets.filter(set => set.progress === 'completed').length > 3 && (
+                {studySets.filter((set) => set.progress === "completed")
+                  .length > 3 && (
                   <div className="text-center text-green-500 text-sm">
-                    +{studySets.filter(set => set.progress === 'completed').length - 3} more
+                    +
+                    {studySets.filter((set) => set.progress === "completed")
+                      .length - 3}{" "}
+                    more
                   </div>
                 )}
               </div>
@@ -1217,7 +1508,7 @@ const Study = () => {
             </div>
 
             <button
-              onClick={() => navigate('/create')}
+              onClick={() => navigate("/create")}
               className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
@@ -1306,38 +1597,48 @@ const Study = () => {
                       <span>Start Studying</span>
                     </button>
 
-                                          <div className="flex items-center space-x-2">
-                        {set.createdBy === user.uid && (
-                          <>
-                            <button
-                              onClick={() => navigate(`/edit/${set.id}`)}
-                              className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                              title="Edit Set"
+                    <div className="flex items-center space-x-2">
+                      {set.createdBy === user.uid && (
+                        <>
+                          <button
+                            onClick={() => navigate(`/edit/${set.id}`)}
+                            className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                            title="Edit Set"
+                          >
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
                             >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedSetId(set.id);
-                                setShowCreateCardModal(true);
-                              }}
-                              className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                              title="Add Card"
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => deleteStudySet(set.id)}
-                              className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                              title="Delete Set"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedSetId(set.id);
+                              setShowCreateCardModal(true);
+                            }}
+                            className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                            title="Add Card"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteStudySet(set.id)}
+                            className="p-2 text-gray-600 hover:text-red-600 transition-colors"
+                            title="Delete Set"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {set.lastStudied && (
@@ -1365,7 +1666,7 @@ const Study = () => {
               </p>
               {filter === "my" && (
                 <button
-                  onClick={() => navigate('/create')}
+                  onClick={() => navigate("/create")}
                   className="inline-flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   <PlusIcon className="h-5 w-5" />
