@@ -17,6 +17,7 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
+import Cookies from 'js-cookie';
 
 interface Flashcard {
   id?: string;
@@ -44,10 +45,14 @@ interface StudySet {
   flashcards: Flashcard[];
 }
 
+const COOKIE_KEY = 'study_set_draft';
+
 export default function CreateStudySet() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Study set form
   const [studySet, setStudySet] = useState<StudySet>({
@@ -69,6 +74,67 @@ export default function CreateStudySet() {
     isPublic: false
   });
 
+  // Cookie management functions
+  const saveToCookies = (data: StudySet) => {
+    try {
+      Cookies.set(COOKIE_KEY, JSON.stringify(data), { expires: 7 }); // 7 days
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('Error saving to cookies:', error);
+    }
+  };
+
+  const loadFromCookies = (): StudySet | null => {
+    try {
+      const saved = Cookies.get(COOKIE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setHasUnsavedChanges(true);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading from cookies:', error);
+    }
+    return null;
+  };
+
+  const clearCookies = () => {
+    try {
+      Cookies.remove(COOKIE_KEY);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Error clearing cookies:', error);
+    }
+  };
+
+  // Auto-save effect
+  useEffect(() => {
+    if (studySet.title || studySet.description || studySet.category || studySet.flashcards.length > 0) {
+      saveToCookies(studySet);
+    }
+  }, [studySet]);
+
+  // Load data from cookies on mount
+  useEffect(() => {
+    const savedData = loadFromCookies();
+    if (savedData) {
+      setStudySet(savedData);
+    }
+  }, []);
+
+  // Navigation guard
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   // Authentication effect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -87,6 +153,19 @@ export default function CreateStudySet() {
     });
     return () => unsubscribe();
   }, [navigate]);
+
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      setShowExitModal(true);
+    } else {
+      navigate('/study');
+    }
+  };
+
+  const confirmExit = () => {
+    clearCookies();
+    navigate('/study');
+  };
 
   const addCard = () => {
     if (currentCard.front.trim() && currentCard.back.trim()) {
@@ -146,6 +225,9 @@ export default function CreateStudySet() {
 
       await Promise.all(flashcardPromises);
 
+      // Clear cookies after successful save
+      clearCookies();
+
       // Navigate to the study set page
       navigate(`/study/${docRef.id}`);
     } catch (error) {
@@ -171,7 +253,7 @@ export default function CreateStudySet() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/study')}
+                onClick={handleBackClick}
                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-all duration-200"
               >
                 <ArrowLeftIcon className="h-6 w-6" />
@@ -179,6 +261,9 @@ export default function CreateStudySet() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Create Study Set</h1>
                 <p className="text-gray-600">Build your flashcards and share knowledge</p>
+                {hasUnsavedChanges && (
+                  <p className="text-sm text-green-600 mt-1">✓ Auto-saved progress</p>
+                )}
               </div>
             </div>
           </div>
@@ -355,6 +440,36 @@ export default function CreateStudySet() {
           </div>
         </div>
       </div>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Unsaved Changes</h3>
+              <p className="text-gray-600 mb-6">
+                You have {studySet.flashcards.length} card{studySet.flashcards.length !== 1 ? 's' : ''} that haven't been saved. 
+                Are you sure you want to leave without creating the study set?
+              </p>
+              
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setShowExitModal(false)}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
+                >
+                  Stay
+                </button>
+                <button
+                  onClick={confirmExit}
+                  className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all duration-200 font-semibold"
+                >
+                  Leave
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </>
