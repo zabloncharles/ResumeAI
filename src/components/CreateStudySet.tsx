@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { auth, db } from '../firebase';
@@ -7,7 +7,10 @@ import {
   collection, 
   doc, 
   addDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  getDoc,
+  getDocs,
+  updateDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
@@ -45,33 +48,35 @@ interface StudySet {
   flashcards: Flashcard[];
 }
 
-const COOKIE_KEY = 'study_set_draft';
+const COOKIE_KEY = "study_set_draft";
 
 export default function CreateStudySet() {
   const navigate = useNavigate();
+  const { studySetId } = useParams();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showExitModal, setShowExitModal] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Study set form
   const [studySet, setStudySet] = useState<StudySet>({
-    title: '',
-    description: '',
-    category: '',
+    title: "",
+    description: "",
+    category: "",
     isPublic: false,
     cardCount: 0,
-    flashcards: []
+    flashcards: [],
   });
 
   // Current flashcard being edited
   const [currentCard, setCurrentCard] = useState<Flashcard>({
-    front: '',
-    back: '',
-    category: '',
-    difficulty: 'medium',
+    front: "",
+    back: "",
+    category: "",
+    difficulty: "medium",
     mastery: 0,
-    isPublic: false
+    isPublic: false,
   });
 
   // Cookie management functions
@@ -80,7 +85,7 @@ export default function CreateStudySet() {
       Cookies.set(COOKIE_KEY, JSON.stringify(data), { expires: 7 }); // 7 days
       setHasUnsavedChanges(true);
     } catch (error) {
-      console.error('Error saving to cookies:', error);
+      console.error("Error saving to cookies:", error);
     }
   };
 
@@ -93,7 +98,7 @@ export default function CreateStudySet() {
         return parsed;
       }
     } catch (error) {
-      console.error('Error loading from cookies:', error);
+      console.error("Error loading from cookies:", error);
     }
     return null;
   };
@@ -103,48 +108,97 @@ export default function CreateStudySet() {
       Cookies.remove(COOKIE_KEY);
       setHasUnsavedChanges(false);
     } catch (error) {
-      console.error('Error clearing cookies:', error);
+      console.error("Error clearing cookies:", error);
     }
   };
 
-  // Auto-save effect
+  // Load study set data for editing
+  const loadStudySetForEditing = async (setId: string) => {
+    try {
+      const setDoc = await getDoc(doc(db, 'studySets', setId));
+      if (setDoc.exists()) {
+        const setData = setDoc.data();
+        
+        // Load flashcards
+        const flashcardsSnapshot = await getDocs(collection(db, 'studySets', setId, 'flashcards'));
+        const flashcards = flashcardsSnapshot.docs.map(cardDoc => ({
+          id: cardDoc.id,
+          ...cardDoc.data(),
+          createdAt: cardDoc.data().createdAt?.toDate() || new Date(),
+          lastReviewed: cardDoc.data().lastReviewed?.toDate(),
+        })) as Flashcard[];
+
+        const loadedSet: StudySet = {
+          id: setId,
+          title: setData.title,
+          description: setData.description,
+          category: setData.category,
+          isPublic: setData.isPublic,
+          createdBy: setData.createdBy,
+          createdAt: setData.createdAt?.toDate() || new Date(),
+          lastStudied: setData.lastStudied?.toDate(),
+          cardCount: flashcards.length,
+          flashcards: flashcards,
+        };
+
+        setStudySet(loadedSet);
+        setIsEditMode(true);
+      }
+    } catch (error) {
+      console.error('Error loading study set for editing:', error);
+    }
+  };
+
+  // Auto-save effect (only for create mode)
   useEffect(() => {
-    if (studySet.title || studySet.description || studySet.category || studySet.flashcards.length > 0) {
+    if (!isEditMode && (studySet.title || studySet.description || studySet.category || studySet.flashcards.length > 0)) {
       saveToCookies(studySet);
     }
-  }, [studySet]);
+  }, [studySet, isEditMode]);
 
-  // Load data from cookies on mount
+  // Load data from cookies on mount (only for create mode)
   useEffect(() => {
-    const savedData = loadFromCookies();
-    if (savedData) {
-      setStudySet(savedData);
+    if (!isEditMode) {
+      const savedData = loadFromCookies();
+      if (savedData) {
+        setStudySet(savedData);
+      }
     }
-  }, []);
+  }, [isEditMode]);
+
+  // Load study set for editing if studySetId is provided
+  useEffect(() => {
+    if (studySetId && user) {
+      loadStudySetForEditing(studySetId);
+    }
+  }, [studySetId, user]);
 
   // Navigation guard
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
+      if (hasUnsavedChanges && !isEditMode) {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = "";
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges, isEditMode]);
 
   // Authentication effect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        localStorage.setItem("user", JSON.stringify({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName
-        }));
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+          })
+        );
       } else {
         localStorage.removeItem("user");
         navigate("/");
@@ -155,16 +209,16 @@ export default function CreateStudySet() {
   }, [navigate]);
 
   const handleBackClick = () => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges && !isEditMode) {
       setShowExitModal(true);
     } else {
-      navigate('/study');
+      navigate("/study");
     }
   };
 
   const confirmExit = () => {
     clearCookies();
-    navigate('/study');
+    navigate("/study");
   };
 
   const addCard = () => {
@@ -197,41 +251,54 @@ export default function CreateStudySet() {
     if (!user || !studySet.title.trim()) return;
 
     try {
-      // Create the study set
-      const docRef = await addDoc(collection(db, 'studySets'), {
-        title: studySet.title,
-        description: studySet.description,
-        category: studySet.category,
-        isPublic: studySet.isPublic,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        lastStudied: null
-      });
+      if (isEditMode && studySet.id) {
+        // Update existing study set
+        await updateDoc(doc(db, 'studySets', studySet.id), {
+          title: studySet.title,
+          description: studySet.description,
+          category: studySet.category,
+          isPublic: studySet.isPublic,
+        });
 
-      // Add all flashcards to the study set
-      const flashcardPromises = studySet.flashcards.map(card => 
-        addDoc(collection(db, 'studySets', docRef.id, 'flashcards'), {
-          front: card.front,
-          back: card.back,
-          category: card.category,
-          difficulty: card.difficulty,
-          mastery: 0,
+        // Navigate back to study page
+        navigate('/study');
+      } else {
+        // Create new study set
+        const docRef = await addDoc(collection(db, 'studySets'), {
+          title: studySet.title,
+          description: studySet.description,
+          category: studySet.category,
+          isPublic: studySet.isPublic,
           createdBy: user.uid,
-          isPublic: card.isPublic,
           createdAt: serverTimestamp(),
-          lastReviewed: null
-        })
-      );
+          lastStudied: null
+        });
 
-      await Promise.all(flashcardPromises);
+        // Add all flashcards to the study set
+        const flashcardPromises = studySet.flashcards.map(card => 
+          addDoc(collection(db, 'studySets', docRef.id, 'flashcards'), {
+            front: card.front,
+            back: card.back,
+            category: card.category,
+            difficulty: card.difficulty,
+            mastery: 0,
+            createdBy: user.uid,
+            isPublic: card.isPublic,
+            createdAt: serverTimestamp(),
+            lastReviewed: null
+          })
+        );
 
-      // Clear cookies after successful save
-      clearCookies();
+        await Promise.all(flashcardPromises);
 
-      // Navigate to the study set page
-      navigate(`/study/${docRef.id}`);
+        // Clear cookies after successful save
+        clearCookies();
+
+        // Navigate to the study set page
+        navigate(`/study/${docRef.id}`);
+      }
     } catch (error) {
-      console.error('Error creating study set:', error);
+      console.error('Error saving study set:', error);
     }
   };
 
@@ -258,13 +325,17 @@ export default function CreateStudySet() {
               >
                 <ArrowLeftIcon className="h-6 w-6" />
               </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Create Study Set</h1>
-                <p className="text-gray-600">Build your flashcards and share knowledge</p>
-                {hasUnsavedChanges && (
-                  <p className="text-sm text-green-600 mt-1">✓ Auto-saved progress</p>
-                )}
-              </div>
+                              <div>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {isEditMode ? 'Edit Study Set' : 'Create Study Set'}
+                  </h1>
+                  <p className="text-gray-600">
+                    {isEditMode ? 'Modify your flashcards and settings' : 'Build your flashcards and share knowledge'}
+                  </p>
+                  {hasUnsavedChanges && !isEditMode && (
+                    <p className="text-sm text-green-600 mt-1">✓ Auto-saved progress</p>
+                  )}
+                </div>
             </div>
           </div>
 
@@ -337,13 +408,13 @@ export default function CreateStudySet() {
 
               {/* Create Button */}
               <div className="bg-white rounded-2xl p-6 shadow-lg">
-                <button
-                  onClick={createStudySet}
-                  disabled={!studySet.title.trim() || studySet.flashcards.length === 0}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
-                >
-                  Create Study Set ({studySet.flashcards.length} cards)
-                </button>
+                                  <button
+                    onClick={createStudySet}
+                    disabled={!studySet.title.trim() || (!isEditMode && studySet.flashcards.length === 0)}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
+                  >
+                    {isEditMode ? 'Save Changes' : `Create Study Set (${studySet.flashcards.length} cards)`}
+                  </button>
               </div>
             </div>
 
