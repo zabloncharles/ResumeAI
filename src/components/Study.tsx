@@ -875,8 +875,20 @@ const Study = () => {
         }
       `}</style>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
-        {/* Bird Animation Section */}
-        <section className="max-w-7xl mx-auto text-center mb-8">
+        {/* Hero Section */}
+        <section className="max-w-7xl mx-auto text-center mb-12">
+          <div className="flex items-center justify-center mb-6">
+            <AcademicCapIcon className="h-16 w-16 text-blue-600 mr-4" />
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
+              Study Hub
+            </h1>
+          </div>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
+            Master new skills with interactive flashcards, quizzes, and study
+            sessions. Track your progress and improve your knowledge retention.
+          </p>
+
+          {/* Bird Animation Section */}
           <div className="relative">
             {/* Bird Container */}
             <div className={`transition-all duration-1000 ease-in-out ${userStats.currentStreak > 0 ? 'flying-bird' : ''}`}>
@@ -955,20 +967,6 @@ const Study = () => {
               )}
             </div>
           </div>
-        </section>
-
-        {/* Hero Section */}
-        <section className="max-w-7xl mx-auto text-center mb-12">
-          <div className="flex items-center justify-center mb-6">
-            <AcademicCapIcon className="h-16 w-16 text-blue-600 mr-4" />
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
-              Study Hub
-            </h1>
-          </div>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Master new skills with interactive flashcards, quizzes, and study
-            sessions. Track your progress and improve your knowledge retention.
-          </p>
         </section>
 
         {/* Stats Dashboard */}
