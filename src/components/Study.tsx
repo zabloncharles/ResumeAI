@@ -696,65 +696,88 @@ const Study = () => {
 
       {/* Create Study Set Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Create New Study Set</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-gray-900">Create New Study Set</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
             <form onSubmit={(e) => { e.preventDefault(); createStudySet(); }}>
-              <div className="space-y-4">
+              <div className="space-y-6">
+                {/* Title */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Study Set Title</label>
                   <input
                     type="text"
                     value={newSetForm.title}
                     onChange={(e) => setNewSetForm({...newSetForm, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-4 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 text-lg"
+                    placeholder="Enter a title for your study set..."
                     required
                   />
                 </div>
+
+                {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                   <textarea
                     value={newSetForm.description}
                     onChange={(e) => setNewSetForm({...newSetForm, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-4 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
                     rows={3}
+                    placeholder="Describe what this study set covers..."
                     required
                   />
                 </div>
+
+                {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
                   <input
                     type="text"
                     value={newSetForm.category}
                     onChange={(e) => setNewSetForm({...newSetForm, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
+                    placeholder="e.g., Programming, Math, History, Science..."
                     required
                   />
                 </div>
-                <div className="flex items-center">
+
+                {/* Public/Private Toggle */}
+                <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
                   <input
                     type="checkbox"
                     id="isPublic"
                     checked={newSetForm.isPublic}
                     onChange={(e) => setNewSetForm({...newSetForm, isPublic: e.target.checked})}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
                   />
-                  <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-900">
-                    Make this set public
+                  <label htmlFor="isPublic" className="ml-3 block text-sm text-gray-700">
+                    <span className="font-semibold">Make this set public</span>
+                    <span className="block text-gray-500 mt-1">Other users can discover and use this study set</span>
                   </label>
                 </div>
               </div>
-              <div className="flex space-x-3 mt-6">
+              
+              <div className="flex space-x-4 mt-8">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
                 >
                   Create Set
                 </button>
@@ -766,77 +789,112 @@ const Study = () => {
 
       {/* Create Flashcard Modal */}
       {showCreateCardModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Add New Flashcard</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-gray-900">Add New Flashcard</h2>
+              <button
+                onClick={() => setShowCreateCardModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
             <form onSubmit={(e) => { e.preventDefault(); createFlashcard(); }}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+              <div className="space-y-6">
+                {/* Question Side */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm mr-3">
+                      Q
+                    </div>
+                    <h3 className="text-lg font-semibold text-blue-900">Question</h3>
+                  </div>
                   <textarea
                     value={newCardForm.front}
                     onChange={(e) => setNewCardForm({...newCardForm, front: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
+                    className="w-full px-4 py-4 bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                    rows={4}
+                    placeholder="Enter your question here..."
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Answer</label>
+
+                {/* Answer Side */}
+                <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm mr-3">
+                      A
+                    </div>
+                    <h3 className="text-lg font-semibold text-green-900">Answer</h3>
+                  </div>
                   <textarea
                     value={newCardForm.back}
                     onChange={(e) => setNewCardForm({...newCardForm, back: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
+                    className="w-full px-4 py-4 bg-white border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                    rows={4}
+                    placeholder="Enter the answer here..."
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input
-                    type="text"
-                    value={newCardForm.category}
-                    onChange={(e) => setNewCardForm({...newCardForm, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+
+                {/* Additional Options */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                    <input
+                      type="text"
+                      value={newCardForm.category}
+                      onChange={(e) => setNewCardForm({...newCardForm, category: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
+                      placeholder="e.g., Basics, Advanced, Concepts"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Difficulty</label>
+                    <select
+                      value={newCardForm.difficulty}
+                      onChange={(e) => setNewCardForm({...newCardForm, difficulty: e.target.value as 'easy' | 'medium' | 'hard'})}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 transition-all duration-200"
+                    >
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
-                  <select
-                    value={newCardForm.difficulty}
-                    onChange={(e) => setNewCardForm({...newCardForm, difficulty: e.target.value as 'easy' | 'medium' | 'hard'})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                </div>
-                <div className="flex items-center">
+
+                {/* Public/Private Toggle */}
+                <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
                   <input
                     type="checkbox"
                     id="cardIsPublic"
                     checked={newCardForm.isPublic}
                     onChange={(e) => setNewCardForm({...newCardForm, isPublic: e.target.checked})}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
                   />
-                  <label htmlFor="cardIsPublic" className="ml-2 block text-sm text-gray-900">
-                    Make this card public
+                  <label htmlFor="cardIsPublic" className="ml-3 block text-sm text-gray-700">
+                    <span className="font-semibold">Make this card public</span>
+                    <span className="block text-gray-500 mt-1">Other users can discover and use this card</span>
                   </label>
                 </div>
               </div>
-              <div className="flex space-x-3 mt-6">
+              
+              <div className="flex space-x-4 mt-8">
                 <button
                   type="button"
                   onClick={() => setShowCreateCardModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
                 >
                   Add Card
                 </button>
