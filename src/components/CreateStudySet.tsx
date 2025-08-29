@@ -225,7 +225,7 @@ export default function CreateStudySet() {
     if (currentCard.front.trim() && currentCard.back.trim()) {
       setStudySet(prev => ({
         ...prev,
-        flashcards: [...prev.flashcards, { ...currentCard, id: Date.now().toString() }],
+        flashcards: [...prev.flashcards, { ...currentCard, id: `temp_${Date.now()}` }],
         cardCount: prev.cardCount + 1
       }));
       setCurrentCard({
@@ -252,13 +252,38 @@ export default function CreateStudySet() {
 
     try {
       if (isEditMode && studySet.id) {
-        // Update existing study set
-        await updateDoc(doc(db, 'studySets', studySet.id), {
+        const setId = studySet.id;
+        
+        // Update existing study set details
+        await updateDoc(doc(db, 'studySets', setId), {
           title: studySet.title,
           description: studySet.description,
           category: studySet.category,
           isPublic: studySet.isPublic,
         });
+
+        // Get existing flashcards to compare
+        const existingFlashcardsSnapshot = await getDocs(collection(db, 'studySets', setId, 'flashcards'));
+        const existingFlashcardIds = existingFlashcardsSnapshot.docs.map(doc => doc.id);
+        const currentFlashcardIds = studySet.flashcards.map(card => card.id).filter(id => id && !id.startsWith('temp_'));
+
+        // Add new flashcards (those without Firebase IDs)
+        const newFlashcards = studySet.flashcards.filter(card => !card.id || card.id.startsWith('temp_'));
+        const addPromises = newFlashcards.map(card => 
+          addDoc(collection(db, 'studySets', setId, 'flashcards'), {
+            front: card.front,
+            back: card.back,
+            category: card.category,
+            difficulty: card.difficulty,
+            mastery: card.mastery || 0,
+            createdBy: user.uid,
+            isPublic: card.isPublic,
+            createdAt: serverTimestamp(),
+            lastReviewed: card.lastReviewed || null
+          })
+        );
+
+        await Promise.all(addPromises);
 
         // Navigate back to study page
         navigate('/study');
