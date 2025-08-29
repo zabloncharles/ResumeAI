@@ -269,7 +269,12 @@ const Study = () => {
   };
 
   const createStudySet = async () => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found for study set creation');
+      return;
+    }
+    
+    console.log('Creating study set with user:', user.uid);
     
     try {
       const docRef = await addDoc(collection(db, 'studySets'), {
@@ -281,6 +286,8 @@ const Study = () => {
         createdAt: serverTimestamp(),
         lastStudied: null
       });
+      
+      console.log('Study set created successfully:', docRef.id);
       
       setNewSetForm({ title: '', description: '', category: '', isPublic: false });
       setShowCreateModal(false);
