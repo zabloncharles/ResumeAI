@@ -1,33 +1,33 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import Navbar from './Navbar';
-import Footer from './Footer';
-import { auth, db } from '../firebase';
-import { 
-  collection, 
-  doc, 
-  addDoc, 
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import Navbar from "./Navbar";
+import Footer from "./Footer";
+import { auth, db } from "../firebase";
+import {
+  collection,
+  doc,
+  addDoc,
   serverTimestamp,
   getDoc,
   getDocs,
-  updateDoc
-} from 'firebase/firestore';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { 
+  updateDoc,
+} from "firebase/firestore";
+import { onAuthStateChanged, User } from "firebase/auth";
+import {
   ArrowLeftIcon,
   PlusIcon,
   TrashIcon,
   EyeIcon,
-  EyeSlashIcon
-} from '@heroicons/react/24/outline';
-import Cookies from 'js-cookie';
+  EyeSlashIcon,
+} from "@heroicons/react/24/outline";
+import Cookies from "js-cookie";
 
 interface Flashcard {
   id?: string;
   front: string;
   back: string;
   category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: "easy" | "medium" | "hard";
   mastery: number;
   createdBy?: string;
   isPublic: boolean;
@@ -115,13 +115,15 @@ export default function CreateStudySet() {
   // Load study set data for editing
   const loadStudySetForEditing = async (setId: string) => {
     try {
-      const setDoc = await getDoc(doc(db, 'studySets', setId));
+      const setDoc = await getDoc(doc(db, "studySets", setId));
       if (setDoc.exists()) {
         const setData = setDoc.data();
-        
+
         // Load flashcards
-        const flashcardsSnapshot = await getDocs(collection(db, 'studySets', setId, 'flashcards'));
-        const flashcards = flashcardsSnapshot.docs.map(cardDoc => ({
+        const flashcardsSnapshot = await getDocs(
+          collection(db, "studySets", setId, "flashcards")
+        );
+        const flashcards = flashcardsSnapshot.docs.map((cardDoc) => ({
           id: cardDoc.id,
           ...cardDoc.data(),
           createdAt: cardDoc.data().createdAt?.toDate() || new Date(),
@@ -145,13 +147,19 @@ export default function CreateStudySet() {
         setIsEditMode(true);
       }
     } catch (error) {
-      console.error('Error loading study set for editing:', error);
+      console.error("Error loading study set for editing:", error);
     }
   };
 
   // Auto-save effect (only for create mode)
   useEffect(() => {
-    if (!isEditMode && (studySet.title || studySet.description || studySet.category || studySet.flashcards.length > 0)) {
+    if (
+      !isEditMode &&
+      (studySet.title ||
+        studySet.description ||
+        studySet.category ||
+        studySet.flashcards.length > 0)
+    ) {
       saveToCookies(studySet);
     }
   }, [studySet, isEditMode]);
@@ -223,27 +231,30 @@ export default function CreateStudySet() {
 
   const addCard = () => {
     if (currentCard.front.trim() && currentCard.back.trim()) {
-      setStudySet(prev => ({
+      setStudySet((prev) => ({
         ...prev,
-        flashcards: [...prev.flashcards, { ...currentCard, id: `temp_${Date.now()}` }],
-        cardCount: prev.cardCount + 1
+        flashcards: [
+          ...prev.flashcards,
+          { ...currentCard, id: `temp_${Date.now()}` },
+        ],
+        cardCount: prev.cardCount + 1,
       }));
       setCurrentCard({
-        front: '',
-        back: '',
-        category: '',
-        difficulty: 'medium',
+        front: "",
+        back: "",
+        category: "",
+        difficulty: "medium",
         mastery: 0,
-        isPublic: false
+        isPublic: false,
       });
     }
   };
 
   const removeCard = (cardId: string) => {
-    setStudySet(prev => ({
+    setStudySet((prev) => ({
       ...prev,
-      flashcards: prev.flashcards.filter(card => card.id !== cardId),
-      cardCount: prev.cardCount - 1
+      flashcards: prev.flashcards.filter((card) => card.id !== cardId),
+      cardCount: prev.cardCount - 1,
     }));
   };
 
@@ -253,9 +264,9 @@ export default function CreateStudySet() {
     try {
       if (isEditMode && studySet.id) {
         const setId = studySet.id;
-        
+
         // Update existing study set details
-        await updateDoc(doc(db, 'studySets', setId), {
+        await updateDoc(doc(db, "studySets", setId), {
           title: studySet.title,
           description: studySet.description,
           category: studySet.category,
@@ -263,14 +274,22 @@ export default function CreateStudySet() {
         });
 
         // Get existing flashcards to compare
-        const existingFlashcardsSnapshot = await getDocs(collection(db, 'studySets', setId, 'flashcards'));
-        const existingFlashcardIds = existingFlashcardsSnapshot.docs.map(doc => doc.id);
-        const currentFlashcardIds = studySet.flashcards.map(card => card.id).filter(id => id && !id.startsWith('temp_'));
+        const existingFlashcardsSnapshot = await getDocs(
+          collection(db, "studySets", setId, "flashcards")
+        );
+        const existingFlashcardIds = existingFlashcardsSnapshot.docs.map(
+          (doc) => doc.id
+        );
+        const currentFlashcardIds = studySet.flashcards
+          .map((card) => card.id)
+          .filter((id) => id && !id.startsWith("temp_"));
 
         // Add new flashcards (those without Firebase IDs)
-        const newFlashcards = studySet.flashcards.filter(card => !card.id || card.id.startsWith('temp_'));
-        const addPromises = newFlashcards.map(card => 
-          addDoc(collection(db, 'studySets', setId, 'flashcards'), {
+        const newFlashcards = studySet.flashcards.filter(
+          (card) => !card.id || card.id.startsWith("temp_")
+        );
+        const addPromises = newFlashcards.map((card) =>
+          addDoc(collection(db, "studySets", setId, "flashcards"), {
             front: card.front,
             back: card.back,
             category: card.category,
@@ -279,29 +298,29 @@ export default function CreateStudySet() {
             createdBy: user.uid,
             isPublic: card.isPublic,
             createdAt: serverTimestamp(),
-            lastReviewed: card.lastReviewed || null
+            lastReviewed: card.lastReviewed || null,
           })
         );
 
         await Promise.all(addPromises);
 
         // Navigate back to study page
-        navigate('/study');
+        navigate("/study");
       } else {
         // Create new study set
-        const docRef = await addDoc(collection(db, 'studySets'), {
+        const docRef = await addDoc(collection(db, "studySets"), {
           title: studySet.title,
           description: studySet.description,
           category: studySet.category,
           isPublic: studySet.isPublic,
           createdBy: user.uid,
           createdAt: serverTimestamp(),
-          lastStudied: null
+          lastStudied: null,
         });
 
         // Add all flashcards to the study set
-        const flashcardPromises = studySet.flashcards.map(card => 
-          addDoc(collection(db, 'studySets', docRef.id, 'flashcards'), {
+        const flashcardPromises = studySet.flashcards.map((card) =>
+          addDoc(collection(db, "studySets", docRef.id, "flashcards"), {
             front: card.front,
             back: card.back,
             category: card.category,
@@ -310,7 +329,7 @@ export default function CreateStudySet() {
             createdBy: user.uid,
             isPublic: card.isPublic,
             createdAt: serverTimestamp(),
-            lastReviewed: null
+            lastReviewed: null,
           })
         );
 
@@ -323,7 +342,7 @@ export default function CreateStudySet() {
         navigate(`/study/${docRef.id}`);
       }
     } catch (error) {
-      console.error('Error saving study set:', error);
+      console.error("Error saving study set:", error);
     }
   };
 
@@ -338,7 +357,7 @@ export default function CreateStudySet() {
   return (
     <>
       <Navbar />
-      
+
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-20">
         <div className="max-w-6xl mx-auto px-4 py-8">
           {/* Header */}
@@ -350,17 +369,21 @@ export default function CreateStudySet() {
               >
                 <ArrowLeftIcon className="h-6 w-6" />
               </button>
-                              <div>
-                  <h1 className="text-3xl font-bold text-gray-900">
-                    {isEditMode ? 'Edit Study Set' : 'Create Study Set'}
-                  </h1>
-                  <p className="text-gray-600">
-                    {isEditMode ? 'Modify your flashcards and settings' : 'Build your flashcards and share knowledge'}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {isEditMode ? "Edit Study Set" : "Create Study Set"}
+                </h1>
+                <p className="text-gray-600">
+                  {isEditMode
+                    ? "Modify your flashcards and settings"
+                    : "Build your flashcards and share knowledge"}
+                </p>
+                {hasUnsavedChanges && !isEditMode && (
+                  <p className="text-sm text-green-600 mt-1">
+                    ✓ Auto-saved progress
                   </p>
-                  {hasUnsavedChanges && !isEditMode && (
-                    <p className="text-sm text-green-600 mt-1">✓ Auto-saved progress</p>
-                  )}
-                </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -368,8 +391,10 @@ export default function CreateStudySet() {
             {/* Left Column - Study Set Details */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Study Set Details</h2>
-                
+                <h2 className="text-xl font-bold text-gray-900 mb-4">
+                  Study Set Details
+                </h2>
+
                 <div className="space-y-4">
                   {/* Title */}
                   <div>
@@ -379,7 +404,9 @@ export default function CreateStudySet() {
                     <input
                       type="text"
                       value={studySet.title}
-                      onChange={(e) => setStudySet({...studySet, title: e.target.value})}
+                      onChange={(e) =>
+                        setStudySet({ ...studySet, title: e.target.value })
+                      }
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
                       placeholder="Enter study set title..."
                       required
@@ -393,7 +420,12 @@ export default function CreateStudySet() {
                     </label>
                     <textarea
                       value={studySet.description}
-                      onChange={(e) => setStudySet({...studySet, description: e.target.value})}
+                      onChange={(e) =>
+                        setStudySet({
+                          ...studySet,
+                          description: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
                       rows={3}
                       placeholder="Describe what this study set covers..."
@@ -408,7 +440,9 @@ export default function CreateStudySet() {
                     <input
                       type="text"
                       value={studySet.category}
-                      onChange={(e) => setStudySet({...studySet, category: e.target.value})}
+                      onChange={(e) =>
+                        setStudySet({ ...studySet, category: e.target.value })
+                      }
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
                       placeholder="e.g., Programming, Math, History..."
                     />
@@ -420,12 +454,21 @@ export default function CreateStudySet() {
                       type="checkbox"
                       id="isPublic"
                       checked={studySet.isPublic}
-                      onChange={(e) => setStudySet({...studySet, isPublic: e.target.checked})}
+                      onChange={(e) =>
+                        setStudySet({ ...studySet, isPublic: e.target.checked })
+                      }
                       className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
                     />
-                    <label htmlFor="isPublic" className="ml-3 block text-sm text-gray-700">
-                      <span className="font-semibold">Make this set public</span>
-                      <span className="block text-gray-500 mt-1">Other users can discover and use this study set</span>
+                    <label
+                      htmlFor="isPublic"
+                      className="ml-3 block text-sm text-gray-700"
+                    >
+                      <span className="font-semibold">
+                        Make this set public
+                      </span>
+                      <span className="block text-gray-500 mt-1">
+                        Other users can discover and use this study set
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -433,41 +476,67 @@ export default function CreateStudySet() {
 
               {/* Create Button */}
               <div className="bg-white rounded-2xl p-6 shadow-lg">
-                                  <button
-                    onClick={createStudySet}
-                    disabled={!studySet.title.trim() || (!isEditMode && studySet.flashcards.length === 0)}
-                    className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
-                  >
-                    {isEditMode ? 'Save Changes' : `Create Study Set (${studySet.flashcards.length} cards)`}
-                  </button>
+                <button
+                  onClick={createStudySet}
+                  disabled={
+                    !studySet.title.trim() ||
+                    (!isEditMode && studySet.flashcards.length === 0)
+                  }
+                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
+                >
+                  {isEditMode
+                    ? "Save Changes"
+                    : `Create Study Set (${studySet.flashcards.length} cards)`}
+                </button>
               </div>
             </div>
 
             {/* Right Column - Add Cards */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Add Cards</h2>
-                
+                <h2 className="text-xl font-bold text-gray-900 mb-4">
+                  Add Cards
+                </h2>
+
                 {/* Current Card Form */}
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-semibold text-gray-700">New Card</span>
+                    <span className="text-lg font-semibold text-gray-700">
+                      New Card
+                    </span>
                     <div className="flex items-center space-x-2">
                       <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-all duration-200">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 8h16M4 16h16"
+                          />
                         </svg>
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Term Field */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">TERM</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        TERM
+                      </label>
                       <textarea
                         value={currentCard.front}
-                        onChange={(e) => setCurrentCard({...currentCard, front: e.target.value})}
+                        onChange={(e) =>
+                          setCurrentCard({
+                            ...currentCard,
+                            front: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
                         rows={4}
                         placeholder="Enter your question here..."
@@ -476,10 +545,17 @@ export default function CreateStudySet() {
 
                     {/* Definition Field */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">DEFINITION</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        DEFINITION
+                      </label>
                       <textarea
                         value={currentCard.back}
-                        onChange={(e) => setCurrentCard({...currentCard, back: e.target.value})}
+                        onChange={(e) =>
+                          setCurrentCard({
+                            ...currentCard,
+                            back: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
                         rows={4}
                         placeholder="Enter the answer here..."
@@ -487,12 +563,14 @@ export default function CreateStudySet() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Add Card Button */}
                 <div className="text-center">
                   <button
                     onClick={addCard}
-                    disabled={!currentCard.front.trim() || !currentCard.back.trim()}
+                    disabled={
+                      !currentCard.front.trim() || !currentCard.back.trim()
+                    }
                     className="px-8 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold border border-gray-700"
                   >
                     Add a card.
@@ -503,13 +581,20 @@ export default function CreateStudySet() {
               {/* Added Cards List */}
               {studySet.flashcards.length > 0 && (
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Added Cards ({studySet.flashcards.length})</h3>
-                  
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">
+                    Added Cards ({studySet.flashcards.length})
+                  </h3>
+
                   <div className="space-y-3">
                     {studySet.flashcards.map((card, index) => (
-                      <div key={card.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div
+                        key={card.id}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                      >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-600">Card {index + 1}</span>
+                          <span className="text-sm font-medium text-gray-600">
+                            Card {index + 1}
+                          </span>
                           <button
                             onClick={() => removeCard(card.id!)}
                             className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all duration-200"
@@ -519,11 +604,15 @@ export default function CreateStudySet() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="font-semibold text-gray-700">Term:</span>
+                            <span className="font-semibold text-gray-700">
+                              Term:
+                            </span>
                             <p className="text-gray-600 mt-1">{card.front}</p>
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-700">Definition:</span>
+                            <span className="font-semibold text-gray-700">
+                              Definition:
+                            </span>
                             <p className="text-gray-600 mt-1">{card.back}</p>
                           </div>
                         </div>
@@ -542,12 +631,16 @@ export default function CreateStudySet() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-md shadow-2xl">
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Unsaved Changes</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Unsaved Changes
+              </h3>
               <p className="text-gray-600 mb-6">
-                You have {studySet.flashcards.length} card{studySet.flashcards.length !== 1 ? 's' : ''} that haven't been saved. 
-                Are you sure you want to leave without creating the study set?
+                You have {studySet.flashcards.length} card
+                {studySet.flashcards.length !== 1 ? "s" : ""} that haven't been
+                saved. Are you sure you want to leave without creating the study
+                set?
               </p>
-              
+
               <div className="flex space-x-4">
                 <button
                   onClick={() => setShowExitModal(false)}

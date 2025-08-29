@@ -58,6 +58,7 @@ interface StudySet {
   lastStudied?: Date;
   createdBy: string;
   isPublic: boolean;
+  progress?: 'not_started' | 'started' | 'completed';
 }
 
 const Study = () => {
@@ -177,6 +178,15 @@ const Study = () => {
               lastReviewed: cardDoc.data().lastReviewed?.toDate(),
             })) as Flashcard[];
 
+            // Determine progress based on study activity and mastery
+            let progress: 'not_started' | 'started' | 'completed' = 'not_started';
+            if (setData.lastStudied) {
+              const avgMastery = flashcards.length > 0 
+                ? flashcards.reduce((acc, card) => acc + card.mastery, 0) / flashcards.length 
+                : 0;
+              progress = avgMastery >= 80 ? 'completed' : 'started';
+            }
+
             sets.push({
               id: doc.id,
               ...setData,
@@ -184,6 +194,7 @@ const Study = () => {
               cardCount: flashcards.length,
               createdAt: setData.createdAt?.toDate() || new Date(),
               lastStudied: setData.lastStudied?.toDate(),
+              progress,
             } as StudySet);
           }
           setStudySets(sets);
@@ -209,7 +220,7 @@ const Study = () => {
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-  const startStudySession = (set: StudySet) => {
+  const startStudySession = async (set: StudySet) => {
     setCurrentSet(set);
     setCurrentCardIndex(0);
     setIsFlipped(false);
@@ -218,14 +229,33 @@ const Study = () => {
     setScore({ correct: 0, total: 0 });
     setTimer(0);
     setIsTimerRunning(true);
+
+    // Update progress to 'started' if it's not already started or completed
+    if (set.progress === 'not_started' || !set.progress) {
+      try {
+        await updateDoc(doc(db, "studySets", set.id), {
+          progress: 'started',
+        });
+      } catch (error) {
+        console.error("Error updating study set progress:", error);
+      }
+    }
   };
 
   const endStudySession = async () => {
     if (currentSet) {
-      // Update last studied time
+      // Calculate average mastery to determine if completed
+      const avgMastery = currentSet.flashcards.length > 0 
+        ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) / currentSet.flashcards.length 
+        : 0;
+      
+      const newProgress = avgMastery >= 80 ? 'completed' : 'started';
+
+      // Update last studied time and progress
       try {
         await updateDoc(doc(db, "studySets", currentSet.id), {
           lastStudied: serverTimestamp(),
+          progress: newProgress,
         });
       } catch (error) {
         console.error("Error updating last studied:", error);
@@ -276,6 +306,17 @@ const Study = () => {
             lastReviewed: serverTimestamp(),
           }
         );
+
+        // Update study set progress based on overall mastery
+        const updatedFlashcards = currentSet.flashcards.map(card => 
+          card.id === currentCard.id ? { ...card, mastery: newMastery } : card
+        );
+        const avgMastery = updatedFlashcards.reduce((acc, card) => acc + card.mastery, 0) / updatedFlashcards.length;
+        const newProgress = avgMastery >= 80 ? 'completed' : 'started';
+        
+        await updateDoc(doc(db, "studySets", currentSet.id), {
+          progress: newProgress,
+        });
       } catch (error) {
         console.error("Error updating card mastery:", error);
       }
@@ -559,6 +600,105 @@ const Study = () => {
             Master new skills with interactive flashcards, quizzes, and study
             sessions. Track your progress and improve your knowledge retention.
           </p>
+        </section>
+
+        {/* Kanban Board */}
+        <section className="max-w-7xl mx-auto mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Study Progress</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Not Started */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-700">Not Started</h3>
+                <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm font-medium">
+                  {studySets.filter(set => !set.progress || set.progress === 'not_started').length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {studySets
+                  .filter(set => !set.progress || set.progress === 'not_started')
+                  .slice(0, 3)
+                  .map((set) => (
+                    <div key={set.id} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
+                      <h4 className="font-medium text-gray-900 text-sm mb-1">{set.title}</h4>
+                      <p className="text-gray-500 text-xs">{set.cardCount} cards</p>
+                    </div>
+                  ))}
+                {studySets.filter(set => !set.progress || set.progress === 'not_started').length > 3 && (
+                  <div className="text-center text-gray-500 text-sm">
+                    +{studySets.filter(set => !set.progress || set.progress === 'not_started').length - 3} more
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Started Studying */}
+            <div className="bg-blue-50 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-blue-700">Started Studying</h3>
+                <span className="bg-blue-200 text-blue-700 px-2 py-1 rounded-full text-sm font-medium">
+                  {studySets.filter(set => set.progress === 'started').length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {studySets
+                  .filter(set => set.progress === 'started')
+                  .slice(0, 3)
+                  .map((set) => (
+                    <div key={set.id} className="bg-white rounded-lg p-3 shadow-sm border border-blue-200">
+                      <h4 className="font-medium text-gray-900 text-sm mb-1">{set.title}</h4>
+                      <div className="flex items-center justify-between">
+                        <p className="text-gray-500 text-xs">{set.cardCount} cards</p>
+                        <div className="w-16 bg-gray-200 rounded-full h-1">
+                          <div 
+                            className="bg-blue-500 h-1 rounded-full" 
+                            style={{
+                              width: `${set.flashcards.length > 0 ? Math.round(set.flashcards.reduce((acc, card) => acc + card.mastery, 0) / set.flashcards.length) : 0}%`
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                {studySets.filter(set => set.progress === 'started').length > 3 && (
+                  <div className="text-center text-blue-500 text-sm">
+                    +{studySets.filter(set => set.progress === 'started').length - 3} more
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Completed */}
+            <div className="bg-green-50 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-green-700">Completed</h3>
+                <span className="bg-green-200 text-green-700 px-2 py-1 rounded-full text-sm font-medium">
+                  {studySets.filter(set => set.progress === 'completed').length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {studySets
+                  .filter(set => set.progress === 'completed')
+                  .slice(0, 3)
+                  .map((set) => (
+                    <div key={set.id} className="bg-white rounded-lg p-3 shadow-sm border border-green-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium text-gray-900 text-sm">{set.title}</h4>
+                        <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 text-xs">{set.cardCount} cards</p>
+                    </div>
+                  ))}
+                {studySets.filter(set => set.progress === 'completed').length > 3 && (
+                  <div className="text-center text-green-500 text-sm">
+                    +{studySets.filter(set => set.progress === 'completed').length - 3} more
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Filter and Create Button */}
