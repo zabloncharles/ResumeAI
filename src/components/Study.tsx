@@ -97,23 +97,26 @@ const Study = () => {
 
   // Authentication effect
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log('Auth state changed:', firebaseUser ? 'User logged in' : 'No user');
+      if (firebaseUser) {
+        console.log('User UID:', firebaseUser.uid);
+        console.log('User email:', firebaseUser.email);
+      }
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        localStorage.setItem("user", JSON.stringify({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName
+        }));
+      } else {
+        localStorage.removeItem("user");
+        navigate("/");
+      }
       setIsLoading(false);
-    } else {
-      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-        setUser(firebaseUser);
-        if (firebaseUser) {
-          localStorage.setItem("user", JSON.stringify(firebaseUser));
-        } else {
-          navigate("/");
-        }
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
-    }
+    });
+    return () => unsubscribe();
   }, [navigate]);
 
   // Redirect if user is not authenticated
