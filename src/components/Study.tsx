@@ -267,7 +267,11 @@ const Study = () => {
           totalXP: data.totalXP || 0,
           level: data.level || 1,
           achievements: data.achievements || [],
-          studyHistory: data.studyHistory || []
+          studyHistory: (data.studyHistory || []).map((session: any) => ({
+            ...session,
+            startTime: session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime),
+            endTime: session.endTime?.toDate ? session.endTime.toDate() : (session.endTime ? new Date(session.endTime) : undefined)
+          }))
         });
       } else {
         // Create user stats document if it doesn't exist
@@ -1047,6 +1051,9 @@ const Study = () => {
                   const accuracy = session.cardsReviewed > 0 ? Math.round((session.correctAnswers / session.cardsReviewed) * 100) : 0;
                   const durationMinutes = Math.floor(session.duration / 60);
                   
+                  // Ensure startTime is a Date object
+                  const startTime = session.startTime instanceof Date ? session.startTime : new Date(session.startTime);
+                  
                   return (
                     <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-4">
@@ -1063,7 +1070,7 @@ const Study = () => {
                       <div className="text-right">
                         <p className="font-semibold text-green-600">+{session.xpEarned} XP</p>
                         <p className="text-xs text-gray-500">
-                          {session.startTime.toLocaleDateString()}
+                          {startTime.toLocaleDateString()}
                         </p>
                       </div>
                     </div>
