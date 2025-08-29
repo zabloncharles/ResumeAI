@@ -849,7 +849,114 @@ const Study = () => {
   return (
     <>
       <Navbar />
+      <style>{`
+        @keyframes fly {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          25% { transform: translateY(-10px) rotate(5deg); }
+          50% { transform: translateY(-5px) rotate(0deg); }
+          75% { transform: translateY(-15px) rotate(-5deg); }
+        }
+        @keyframes wingFlap {
+          0%, 100% { transform: rotate(-12deg); }
+          50% { transform: rotate(12deg); }
+        }
+        @keyframes wingFlapRight {
+          0%, 100% { transform: rotate(12deg); }
+          50% { transform: rotate(-12deg); }
+        }
+        .flying-bird {
+          animation: fly 3s ease-in-out infinite;
+        }
+        .wing-left {
+          animation: wingFlap 0.5s ease-in-out infinite;
+        }
+        .wing-right {
+          animation: wingFlapRight 0.5s ease-in-out infinite;
+        }
+      `}</style>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
+        {/* Bird Animation Section */}
+        <section className="max-w-7xl mx-auto text-center mb-8">
+          <div className="relative">
+            {/* Bird Container */}
+            <div className={`transition-all duration-1000 ease-in-out ${userStats.currentStreak > 0 ? 'flying-bird' : ''}`}>
+              {userStats.currentStreak > 0 ? (
+                // Happy Flying Bird
+                <div className="relative">
+                  {/* Bird Body */}
+                  <div className="w-24 h-16 bg-blue-500 rounded-full mx-auto relative">
+                    {/* Bird Head */}
+                    <div className="w-8 h-8 bg-blue-400 rounded-full absolute -top-2 -left-2">
+                      {/* Eye */}
+                      <div className="w-2 h-2 bg-white rounded-full absolute top-1 left-1">
+                        <div className="w-1 h-1 bg-black rounded-full absolute top-0.5 left-0.5"></div>
+                      </div>
+                      {/* Beak */}
+                      <div className="w-3 h-2 bg-yellow-400 absolute -right-1 top-2 transform rotate-45"></div>
+                    </div>
+                    {/* Wings */}
+                    <div className="absolute -top-4 left-4 w-6 h-8 bg-blue-300 rounded-full wing-left"></div>
+                    <div className="absolute -top-4 right-4 w-6 h-8 bg-blue-300 rounded-full wing-right"></div>
+                    {/* Tail */}
+                    <div className="w-4 h-3 bg-blue-600 absolute -right-2 top-6 transform rotate-45"></div>
+                  </div>
+                  {/* Flying Animation */}
+                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                    <div className="text-2xl animate-ping">✨</div>
+                  </div>
+                </div>
+              ) : (
+                // Dead Bird
+                <div className="relative">
+                  {/* Bird Body (Gray) */}
+                  <div className="w-24 h-16 bg-gray-400 rounded-full mx-auto relative">
+                    {/* Bird Head */}
+                    <div className="w-8 h-8 bg-gray-300 rounded-full absolute -top-2 -left-2">
+                      {/* X Eyes */}
+                      <div className="absolute top-1 left-1 text-red-500 text-xs font-bold">X</div>
+                      <div className="absolute top-1 right-1 text-red-500 text-xs font-bold">X</div>
+                      {/* Beak */}
+                      <div className="w-3 h-2 bg-gray-500 absolute -right-1 top-2 transform rotate-45"></div>
+                    </div>
+                    {/* Wings (Droopy) */}
+                    <div className="absolute -bottom-2 left-4 w-6 h-4 bg-gray-300 rounded-full transform rotate-90"></div>
+                    <div className="absolute -bottom-2 right-4 w-6 h-4 bg-gray-300 rounded-full transform -rotate-90"></div>
+                    {/* Tail */}
+                    <div className="w-4 h-3 bg-gray-500 absolute -right-2 top-6 transform rotate-45"></div>
+                  </div>
+                  {/* RIP Sign */}
+                  <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-red-500 text-white text-xs px-2 py-1 rounded">RIP</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Streak Message */}
+            <div className="mt-4">
+              {userStats.currentStreak > 0 ? (
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-green-600 mb-2">
+                    🔥 {userStats.currentStreak} Day{userStats.currentStreak !== 1 ? 's' : ''} Streak!
+                  </h2>
+                  <p className="text-gray-600">
+                    Your study bird is happy and flying! Keep it alive by studying today.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-red-600 mb-2">
+                    💀 No Active Streak
+                  </h2>
+                  <p className="text-gray-600">
+                    Your study bird needs you! Start studying to bring it back to life.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto text-center mb-12">
           <div className="flex items-center justify-center mb-6">
