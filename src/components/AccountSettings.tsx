@@ -27,20 +27,35 @@ const AccountSettings = () => {
   const [loadingUsage, setLoadingUsage] = useState(true);
   const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
   const [userType, setUserType] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setIsLoading(false);
     } else {
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         setUser(firebaseUser);
-        if (firebaseUser)
+        if (firebaseUser) {
           localStorage.setItem("user", JSON.stringify(firebaseUser));
+        } else {
+          // Redirect to landing page if not authenticated
+          navigate("/");
+        }
+        setIsLoading(false);
       });
       return () => unsubscribe();
     }
-  }, []);
+  }, [navigate]);
+
+  // Redirect if user is not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -106,6 +121,20 @@ const AccountSettings = () => {
       console.error("Error signing out:", error);
     }
   };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

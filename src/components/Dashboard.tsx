@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import Navbar from "./Navbar";
 import {
   BarChart,
@@ -47,6 +43,7 @@ const Dashboard = () => {
   >([]);
   const globeRef = useRef<any>(null);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
   // Dynamic data for the chart
   const [profileImpressionData] = useState([
@@ -83,16 +80,44 @@ const Dashboard = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setIsLoading(false);
     } else {
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         setUser(firebaseUser);
-        if (firebaseUser)
+        if (firebaseUser) {
           localStorage.setItem("user", JSON.stringify(firebaseUser));
+        } else {
+          // Redirect to landing page if not authenticated
+          navigate("/");
+        }
+        setIsLoading(false);
       });
       return () => unsubscribe();
     }
-  }, []);
+  }, [navigate]);
+
+  // Redirect if user is not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
 
   useEffect(() => {
     (async () => {
@@ -100,12 +125,9 @@ const Dashboard = () => {
       // Increment API call count for the user
       try {
         const userRef = doc(db, "users", user.uid);
-        await updateDoc(
-          userRef,
-          {
-            totalApiCalls: 1,
-          }
-        );
+        await updateDoc(userRef, {
+          totalApiCalls: 1,
+        });
       } catch (error) {
         console.error("[Dashboard] Error incrementing API call count:", error);
       }
@@ -407,9 +429,9 @@ const Dashboard = () => {
                     Total API Calls
                   </h3>
                 </div>
-                                  <p className="text-3xl font-bold text-indigo-600 mb-1">
-                   {userData?.totalApiCalls || 0}
-                  </p>
+                <p className="text-3xl font-bold text-indigo-600 mb-1">
+                  {userData?.totalApiCalls || 0}
+                </p>
                 <p className="text-xs text-gray-500">
                   API requests made by all users
                 </p>
@@ -433,9 +455,9 @@ const Dashboard = () => {
                     Total Tokens
                   </h3>
                 </div>
-                                  <p className="text-3xl font-bold text-pink-600 mb-1">
-                   {userData?.totalTokens || 0}
-                  </p>
+                <p className="text-3xl font-bold text-pink-600 mb-1">
+                  {userData?.totalTokens || 0}
+                </p>
                 <p className="text-xs text-gray-500">
                   Tokens used by all users
                 </p>
@@ -460,11 +482,13 @@ const Dashboard = () => {
                   </h3>
                 </div>
                 <p className="text-3xl font-bold text-orange-600 mb-1">
-                  {recentUsers.filter(
-                    (user) =>
-                      new Date(user.createdAt).getTime() >=
-                      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
-                  ).length}
+                  {
+                    recentUsers.filter(
+                      (user) =>
+                        new Date(user.createdAt).getTime() >=
+                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
+                    ).length
+                  }
                 </p>
                 <p className="text-xs text-gray-500">
                   New resumes created in the last 7 days
@@ -1264,11 +1288,15 @@ const Dashboard = () => {
                     Resumes Created
                   </span>
                   <span className="text-xl font-bold text-orange-700">
-                    {recentUsers.filter(
-                      (user) =>
-                        new Date(user.createdAt).getTime() >=
-                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
-                    ).length}
+                    {
+                      recentUsers.filter(
+                        (user) =>
+                          new Date(user.createdAt).getTime() >=
+                          new Date(
+                            Date.now() - 7 * 24 * 60 * 60 * 1000
+                          ).getTime()
+                      ).length
+                    }
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
