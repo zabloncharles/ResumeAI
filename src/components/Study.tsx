@@ -446,6 +446,13 @@ const Study = () => {
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
+  // Scroll to top when study session starts
+  useEffect(() => {
+    if (isStudying && currentSet) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isStudying, currentSet]);
+
   const startStudySession = async (set: StudySet) => {
     const startTime = new Date();
     setSessionStartTime(startTime);
@@ -796,11 +803,6 @@ const Study = () => {
 
 
   if (isStudying && currentSet) {
-    // Scroll to top when study interface renders
-    useEffect(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, []);
-
     // Check if we have flashcards and a valid current card
       if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
       return (
