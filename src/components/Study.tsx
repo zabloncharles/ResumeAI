@@ -1448,7 +1448,8 @@ const Study = () => {
                   .map((set) => (
                     <div
                       key={set.id}
-                      className="bg-white rounded-lg p-3 shadow-sm border border-gray-200"
+                      className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                      onClick={() => startStudySession(set)}
                     >
                       <h4 className="font-medium text-gray-900 text-sm mb-1">
                         {set.title}
@@ -1489,7 +1490,8 @@ const Study = () => {
                   .map((set) => (
                     <div
                       key={set.id}
-                      className="bg-white rounded-lg p-3 shadow-sm border border-blue-200"
+                      className="bg-white rounded-lg p-3 shadow-sm border border-blue-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                      onClick={() => startStudySession(set)}
                     >
                       <h4 className="font-medium text-gray-900 text-sm mb-1">
                         {set.title}
@@ -1550,7 +1552,8 @@ const Study = () => {
                     .map((set) => (
                       <div
                         key={set.id}
-                        className="bg-white rounded-lg p-3 shadow-sm border border-green-200"
+                        className="bg-white rounded-lg p-3 shadow-sm border border-green-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                        onClick={() => startStudySession(set)}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="font-medium text-gray-900 text-sm">
