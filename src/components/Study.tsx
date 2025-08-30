@@ -447,6 +447,9 @@ const Study = () => {
   }, [isTimerRunning]);
 
   const startStudySession = async (set: StudySet) => {
+    console.log("Starting study session for set:", set);
+    console.log("Set flashcards:", set.flashcards);
+    console.log("Set cardCount:", set.cardCount);
     const startTime = new Date();
     setSessionStartTime(startTime);
 
@@ -790,7 +793,42 @@ const Study = () => {
     return null;
   }
 
-  if (isStudying && currentSet && currentSet.flashcards && currentSet.flashcards.length > 0) {
+  console.log("Study component state:", { 
+    isStudying, 
+    currentSet: currentSet?.id, 
+    flashcardsCount: currentSet?.flashcards?.length,
+    selectedSetId,
+    currentSetFlashcards: currentSet?.flashcards
+  });
+
+  if (isStudying && currentSet) {
+    console.log("Rendering study interface:", { isStudying, currentSet, currentCardIndex });
+    console.log("Current set flashcards:", currentSet.flashcards);
+    
+    // Check if we have flashcards and a valid current card
+    if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
+      console.log("No flashcards found, showing empty state");
+      return (
+        <>
+          <Navbar />
+          <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
+            <div className="max-w-4xl mx-auto text-center">
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                {currentSet.title}
+              </h1>
+              <p className="text-gray-600 mb-8">No flashcards found in this study set.</p>
+              <button
+                onClick={() => setIsStudying(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Back to Study Hub
+              </button>
+            </div>
+          </div>
+        </>
+      );
+    }
+    
     const currentCard = currentSet.flashcards[currentCardIndex];
 
     return (
