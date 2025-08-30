@@ -46,69 +46,76 @@ const Footer = () => (
 
         {/* Column 2 - All Navigation Links */}
         <div className="col-span-1 text-end">
-          <ul className="space-y-4">
-            <li>
-              <a href="/" className="hover:text-gray-300 transition-colors">
-                Home
-              </a>
-            </li>
-            <li>
-              <a
-                href="/services"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Services
-              </a>
-            </li>
-            <li>
-              <a
-                href="/resume"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Resume Builder
-              </a>
-            </li>
-            <li>
-              <a
-                href="/templates"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Templates
-              </a>
-            </li>
-            <li>
-              <a
-                href="/about"
-                className="hover:text-gray-300 transition-colors"
-              >
-                About
-              </a>
-            </li>
-            <li>
-              <a
-                href="/contact"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Contact
-              </a>
-            </li>
-            <li>
-              <a
-                href="/privacy"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Privacy Policy
-              </a>
-            </li>
-            <li>
-              <a
-                href="/terms"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Terms & Conditions
-              </a>
-            </li>
-          </ul>
+          <div className="grid grid-cols-2 gap-8">
+            {/* Left Column */}
+            <ul className="space-y-4">
+              <li>
+                <a href="/" className="hover:text-gray-300 transition-colors">
+                  Home
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/services"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Services
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/resume"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Resume Builder
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/templates"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Templates
+                </a>
+              </li>
+            </ul>
+            
+            {/* Right Column */}
+            <ul className="space-y-4">
+              <li>
+                <a
+                  href="/about"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  About
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Contact
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/privacy"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/terms"
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Terms & Conditions
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
