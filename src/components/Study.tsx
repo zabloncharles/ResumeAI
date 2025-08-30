@@ -794,9 +794,8 @@ const Study = () => {
 
   if (isStudying && currentSet) {
     
-    // Check if we have flashcards and a valid current card
-    if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
-      console.log("No flashcards found, showing empty state");
+          // Check if we have flashcards and a valid current card
+      if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
       return (
         <>
           <Navbar />
