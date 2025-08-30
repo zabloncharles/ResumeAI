@@ -1423,9 +1423,10 @@ const Study = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Study Progress
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Not Started */}
-            <div className="bg-gray-50 rounded-xl p-6">
+          <div className="bg-gray-50 rounded-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-x divide-gray-300">
+              {/* Not Started */}
+              <div className="px-4 first:pl-0 last:pr-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-700">
                   Not Started
@@ -1469,10 +1470,10 @@ const Study = () => {
                   </div>
                 )}
               </div>
-            </div>
+              </div>
 
-            {/* Started Studying */}
-            <div className="bg-blue-50 rounded-xl p-6">
+              {/* Started Studying */}
+              <div className="px-4 first:pl-0 last:pr-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-blue-700">
                   Started Studying
@@ -1527,60 +1528,61 @@ const Study = () => {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Completed */}
-            <div className="bg-green-50 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-green-700">
-                  Completed
-                </h3>
-                <span className="bg-green-200 text-green-700 px-2 py-1 rounded-full text-sm font-medium">
-                  {
-                    studySets.filter((set) => set.progress === "completed")
-                      .length
-                  }
-                </span>
               </div>
-              <div className="space-y-3">
-                {studySets
-                  .filter((set) => set.progress === "completed")
-                  .slice(0, 3)
-                  .map((set) => (
-                    <div
-                      key={set.id}
-                      className="bg-white rounded-lg p-3 shadow-sm border border-green-200"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-gray-900 text-sm">
-                          {set.title}
-                        </h4>
-                        <svg
-                          className="h-4 w-4 text-green-500"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
+
+              {/* Completed */}
+              <div className="px-4 first:pl-0 last:pr-0">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-green-700">
+                    Completed
+                  </h3>
+                  <span className="bg-green-200 text-green-700 px-2 py-1 rounded-full text-sm font-medium">
+                    {
+                      studySets.filter((set) => set.progress === "completed")
+                        .length
+                    }
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {studySets
+                    .filter((set) => set.progress === "completed")
+                    .slice(0, 3)
+                    .map((set) => (
+                      <div
+                        key={set.id}
+                        className="bg-white rounded-lg p-3 shadow-sm border border-green-200"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-medium text-gray-900 text-sm">
+                            {set.title}
+                          </h4>
+                          <svg
+                            className="h-4 w-4 text-green-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 text-xs">
+                          {set.cardCount} cards
+                        </p>
                       </div>
-                      <p className="text-gray-500 text-xs">
-                        {set.cardCount} cards
-                      </p>
+                    ))}
+                  {studySets.filter((set) => set.progress === "completed")
+                    .length > 3 && (
+                    <div className="text-center text-green-500 text-sm">
+                      +
+                      {studySets.filter((set) => set.progress === "completed")
+                        .length - 3}{" "}
+                      more
                     </div>
-                  ))}
-                {studySets.filter((set) => set.progress === "completed")
-                  .length > 3 && (
-                  <div className="text-center text-green-500 text-sm">
-                    +
-                    {studySets.filter((set) => set.progress === "completed")
-                      .length - 3}{" "}
-                    more
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
