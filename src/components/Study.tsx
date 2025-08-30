@@ -459,6 +459,9 @@ const Study = () => {
     setTimer(0);
     setIsTimerRunning(true);
 
+    // Scroll to top when study session starts
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     // Create new study session
     const newSession: StudySession = {
       id: `session_${Date.now()}`,
@@ -793,8 +796,12 @@ const Study = () => {
 
 
   if (isStudying && currentSet) {
-    
-          // Check if we have flashcards and a valid current card
+    // Scroll to top when study interface renders
+    useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
+    // Check if we have flashcards and a valid current card
       if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
       return (
         <>
