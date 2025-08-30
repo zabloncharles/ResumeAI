@@ -4,9 +4,9 @@ import bunny1 from "../bunny1.png";
 const Footer = () => (
   <footer className="bg-gray-50 border-t border-gray-100">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Logo and Description */}
-        <div className="col-span-1 md:col-span-2">
+        <div className="col-span-1">
           <Link to="/" className="flex items-center space-x-2 mb-4">
             <img src={bunny1} alt="Brightfolio Logo" className="h-8 w-8" />
             <span className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black bg-clip-text text-transparent">
@@ -44,8 +44,8 @@ const Footer = () => (
           </div>
         </div>
 
-        {/* Column 2 - Navigation */}
-        <div className="col-span-1">
+        {/* Column 2 - All Navigation Links */}
+        <div className="col-span-1 text-end">
           <ul className="space-y-4">
             <li>
               <a href="/" className="hover:text-gray-300 transition-colors">
@@ -76,12 +76,6 @@ const Footer = () => (
                 Templates
               </a>
             </li>
-          </ul>
-        </div>
-
-        {/* Column 3 - Legal */}
-        <div className="col-span-1 text-end">
-          <ul className="space-y-4">
             <li>
               <a
                 href="/about"
