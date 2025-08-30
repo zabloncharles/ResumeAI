@@ -80,7 +80,7 @@ const Footer = () => (
         </div>
 
         {/* Column 3 - Legal */}
-        <div className="col-span-1">
+        <div className="col-span-1 text-end">
           <ul className="space-y-4">
             <li>
               <a
