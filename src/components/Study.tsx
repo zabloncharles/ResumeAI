@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { auth, db } from "../firebase";
@@ -272,7 +272,7 @@ const Study = () => {
     loadStudySets();
   }, [user, filter]);
 
-  const loadUserStats = async () => {
+  const loadUserStats = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -317,7 +317,7 @@ const Study = () => {
     } catch (error) {
       console.error("Error loading user stats:", error);
     }
-  };
+  }, [user]);
 
   const calculateXP = (
     sessionDuration: number,
@@ -447,9 +447,6 @@ const Study = () => {
   }, [isTimerRunning]);
 
   const startStudySession = async (set: StudySet) => {
-    console.log("Starting study session for set:", set);
-    console.log("Set flashcards:", set.flashcards);
-    console.log("Set cardCount:", set.cardCount);
     const startTime = new Date();
     setSessionStartTime(startTime);
 
@@ -793,17 +790,9 @@ const Study = () => {
     return null;
   }
 
-  console.log("Study component state:", { 
-    isStudying, 
-    currentSet: currentSet?.id, 
-    flashcardsCount: currentSet?.flashcards?.length,
-    selectedSetId,
-    currentSetFlashcards: currentSet?.flashcards
-  });
+
 
   if (isStudying && currentSet) {
-    console.log("Rendering study interface:", { isStudying, currentSet, currentCardIndex });
-    console.log("Current set flashcards:", currentSet.flashcards);
     
     // Check if we have flashcards and a valid current card
     if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
