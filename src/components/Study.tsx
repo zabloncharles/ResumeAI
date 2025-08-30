@@ -790,7 +790,7 @@ const Study = () => {
     return null;
   }
 
-  if (isStudying && currentSet) {
+  if (isStudying && currentSet && currentSet.flashcards && currentSet.flashcards.length > 0) {
     const currentCard = currentSet.flashcards[currentCardIndex];
 
     return (
@@ -805,7 +805,7 @@ const Study = () => {
                   {currentSet.title}
                 </h1>
                 <p className="text-gray-600">
-                  Card {currentCardIndex + 1} of {currentSet.flashcards.length}
+                  Card {currentCardIndex + 1} of {currentSet?.flashcards?.length || 0}
                 </p>
               </div>
               <div className="flex items-center space-x-4">
@@ -847,7 +847,7 @@ const Study = () => {
               <div className="p-8">
                 <div className="text-center mb-6">
                   <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    {currentCard.category}
+                    {currentCard?.category || 'General'}
                   </span>
                 </div>
 
@@ -857,7 +857,7 @@ const Study = () => {
                 >
                   <div className="text-center">
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                      {isFlipped ? currentCard.back : currentCard.front}
+                      {isFlipped ? currentCard?.back : currentCard?.front}
                     </h2>
                     <p className="text-gray-500 text-sm">
                       Click to {isFlipped ? "show question" : "show answer"}
@@ -871,10 +871,10 @@ const Study = () => {
                     <span className="text-sm text-gray-600">Mastery:</span>
                     <span
                       className={`text-sm font-medium ${getMasteryColor(
-                        currentCard.mastery
+                        currentCard?.mastery || 0
                       )}`}
                     >
-                      {currentCard.mastery}%
+                      {currentCard?.mastery || 0}%
                     </span>
                   </div>
                 </div>
@@ -919,7 +919,7 @@ const Study = () => {
 
               <button
                 onClick={nextCard}
-                disabled={currentCardIndex === currentSet.flashcards.length - 1}
+                disabled={currentCardIndex === (currentSet?.flashcards?.length || 0) - 1}
                 className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span>Next</span>
