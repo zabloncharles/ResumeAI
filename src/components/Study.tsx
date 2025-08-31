@@ -1410,72 +1410,7 @@ const Study = () => {
             </div>
           )}
 
-          {/* Study Session History */}
-          {userStats.studyHistory.length > 0 && (
-            <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Recent Study Sessions
-              </h3>
-              <div className="space-y-3">
-                {userStats.studyHistory
-                  .slice(-2)
-                  .reverse()
-                  .map((session, index) => {
-                    const studySet = studySets.find(
-                      (set) => set.id === session.studySetId
-                    );
-                    const accuracy =
-                      session.cardsReviewed > 0
-                        ? Math.round(
-                            (session.correctAnswers / session.cardsReviewed) *
-                              100
-                          )
-                        : 0;
-                    const durationMinutes = Math.floor(session.duration / 60);
 
-                    // Ensure startTime is a Date object
-                    const startTime =
-                      session.startTime instanceof Date
-                        ? session.startTime
-                        : new Date(session.startTime);
-
-                    return (
-                      <div
-                        key={session.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="text-2xl">
-                            {accuracy >= 80
-                              ? "🟢"
-                              : accuracy >= 60
-                              ? "🟡"
-                              : "🔴"}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {studySet?.title || "Unknown Set"}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {session.cardsReviewed} cards • {accuracy}%
-                              accuracy • {durationMinutes}m
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600">
-                            +{session.xpEarned} XP
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {startTime.toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
         </section>
 
         {/* Kanban Board */}
