@@ -41,6 +41,8 @@ interface StudySet {
   description: string;
   category: string;
   isPublic: boolean;
+  publicCode?: string;
+  publicPassword?: string;
   createdBy?: string;
   createdAt?: Date;
   lastStudied?: Date;
@@ -79,6 +81,12 @@ export default function CreateStudySet() {
     isPublic: false,
   });
 
+  // Public set credentials
+  const [publicCredentials, setPublicCredentials] = useState<{
+    code: string;
+    password: string;
+  } | null>(null);
+
   // Cookie management functions
   const saveToCookies = (data: StudySet) => {
     try {
@@ -87,6 +95,25 @@ export default function CreateStudySet() {
     } catch (error) {
       console.error("Error saving to cookies:", error);
     }
+  };
+
+  // Utility functions for public sets
+  const generatePublicCode = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const generatePublicPassword = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 4; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   };
 
   const loadFromCookies = (): StudySet | null => {
@@ -136,12 +163,22 @@ export default function CreateStudySet() {
           description: setData.description,
           category: setData.category,
           isPublic: setData.isPublic,
+          publicCode: setData.publicCode,
+          publicPassword: setData.publicPassword,
           createdBy: setData.createdBy,
           createdAt: setData.createdAt?.toDate() || new Date(),
           lastStudied: setData.lastStudied?.toDate(),
           cardCount: flashcards.length,
           flashcards: flashcards,
         };
+
+        // Set public credentials if the set is public
+        if (setData.isPublic && setData.publicCode && setData.publicPassword) {
+          setPublicCredentials({
+            code: setData.publicCode,
+            password: setData.publicPassword,
+          });
+        }
 
         setStudySet(loadedSet);
         setIsEditMode(true);
@@ -256,6 +293,46 @@ export default function CreateStudySet() {
       flashcards: prev.flashcards.filter((card) => card.id !== cardId),
       cardCount: prev.cardCount - 1,
     }));
+  };
+
+  const makeSetPublic = async () => {
+    if (!user) return;
+
+    try {
+      const publicCode = generatePublicCode();
+      const publicPassword = generatePublicPassword();
+
+      // Update the study set to be public
+      if (studySet.id) {
+        await updateDoc(doc(db, "studySets", studySet.id), {
+          isPublic: true,
+          publicCode,
+          publicPassword,
+        });
+      }
+
+      // Store in publicSets collection for easy lookup
+      await addDoc(collection(db, "publicSets"), {
+        originalSetId: studySet.id,
+        publicCode,
+        publicPassword,
+        createdBy: user.uid,
+        title: studySet.title,
+        description: studySet.description,
+        category: studySet.category,
+        cardCount: studySet.flashcards.length,
+        createdAt: serverTimestamp(),
+        isActive: true,
+      });
+
+      setPublicCredentials({ code: publicCode, password: publicPassword });
+      setStudySet(prev => ({ ...prev, isPublic: true }));
+      
+      alert("Study set made public successfully!");
+    } catch (error) {
+      console.error("Error making set public:", error);
+      alert("Error making set public. Please try again.");
+    }
   };
 
   const createStudySet = async () => {
@@ -449,27 +526,97 @@ export default function CreateStudySet() {
                   </div>
 
                   {/* Visibility */}
-                  <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <input
-                      type="checkbox"
-                      id="isPublic"
-                      checked={studySet.isPublic}
-                      onChange={(e) =>
-                        setStudySet({ ...studySet, isPublic: e.target.checked })
-                      }
-                      className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
-                    />
-                    <label
-                      htmlFor="isPublic"
-                      className="ml-3 block text-sm text-gray-700"
-                    >
-                      <span className="font-semibold">
-                        Make this set public
-                      </span>
-                      <span className="block text-gray-500 mt-1">
-                        Other users can discover and use this study set
-                      </span>
-                    </label>
+                  <div className="space-y-4">
+                    <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="isPublic"
+                        checked={studySet.isPublic}
+                        onChange={(e) =>
+                          setStudySet({ ...studySet, isPublic: e.target.checked })
+                        }
+                        className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
+                      />
+                      <label
+                        htmlFor="isPublic"
+                        className="ml-3 block text-sm text-gray-700"
+                      >
+                        <span className="font-semibold">
+                          Make this set public
+                        </span>
+                        <span className="block text-gray-500 mt-1">
+                          Other users can discover and use this study set
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Make Public Button */}
+                    {!studySet.isPublic && studySet.id && (
+                      <button
+                        onClick={makeSetPublic}
+                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                      >
+                        Make This Set Public
+                      </button>
+                    )}
+
+                    {/* Public Credentials Display */}
+                    {(studySet.isPublic || publicCredentials) && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-green-800 mb-3">
+                          Public Set Credentials
+                        </h3>
+                        <p className="text-sm text-green-700 mb-4">
+                          Share these credentials with others to let them import your study set:
+                        </p>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-semibold text-green-700 mb-2">
+                              Public Code
+                            </label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={publicCredentials?.code || "Generate code..."}
+                                readOnly
+                                className="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg font-mono text-lg text-center text-green-800"
+                              />
+                              {publicCredentials?.code && (
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(publicCredentials.code)}
+                                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                  Copy
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-semibold text-green-700 mb-2">
+                              Password
+                            </label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={publicCredentials?.password || "Generate password..."}
+                                readOnly
+                                className="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg font-mono text-lg text-center text-green-800"
+                              />
+                              {publicCredentials?.password && (
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(publicCredentials.password)}
+                                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                  Copy
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
