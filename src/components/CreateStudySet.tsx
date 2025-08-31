@@ -7,6 +7,7 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   serverTimestamp,
   getDoc,
   getDocs,
@@ -312,7 +313,7 @@ export default function CreateStudySet() {
       }
 
       // Store in publicSets collection for easy lookup
-      await addDoc(collection(db, "publicSets"), {
+      await setDoc(doc(db, "publicSets", publicCode), {
         originalSetId: studySet.id,
         publicCode,
         publicPassword,
