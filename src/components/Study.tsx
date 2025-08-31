@@ -83,6 +83,11 @@ interface StudySet {
   lastStudied?: Date;
   createdBy: string;
   isPublic: boolean;
+  publicCode?: string;        // Generated when made public
+  publicPassword?: string;    // Generated when made public
+  borrowedFrom?: string;      // UID of original creator
+  isBorrowed?: boolean;       // True if borrowed from another user
+  originalSetId?: string;     // Reference to original set
   progress?: "not_started" | "started" | "completed";
   totalStudyTime: number; // in seconds
   totalSessions: number;
@@ -109,7 +114,7 @@ const Study = () => {
   const [showCreateCardModal, setShowCreateCardModal] = useState(false);
   const [showCreateCardForm, setShowCreateCardForm] = useState(false);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "my" | "public">("all");
+  const [filter, setFilter] = useState<"all" | "my" | "public" | "borrowed">("all");
   const [isEditingSet, setIsEditingSet] = useState(false);
   const [editingSet, setEditingSet] = useState<StudySet | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
@@ -125,6 +130,16 @@ const Study = () => {
     null
   );
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+
+  // Public set states
+  const [showMakePublicModal, setShowMakePublicModal] = useState(false);
+  const [showImportPublicModal, setShowImportPublicModal] = useState(false);
+  const [selectedSetForPublic, setSelectedSetForPublic] = useState<StudySet | null>(null);
+  const [publicSetCredentials, setPublicSetCredentials] = useState<{code: string, password: string} | null>(null);
+  const [importForm, setImportForm] = useState({
+    code: "",
+    password: ""
+  });
 
   // Form states
   const [newSetForm, setNewSetForm] = useState({
@@ -200,6 +215,12 @@ const Study = () => {
           q = query(
             collection(db, "studySets"),
             where("isPublic", "==", true),
+            orderBy("createdAt", "desc")
+          );
+        } else if (memoizedFilter === "borrowed") {
+          q = query(
+            collection(db, "studySets"),
+            where("isBorrowed", "==", true),
             orderBy("createdAt", "desc")
           );
         } else {
@@ -704,6 +725,131 @@ const Study = () => {
     }
   };
 
+  const makeSetPublic = async (set: StudySet) => {
+    if (!memoizedUser) return;
+
+    try {
+      const publicCode = generatePublicCode();
+      const publicPassword = generatePublicPassword();
+
+      // Update the study set to be public
+      await updateDoc(doc(db, "studySets", set.id), {
+        isPublic: true,
+        publicCode,
+        publicPassword,
+      });
+
+      // Store in publicSets collection for easy lookup
+      await setDoc(doc(db, "publicSets", publicCode), {
+        originalSetId: set.id,
+        publicCode,
+        publicPassword,
+        createdBy: set.createdBy,
+        title: set.title,
+        description: set.description,
+        category: set.category,
+        cardCount: set.cardCount,
+        createdAt: serverTimestamp(),
+        isActive: true,
+      });
+
+      setPublicSetCredentials({ code: publicCode, password: publicPassword });
+      setShowMakePublicModal(true);
+    } catch (error) {
+      console.error("Error making set public:", error);
+    }
+  };
+
+  const importPublicSet = async () => {
+    if (!memoizedUser || !importForm.code || !importForm.password) return;
+
+    try {
+      // Find the public set by code
+      const publicSetQuery = query(
+        collection(db, "publicSets"),
+        where("publicCode", "==", importForm.code.toUpperCase()),
+        where("isActive", "==", true)
+      );
+      const publicSetSnapshot = await getDocs(publicSetQuery);
+
+      if (publicSetSnapshot.empty) {
+        alert("Invalid code or set not found.");
+        return;
+      }
+
+      const publicSetDoc = publicSetSnapshot.docs[0];
+      const publicSetData = publicSetDoc.data();
+
+      // Verify password
+      if (publicSetData.publicPassword !== importForm.password.toUpperCase()) {
+        alert("Invalid password.");
+        return;
+      }
+
+      // Get the original study set
+      const originalSetDoc = await getDoc(doc(db, "studySets", publicSetData.originalSetId));
+      if (!originalSetDoc.exists()) {
+        alert("Original study set not found.");
+        return;
+      }
+
+      const originalSetData = originalSetDoc.data();
+
+      // Get all flashcards from the original set
+      const flashcardsQuery = query(
+        collection(db, "studySets", publicSetData.originalSetId, "flashcards"),
+        orderBy("createdAt", "asc")
+      );
+      const flashcardsSnapshot = await getDocs(flashcardsQuery);
+      const flashcards = flashcardsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        lastReviewed: doc.data().lastReviewed?.toDate(),
+      })) as Flashcard[];
+
+      // Create new borrowed study set
+      const newSetRef = await addDoc(collection(db, "studySets"), {
+        title: `${originalSetData.title} (Borrowed)`,
+        description: originalSetData.description,
+        category: originalSetData.category,
+        createdBy: memoizedUser.uid,
+        isPublic: false,
+        isBorrowed: true,
+        borrowedFrom: originalSetData.createdBy,
+        originalSetId: publicSetData.originalSetId,
+        createdAt: serverTimestamp(),
+        lastStudied: null,
+        cardCount: flashcards.length,
+      });
+
+      // Add all flashcards to the new set
+      const addFlashcardPromises = flashcards.map(flashcard => 
+        addDoc(collection(db, "studySets", newSetRef.id, "flashcards"), {
+          front: flashcard.front,
+          back: flashcard.back,
+          category: flashcard.category,
+          difficulty: flashcard.difficulty,
+          mastery: 0, // Reset mastery for borrowed set
+          createdBy: memoizedUser.uid,
+          isPublic: false,
+          createdAt: serverTimestamp(),
+          lastReviewed: null,
+        })
+      );
+
+      await Promise.all(addFlashcardPromises);
+
+      // Reset import form
+      setImportForm({ code: "", password: "" });
+      setShowImportPublicModal(false);
+      alert("Study set imported successfully!");
+    } catch (error) {
+      console.error("Error importing public set:", error);
+      alert("Error importing study set. Please try again.");
+    }
+  };
+
   const deleteStudySet = async (setId: string) => {
     if (!memoizedUser) return;
 
@@ -722,6 +868,25 @@ const Study = () => {
     } catch (error) {
       console.error("Error deleting study set:", error);
     }
+  };
+
+  // Utility functions for public sets
+  const generatePublicCode = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const generatePublicPassword = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 4; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   };
 
   const formatTime = (seconds: number) => {
@@ -1389,8 +1554,27 @@ const Study = () => {
               >
                 Public Sets
               </button>
+              <button
+                onClick={() => setFilter("borrowed")}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  filter === "borrowed"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Borrowed Sets
+              </button>
             </div>
 
+            {filter === "public" && (
+              <button
+                onClick={() => setShowImportPublicModal(true)}
+                className="flex items-center space-x-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <PlusIcon className="h-5 w-5" />
+                <span>Add Public Set</span>
+              </button>
+            )}
             <button
               onClick={() => navigate("/create")}
               className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -1411,9 +1595,16 @@ const Study = () => {
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      {set.category}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        {set.category}
+                      </span>
+                      {set.isBorrowed && (
+                        <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                          Borrowed
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center space-x-2">
                       {set.isPublic ? (
                         <EyeIcon
@@ -1513,6 +1704,15 @@ const Study = () => {
                           >
                             <PlusIcon className="h-4 w-4" />
                           </button>
+                          {!set.isPublic && (
+                            <button
+                              onClick={() => makeSetPublic(set)}
+                              className="p-2 text-gray-600 hover:text-green-600 transition-colors"
+                              title="Make Public"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => deleteStudySet(set.id)}
                             className="p-2 text-gray-600 hover:text-red-600 transition-colors"
@@ -1546,6 +1746,8 @@ const Study = () => {
                   ? "You haven't created any study sets yet."
                   : filter === "public"
                   ? "No public study sets available."
+                  : filter === "borrowed"
+                  ? "You haven't borrowed any study sets yet."
                   : "No study sets available."}
               </p>
               {filter === "my" && (
@@ -1859,6 +2061,165 @@ const Study = () => {
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
                 >
                   Add Card
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Make Public Modal */}
+      {showMakePublicModal && publicSetCredentials && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-md">
+            <div className="text-center">
+              <div className="text-4xl mb-4">🎉</div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Set Made Public!
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Your study set is now public. Share these credentials with others to let them import your set.
+              </p>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Public Code
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={publicSetCredentials.code}
+                      readOnly
+                      className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono text-lg text-center"
+                    />
+                    <button
+                      onClick={() => navigator.clipboard.writeText(publicSetCredentials.code)}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={publicSetCredentials.password}
+                      readOnly
+                      className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono text-lg text-center"
+                    />
+                    <button
+                      onClick={() => navigator.clipboard.writeText(publicSetCredentials.password)}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => {
+                  setShowMakePublicModal(false);
+                  setPublicSetCredentials(null);
+                }}
+                className="w-full px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Public Set Modal */}
+      {showImportPublicModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Import Public Set
+              </h2>
+              <button
+                onClick={() => setShowImportPublicModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                importPublicSet();
+              }}
+            >
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Public Code
+                  </label>
+                  <input
+                    type="text"
+                    value={importForm.code}
+                    onChange={(e) =>
+                      setImportForm({ ...importForm, code: e.target.value.toUpperCase() })
+                    }
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 font-mono text-center"
+                    placeholder="Enter 6-character code"
+                    maxLength={6}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="text"
+                    value={importForm.password}
+                    onChange={(e) =>
+                      setImportForm({ ...importForm, password: e.target.value.toUpperCase() })
+                    }
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 font-mono text-center"
+                    placeholder="Enter 4-character password"
+                    maxLength={4}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-4 mt-8">
+                <button
+                  type="button"
+                  onClick={() => setShowImportPublicModal(false)}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold"
+                >
+                  Import Set
                 </button>
               </div>
             </form>
