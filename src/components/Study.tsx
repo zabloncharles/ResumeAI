@@ -1418,7 +1418,7 @@ const Study = () => {
               </h3>
               <div className="space-y-3">
                 {userStats.studyHistory
-                  .slice(-5)
+                  .slice(-2)
                   .reverse()
                   .map((session, index) => {
                     const studySet = studySets.find(
