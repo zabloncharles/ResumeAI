@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { auth, db } from "../firebase";
@@ -145,6 +145,10 @@ const Study = () => {
     isPublic: false,
   });
 
+  // Memoized values to prevent unnecessary re-renders
+  const memoizedUser = useMemo(() => user, [user?.uid]);
+  const memoizedFilter = useMemo(() => filter, [filter]);
+
   // Authentication effect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -182,20 +186,20 @@ const Study = () => {
     }
   }, [user, isLoading, navigate]);
 
-  // Load study sets from Firebase
+  // Load study sets from Firebase - OPTIMIZED with single listener
   useEffect(() => {
-    if (!user) return;
+    if (!memoizedUser) return;
 
     const loadStudySets = async () => {
       try {
         let q;
-        if (filter === "my") {
+        if (memoizedFilter === "my") {
           q = query(
             collection(db, "studySets"),
-            where("createdBy", "==", user.uid),
+            where("createdBy", "==", memoizedUser.uid),
             orderBy("createdAt", "desc")
           );
-        } else if (filter === "public") {
+        } else if (memoizedFilter === "public") {
           q = query(
             collection(db, "studySets"),
             where("isPublic", "==", true),
@@ -205,11 +209,13 @@ const Study = () => {
           q = query(collection(db, "studySets"), orderBy("createdAt", "desc"));
         }
 
+        // Single onSnapshot listener instead of multiple getDocs calls
         const unsubscribe = onSnapshot(q, async (snapshot) => {
           const sets: StudySet[] = [];
-          for (const doc of snapshot.docs) {
+          
+          // Batch load flashcards for all sets at once
+          const flashcardPromises = snapshot.docs.map(async (doc) => {
             const setData = doc.data();
-            // Load flashcards for each set
             const flashcardsQuery = query(
               collection(db, "studySets", doc.id, "flashcards"),
               orderBy("createdAt", "asc")
@@ -250,7 +256,7 @@ const Study = () => {
               }
             }
 
-            sets.push({
+            return {
               id: doc.id,
               ...setData,
               flashcards,
@@ -258,9 +264,12 @@ const Study = () => {
               createdAt: setData.createdAt?.toDate() || new Date(),
               lastStudied: setData.lastStudied?.toDate(),
               progress,
-            } as StudySet);
-          }
-          setStudySets(sets);
+            } as StudySet;
+          });
+
+          // Wait for all flashcard loading to complete
+          const resolvedSets = await Promise.all(flashcardPromises);
+          setStudySets(resolvedSets);
         });
 
         return unsubscribe;
@@ -270,13 +279,14 @@ const Study = () => {
     };
 
     loadStudySets();
-  }, [user, filter]);
+  }, [memoizedUser, memoizedFilter]);
 
+  // Debounced user stats loading to prevent excessive calls
   const loadUserStats = useCallback(async () => {
-    if (!user) return;
+    if (!memoizedUser) return;
 
     try {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userDoc = await getDoc(doc(db, "users", memoizedUser.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         setUserStats({
@@ -302,7 +312,7 @@ const Study = () => {
         });
       } else {
         // Create user stats document if it doesn't exist
-        await setDoc(doc(db, "users", user.uid), {
+        await setDoc(doc(db, "users", memoizedUser.uid), {
           totalStudyTime: 0,
           totalSessions: 0,
           currentStreak: 0,
@@ -317,7 +327,14 @@ const Study = () => {
     } catch (error) {
       console.error("Error loading user stats:", error);
     }
-  }, [user]);
+  }, [memoizedUser]);
+
+  // Load user stats only once when user changes
+  useEffect(() => {
+    if (memoizedUser) {
+      loadUserStats();
+    }
+  }, [memoizedUser, loadUserStats]);
 
   const calculateXP = (
     sessionDuration: number,
@@ -428,13 +445,6 @@ const Study = () => {
     return newStreak;
   };
 
-  // Load user stats
-  useEffect(() => {
-    if (user) {
-      loadUserStats();
-    }
-  }, [user]);
-
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -460,6 +470,9 @@ const Study = () => {
     setScore({ correct: 0, total: 0 });
     setTimer(0);
     setIsTimerRunning(true);
+
+    // Clear any pending card updates from previous session
+    setPendingCardUpdates([]);
 
     // Scroll to top when study session starts
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -533,9 +546,13 @@ const Study = () => {
         ...newAchievements,
       ];
 
-      // Update user stats in Firebase
+      // Batch update all Firebase operations
       try {
-        await updateDoc(doc(db, "users", user!.uid), {
+        // 1. Batch update cards first
+        await batchUpdateCards();
+
+        // 2. Update user stats
+        await updateDoc(doc(db, "users", memoizedUser!.uid), {
           totalStudyTime: newTotalStudyTime,
           totalSessions: newTotalSessions,
           currentStreak: newStreak,
@@ -545,6 +562,17 @@ const Study = () => {
           level: newLevel,
           achievements: newAchievementsList,
           studyHistory: arrayUnion(completedSession),
+        });
+
+        // 3. Update study set stats (progress already updated in batchUpdateCards)
+        await updateDoc(doc(db, "studySets", currentSet.id), {
+          lastStudied: serverTimestamp(),
+          totalStudyTime: (currentSet.totalStudyTime || 0) + sessionDuration,
+          totalSessions: (currentSet.totalSessions || 0) + 1,
+          averageScore:
+            ((currentSet.averageScore || 0) * (currentSet.totalSessions || 0) +
+              (correctAnswers / cardsReviewed) * 100) /
+            ((currentSet.totalSessions || 0) + 1),
         });
 
         // Update local state
@@ -561,39 +589,7 @@ const Study = () => {
           studyHistory: [...prev.studyHistory, completedSession],
         }));
       } catch (error) {
-        console.error("Error updating user stats:", error);
-      }
-
-              // Calculate average mastery to determine if completed
-        const avgMastery =
-          currentSet.flashcards.length > 0
-            ? currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) /
-              currentSet.flashcards.length
-            : 0;
-
-        // Determine progress based on mastery and recent study activity
-        let newProgress: "not_started" | "started" | "completed";
-        if (avgMastery >= 80) {
-          newProgress = "completed";
-        } else {
-          // Since we just studied, it should be "started"
-          newProgress = "started";
-        }
-
-      // Update study set stats
-      try {
-        await updateDoc(doc(db, "studySets", currentSet.id), {
-          lastStudied: serverTimestamp(),
-          progress: newProgress,
-          totalStudyTime: (currentSet.totalStudyTime || 0) + sessionDuration,
-          totalSessions: (currentSet.totalSessions || 0) + 1,
-          averageScore:
-            ((currentSet.averageScore || 0) * (currentSet.totalSessions || 0) +
-              (correctAnswers / cardsReviewed) * 100) /
-            ((currentSet.totalSessions || 0) + 1),
-        });
-      } catch (error) {
-        console.error("Error updating study set stats:", error);
+        console.error("Error updating session data:", error);
       }
     }
 
@@ -625,8 +621,15 @@ const Study = () => {
     }
   };
 
+  // Batch update state to reduce Firebase calls
+  const [pendingCardUpdates, setPendingCardUpdates] = useState<Array<{
+    cardId: string;
+    mastery: number;
+    lastReviewed: Date;
+  }>>([]);
+
   const markCard = async (difficulty: "easy" | "medium" | "hard") => {
-    if (currentSet && user) {
+    if (currentSet && memoizedUser) {
       const currentCard = currentSet.flashcards[currentCardIndex];
       let newMastery = currentCard.mastery;
       if (difficulty === "easy")
@@ -642,57 +645,84 @@ const Study = () => {
         total: prev.total + 1,
       }));
 
-      try {
-        await updateDoc(
-          doc(db, "studySets", currentSet.id, "flashcards", currentCard.id),
-          {
-            mastery: newMastery,
-            lastReviewed: serverTimestamp(),
-          }
-        );
+      // Add to pending updates instead of immediate Firebase call
+      setPendingCardUpdates((prev) => [
+        ...prev,
+        {
+          cardId: currentCard.id,
+          mastery: newMastery,
+          lastReviewed: new Date(),
+        },
+      ]);
 
-        // Update study set progress based on overall mastery
-        const updatedFlashcards = currentSet.flashcards.map((card) =>
+      // Update local state immediately for better UX
+      setCurrentSet((prev) => {
+        if (!prev) return prev;
+        const updatedFlashcards = prev.flashcards.map((card) =>
           card.id === currentCard.id ? { ...card, mastery: newMastery } : card
         );
-        const avgMastery =
-          updatedFlashcards.reduce((acc, card) => acc + card.mastery, 0) /
-          updatedFlashcards.length;
-        
-        // Determine progress based on mastery and recent study activity
-        let newProgress: "not_started" | "started" | "completed";
-        if (avgMastery >= 80) {
-          newProgress = "completed";
-        } else {
-          // Since we just studied, it should be "started"
-          newProgress = "started";
-        }
-
-        await updateDoc(doc(db, "studySets", currentSet.id), {
-          progress: newProgress,
-        });
-      } catch (error) {
-        console.error("Error updating card mastery:", error);
-      }
+        return { ...prev, flashcards: updatedFlashcards };
+      });
 
       nextCard();
     }
   };
 
+  // Batch update cards to Firebase when session ends
+  const batchUpdateCards = async () => {
+    if (pendingCardUpdates.length === 0 || !currentSet) return;
+
+    try {
+      // Batch update all card masteries
+      const updatePromises = pendingCardUpdates.map((update) =>
+        updateDoc(
+          doc(db, "studySets", currentSet.id, "flashcards", update.cardId),
+          {
+            mastery: update.mastery,
+            lastReviewed: serverTimestamp(),
+          }
+        )
+      );
+
+      await Promise.all(updatePromises);
+
+      // Update study set progress once after all cards are updated
+      const avgMastery =
+        currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) /
+        currentSet.flashcards.length;
+      
+      let newProgress: "not_started" | "started" | "completed";
+      if (avgMastery >= 80) {
+        newProgress = "completed";
+      } else {
+        newProgress = "started";
+      }
+
+      await updateDoc(doc(db, "studySets", currentSet.id), {
+        progress: newProgress,
+      });
+
+      // Clear pending updates
+      setPendingCardUpdates([]);
+    } catch (error) {
+      console.error("Error batch updating cards:", error);
+    }
+  };
+
   const createStudySet = async () => {
-    if (!user) {
+    if (!memoizedUser) {
       console.error("No user found for study set creation");
       return;
     }
 
-    console.log("Creating study set with user:", user.uid);
+    console.log("Creating study set with user:", memoizedUser.uid);
 
     try {
       const docRef = await addDoc(collection(db, "studySets"), {
         title: newSetForm.title,
         description: newSetForm.description,
         category: newSetForm.category,
-        createdBy: user.uid,
+        createdBy: memoizedUser.uid,
         isPublic: newSetForm.isPublic,
         createdAt: serverTimestamp(),
         lastStudied: null,
@@ -715,7 +745,7 @@ const Study = () => {
   };
 
   const createFlashcard = async () => {
-    if (!user || !selectedSetId) return;
+    if (!memoizedUser || !selectedSetId) return;
 
     try {
       await addDoc(collection(db, "studySets", selectedSetId, "flashcards"), {
@@ -724,7 +754,7 @@ const Study = () => {
         category: newCardForm.category,
         difficulty: newCardForm.difficulty,
         mastery: 0,
-        createdBy: user.uid,
+        createdBy: memoizedUser.uid,
         isPublic: newCardForm.isPublic,
         createdAt: serverTimestamp(),
         lastReviewed: null,
@@ -745,7 +775,7 @@ const Study = () => {
   };
 
   const deleteStudySet = async (setId: string) => {
-    if (!user) return;
+    if (!memoizedUser) return;
 
     try {
       // Delete all flashcards first
@@ -791,7 +821,7 @@ const Study = () => {
   }
 
   // Don't render anything if user is not authenticated (will redirect)
-  if (!user) {
+  if (!memoizedUser) {
     return null;
   }
 
@@ -1748,7 +1778,7 @@ const Study = () => {
                     </button>
 
                     <div className="flex items-center space-x-2">
-                      {set.createdBy === user.uid && (
+                      {set.createdBy === memoizedUser?.uid && (
                         <>
                           <button
                             onClick={() => navigate(`/edit/${set.id}`)}
