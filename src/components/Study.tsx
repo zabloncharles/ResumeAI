@@ -446,12 +446,7 @@ const Study = () => {
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-  // Scroll to top when study session starts
-  useEffect(() => {
-    if (isStudying && currentSet) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [isStudying, currentSet]);
+
 
   const startStudySession = async (set: StudySet) => {
     const startTime = new Date();
