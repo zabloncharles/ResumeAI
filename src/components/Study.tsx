@@ -789,7 +789,7 @@ const Study = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
           {/* Study Header */}
           <div className="max-w-4xl mx-auto mb-8">
-            <div className="flex items-center justify-between bg-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between bg-white rounded-xl p-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {currentSet.title}
@@ -813,7 +813,7 @@ const Study = () => {
             </div>
 
             {/* Progress Bar */}
-            <div className="mt-4 bg-white rounded-xl p-4 shadow-lg">
+            <div className="mt-4 bg-white rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700">
                   Progress
@@ -833,7 +833,7 @@ const Study = () => {
 
           {/* Flashcard */}
           <div className="max-w-4xl mx-auto mb-8">
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="bg-white rounded-2xl overflow-hidden">
               <div className="p-8">
                 <div className="text-center mb-6">
                   <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
@@ -874,7 +874,7 @@ const Study = () => {
 
           {/* Navigation and Difficulty Buttons */}
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between bg-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between bg-white rounded-xl p-6">
               <button
                 onClick={previousCard}
                 disabled={currentCardIndex === 0}
@@ -981,7 +981,7 @@ const Study = () => {
           </p>
 
           {/* Study Stats and Progress Graph */}
-          <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+          <div className="bg-white rounded-xl p-6 mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">
               Study Stats & Progress
             </h3>
@@ -1212,7 +1212,7 @@ const Study = () => {
                   .map((set) => (
                     <div
                       key={set.id}
-                      className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                      className="bg-white rounded-lg p-3 border border-gray-200 cursor-pointer transition-colors duration-200"
                       onClick={() => startStudySession(set)}
                     >
                       <h4 className="font-medium text-gray-900 text-sm mb-1">
@@ -1254,7 +1254,7 @@ const Study = () => {
                   .map((set) => (
                     <div
                       key={set.id}
-                      className="bg-white rounded-lg p-3 shadow-sm border border-blue-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                      className="bg-white rounded-lg p-3 border border-blue-200 cursor-pointer transition-colors duration-200"
                       onClick={() => startStudySession(set)}
                     >
                       <h4 className="font-medium text-gray-900 text-sm mb-1">
@@ -1316,7 +1316,7 @@ const Study = () => {
                     .map((set) => (
                       <div
                         key={set.id}
-                        className="bg-white rounded-lg p-3 shadow-sm border border-green-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                        className="bg-white rounded-lg p-3 border border-green-200 cursor-pointer transition-colors duration-200"
                         onClick={() => startStudySession(set)}
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -1407,7 +1407,7 @@ const Study = () => {
             {studySets.map((set) => (
               <div
                 key={set.id}
-                className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden"
+                                    className="bg-white rounded-2xl transition-colors duration-300 overflow-hidden"
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -1565,7 +1565,7 @@ const Study = () => {
       {/* Create Study Set Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl shadow-2xl">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-gray-900">
                 Create New Study Set
@@ -1687,7 +1687,7 @@ const Study = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
                 >
                   Create Set
                 </button>
@@ -1700,7 +1700,7 @@ const Study = () => {
       {/* Create Flashcard Modal */}
       {showCreateCardModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl shadow-2xl">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-gray-900">
                 Add New Flashcard
@@ -1856,7 +1856,7 @@ const Study = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
                 >
                   Add Card
                 </button>
