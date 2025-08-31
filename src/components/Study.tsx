@@ -980,11 +980,74 @@ const Study = () => {
             sessions. Track your progress and improve your knowledge retention.
           </p>
 
-          {/* Study Time Line Graph */}
+          {/* Study Stats and Progress Graph */}
           <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Study Time Progress
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">
+              Study Stats & Progress
             </h3>
+            
+            {/* Study Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {/* Study Streak */}
+              <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-orange-100 text-xs">Current Streak</p>
+                    <p className="text-2xl font-bold">
+                      {userStats.currentStreak}
+                    </p>
+                    <p className="text-orange-100 text-xs">days</p>
+                  </div>
+                  <div className="text-2xl">🔥</div>
+                </div>
+              </div>
+
+              {/* Total Study Time */}
+              <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-xs">Total Study Time</p>
+                    <p className="text-2xl font-bold">
+                      {Math.floor(userStats.totalStudyTime / 3600)}
+                    </p>
+                    <p className="text-blue-100 text-xs">hours</p>
+                  </div>
+                  <div className="text-2xl">⏱️</div>
+                </div>
+              </div>
+
+              {/* Total XP */}
+              <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-xs">Total XP</p>
+                    <p className="text-2xl font-bold">{userStats.totalXP}</p>
+                    <p className="text-purple-100 text-xs">
+                      Level {userStats.level}
+                    </p>
+                  </div>
+                  <div className="text-2xl">⭐</div>
+                </div>
+              </div>
+
+              {/* Total Sessions */}
+              <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-xs">Study Sessions</p>
+                    <p className="text-2xl font-bold">
+                      {userStats.totalSessions}
+                    </p>
+                    <p className="text-green-100 text-xs">completed</p>
+                  </div>
+                  <div className="text-2xl">📚</div>
+                </div>
+              </div>
+            </div>
+            
+            <h4 className="text-md font-semibold text-gray-900 mb-4">
+              Study Time Progress
+            </h4>
             {(() => {
               // Process study history to get daily study time
               const dailyStudyTime = new Map<string, number>();
@@ -1117,73 +1180,7 @@ const Study = () => {
           </div>
         </section>
 
-        {/* Stats Dashboard */}
-        <section className="max-w-7xl mx-auto mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Your Study Stats
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Study Streak */}
-            <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm">Current Streak</p>
-                  <p className="text-3xl font-bold">
-                    {userStats.currentStreak}
-                  </p>
-                  <p className="text-orange-100 text-xs">days</p>
-                </div>
-                <div className="text-4xl">🔥</div>
-              </div>
-            </div>
 
-            {/* Total Study Time */}
-            <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Total Study Time</p>
-                  <p className="text-3xl font-bold">
-                    {Math.floor(userStats.totalStudyTime / 3600)}
-                  </p>
-                  <p className="text-blue-100 text-xs">hours</p>
-                </div>
-                <div className="text-4xl">⏱️</div>
-              </div>
-            </div>
-
-            {/* Total XP */}
-            <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Total XP</p>
-                  <p className="text-3xl font-bold">{userStats.totalXP}</p>
-                  <p className="text-purple-100 text-xs">
-                    Level {userStats.level}
-                  </p>
-                </div>
-                <div className="text-4xl">⭐</div>
-              </div>
-            </div>
-
-            {/* Total Sessions */}
-            <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-xl p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Study Sessions</p>
-                  <p className="text-3xl font-bold">
-                    {userStats.totalSessions}
-                  </p>
-                  <p className="text-green-100 text-xs">completed</p>
-                </div>
-                <div className="text-4xl">📚</div>
-              </div>
-            </div>
-          </div>
-
-
-
-
-        </section>
 
         {/* Kanban Board */}
         <section className="max-w-7xl mx-auto mb-8">
