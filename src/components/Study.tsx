@@ -205,26 +205,24 @@ const Study = () => {
     const loadStudySets = async () => {
       try {
         let q;
+        // Temporary workaround: Use simple queries while indexes are building
         if (memoizedFilter === "my") {
           q = query(
             collection(db, "studySets"),
-            where("createdBy", "==", memoizedUser.uid),
-            orderBy("createdAt", "desc")
+            where("createdBy", "==", memoizedUser.uid)
           );
         } else if (memoizedFilter === "public") {
           q = query(
             collection(db, "studySets"),
-            where("isPublic", "==", true),
-            orderBy("createdAt", "desc")
+            where("isPublic", "==", true)
           );
         } else if (memoizedFilter === "borrowed") {
           q = query(
             collection(db, "studySets"),
-            where("isBorrowed", "==", true),
-            orderBy("createdAt", "desc")
+            where("isBorrowed", "==", true)
           );
         } else {
-          q = query(collection(db, "studySets"), orderBy("createdAt", "desc"));
+          q = query(collection(db, "studySets"));
         }
 
         // Single onSnapshot listener instead of multiple getDocs calls
@@ -287,6 +285,10 @@ const Study = () => {
 
           // Wait for all flashcard loading to complete
           const resolvedSets = await Promise.all(flashcardPromises);
+          
+          // Client-side sorting since we removed orderBy from queries
+          resolvedSets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          
           setStudySets(resolvedSets);
         });
 
