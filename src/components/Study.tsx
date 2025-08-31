@@ -59,7 +59,6 @@ interface StudySession {
   cardsReviewed: number;
   correctAnswers: number;
   xpEarned: number;
-  achievements: string[];
 }
 
 interface UserStats {
@@ -70,7 +69,6 @@ interface UserStats {
   lastStudyDate?: Date;
   totalXP: number;
   level: number;
-  achievements: string[];
   studyHistory: StudySession[];
 }
 
@@ -121,7 +119,6 @@ const Study = () => {
     longestStreak: 0,
     totalXP: 0,
     level: 1,
-    achievements: [],
     studyHistory: [],
   });
   const [currentSession, setCurrentSession] = useState<StudySession | null>(
@@ -297,7 +294,6 @@ const Study = () => {
           lastStudyDate: data.lastStudyDate?.toDate(),
           totalXP: data.totalXP || 0,
           level: data.level || 1,
-          achievements: data.achievements || [],
           studyHistory: (data.studyHistory || []).map((session: any) => ({
             ...session,
             startTime: session.startTime?.toDate
@@ -319,7 +315,6 @@ const Study = () => {
           longestStreak: 0,
           totalXP: 0,
           level: 1,
-          achievements: [],
           studyHistory: [],
           createdAt: serverTimestamp(),
         });
@@ -356,62 +351,7 @@ const Study = () => {
     return timeXP + reviewXP + accuracyXP + streakBonus;
   };
 
-  const checkAchievements = (session: StudySession): string[] => {
-    const newAchievements: string[] = [];
 
-    // First Study Session
-    if (userStats.totalSessions === 0) {
-      newAchievements.push("First Study Session");
-    }
-
-    // Perfect Score
-    if (
-      session.cardsReviewed > 0 &&
-      session.correctAnswers === session.cardsReviewed
-    ) {
-      newAchievements.push("Perfect Score");
-    }
-
-    // 7-Day Streak
-    if (
-      userStats.currentStreak >= 7 &&
-      !userStats.achievements.includes("7-Day Streak")
-    ) {
-      newAchievements.push("7-Day Streak");
-    }
-
-    // Study Time Milestones
-    const totalTimeHours = (userStats.totalStudyTime + session.duration) / 3600;
-    if (
-      totalTimeHours >= 1 &&
-      !userStats.achievements.includes("1 Hour Studied")
-    ) {
-      newAchievements.push("1 Hour Studied");
-    }
-    if (
-      totalTimeHours >= 5 &&
-      !userStats.achievements.includes("5 Hours Studied")
-    ) {
-      newAchievements.push("5 Hours Studied");
-    }
-
-    // Session Count Milestones
-    const totalSessions = userStats.totalSessions + 1;
-    if (
-      totalSessions >= 10 &&
-      !userStats.achievements.includes("10 Sessions")
-    ) {
-      newAchievements.push("10 Sessions");
-    }
-    if (
-      totalSessions >= 50 &&
-      !userStats.achievements.includes("50 Sessions")
-    ) {
-      newAchievements.push("50 Sessions");
-    }
-
-    return newAchievements;
-  };
 
   const updateStreak = async (): Promise<number> => {
     const today = new Date();
@@ -486,7 +426,6 @@ const Study = () => {
       cardsReviewed: 0,
       correctAnswers: 0,
       xpEarned: 0,
-      achievements: [],
     };
     setCurrentSession(newSession);
 
@@ -526,12 +465,9 @@ const Study = () => {
         cardsReviewed,
         correctAnswers,
         xpEarned,
-        achievements: [],
       };
 
-      // Check for new achievements
-      const newAchievements = checkAchievements(completedSession);
-      completedSession.achievements = newAchievements;
+
 
       // Update streak
       const newStreak = await updateStreak();
@@ -541,10 +477,6 @@ const Study = () => {
       const newTotalSessions = userStats.totalSessions + 1;
       const newTotalXP = userStats.totalXP + xpEarned;
       const newLevel = Math.floor(newTotalXP / 1000) + 1;
-      const newAchievementsList = [
-        ...userStats.achievements,
-        ...newAchievements,
-      ];
 
       // Batch update all Firebase operations
       try {
@@ -560,7 +492,6 @@ const Study = () => {
           lastStudyDate: serverTimestamp(),
           totalXP: newTotalXP,
           level: newLevel,
-          achievements: newAchievementsList,
           studyHistory: arrayUnion(completedSession),
         });
 
@@ -585,7 +516,6 @@ const Study = () => {
           lastStudyDate: endTime,
           totalXP: newTotalXP,
           level: newLevel,
-          achievements: newAchievementsList,
           studyHistory: [...prev.studyHistory, completedSession],
         }));
       } catch (error) {
@@ -1050,280 +980,140 @@ const Study = () => {
             sessions. Track your progress and improve your knowledge retention.
           </p>
 
-          {/* Village Animation Section */}
-          <div className="relative">
-            {/* Village Container */}
-            <div className="relative w-full max-w-4xl mx-auto h-48 bg-gradient-to-b from-sky-300 to-green-200 rounded-xl overflow-hidden village-container">
-              {/* Sky */}
-              <div className="absolute inset-0 bg-gradient-to-b from-sky-300 to-sky-200">
-                {/* Sun/Moon based on streak */}
-                {userStats.currentStreak > 0 ? (
-                  <div className="absolute top-4 right-4 text-4xl animate-pulse">
-                    ☀️
+          {/* Study Time Line Graph */}
+          <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Study Time Progress
+            </h3>
+            {(() => {
+              // Process study history to get daily study time
+              const dailyStudyTime = new Map<string, number>();
+              
+              userStats.studyHistory.forEach(session => {
+                const startTime = session.startTime instanceof Date 
+                  ? session.startTime 
+                  : new Date(session.startTime);
+                const dateKey = startTime.toISOString().split('T')[0]; // YYYY-MM-DD format
+                
+                dailyStudyTime.set(dateKey, (dailyStudyTime.get(dateKey) || 0) + session.duration);
+              });
+              
+              // Convert to sorted array of [date, minutes] pairs
+              const sortedData: [string, number][] = Array.from(dailyStudyTime.entries())
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, seconds]) => [date, Math.round(seconds / 60)]); // Convert to minutes
+              
+              if (sortedData.length === 0) {
+                return (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">📊</div>
+                    <p>No study data yet. Start studying to see your progress!</p>
                   </div>
-                ) : (
-                  <div className="absolute top-4 right-4 text-4xl">🌙</div>
-                )}
-
-                {/* Clouds - more clouds for higher streaks */}
-                {userStats.currentStreak > 0 && (
-                  <>
-                    <div
-                      className="absolute top-8 left-8 text-2xl animate-bounce"
-                      style={{ animationDelay: "0s" }}
-                    >
-                      ☁️
+                );
+              }
+              
+              const maxMinutes = Math.max(...sortedData.map(([, minutes]) => minutes));
+              const chartHeight = 200;
+              const chartWidth = Math.max(400, sortedData.length * 60);
+              
+              return (
+                <div className="overflow-x-auto">
+                  <div className="relative" style={{ width: chartWidth, height: chartHeight }}>
+                    {/* Y-axis labels */}
+                    <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 pr-2">
+                      {[maxMinutes, Math.round(maxMinutes * 0.75), Math.round(maxMinutes * 0.5), Math.round(maxMinutes * 0.25), 0].map((value, index) => (
+                        <div key={index} className="flex items-center">
+                          <span>{value}m</span>
+                          <div className="ml-2 w-2 h-px bg-gray-200"></div>
+                        </div>
+                      ))}
                     </div>
-                    {userStats.currentStreak > 3 && (
-                      <div
-                        className="absolute top-12 left-24 text-xl animate-bounce"
-                        style={{ animationDelay: "1s" }}
-                      >
-                        ☁️
+                    
+                    {/* Grid lines */}
+                    <svg className="absolute inset-0 w-full h-full" style={{ left: '40px' }}>
+                      {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
+                        <line
+                          key={index}
+                          x1="0"
+                          y1={chartHeight * ratio}
+                          x2={chartWidth - 40}
+                          y2={chartHeight * ratio}
+                          stroke="#e5e7eb"
+                          strokeWidth="1"
+                        />
+                      ))}
+                    </svg>
+                    
+                    {/* Line graph */}
+                    <svg className="absolute inset-0 w-full h-full" style={{ left: '40px' }}>
+                      <polyline
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth="3"
+                        points={sortedData.map(([date, minutes], index) => {
+                          const x = (index / (sortedData.length - 1)) * (chartWidth - 40);
+                          const y = chartHeight - (minutes / maxMinutes) * chartHeight;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                      />
+                      
+                      {/* Data points */}
+                      {sortedData.map(([date, minutes], index) => {
+                        const x = (index / (sortedData.length - 1)) * (chartWidth - 40);
+                        const y = chartHeight - (minutes / maxMinutes) * chartHeight;
+                        return (
+                          <circle
+                            key={index}
+                            cx={x}
+                            cy={y}
+                            r="4"
+                            fill="#10b981"
+                            className="hover:r-6 transition-all duration-200"
+                          />
+                        );
+                      })}
+                    </svg>
+                    
+                    {/* X-axis labels */}
+                    <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500" style={{ left: '40px' }}>
+                      {sortedData.map(([date], index) => {
+                        const displayDate = new Date(date).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric' 
+                        });
+                        return (
+                          <div key={index} className="text-center transform -rotate-45 origin-bottom-left">
+                            {displayDate}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* Summary stats */}
+                  <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-green-600">
+                        {sortedData.length}
                       </div>
-                    )}
-                    {userStats.currentStreak > 7 && (
-                      <div
-                        className="absolute top-6 left-40 text-lg animate-bounce"
-                        style={{ animationDelay: "2s" }}
-                      >
-                        ☁️
+                      <div className="text-sm text-gray-600">Days Studied</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {Math.round(sortedData.reduce((sum, [, minutes]) => sum + minutes, 0) / sortedData.length)}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Ground */}
-              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-green-600 to-green-400"></div>
-
-              {/* Village Buildings */}
-              <div className="absolute bottom-16 left-0 right-0 flex justify-center items-end space-x-2 px-4">
-                {/* Building 1 - Always present but changes based on streak */}
-                <div
-                  className={`transition-all duration-1000 ${
-                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
-                  }`}
-                >
-                  <div
-                    className={`w-8 h-12 ${
-                      userStats.currentStreak > 0
-                        ? "bg-yellow-400"
-                        : "bg-gray-400"
-                    } rounded-t-lg border border-gray-600`}
-                  >
-                    <div className="w-2 h-2 bg-blue-300 rounded-sm mx-auto mt-1"></div>
-                  </div>
-                </div>
-
-                {/* Building 2 - Appears at streak 2+ */}
-                {userStats.currentStreak >= 2 && (
-                  <div className="transition-all duration-1000 animate-fade-in">
-                    <div className="w-10 h-14 bg-red-400 rounded-t-lg border border-gray-600">
-                      <div className="w-2 h-2 bg-blue-300 rounded-sm mx-auto mt-1"></div>
-                      <div className="w-1 h-1 bg-yellow-300 rounded-full mx-auto mt-1"></div>
+                      <div className="text-sm text-gray-600">Avg Minutes/Day</div>
                     </div>
-                  </div>
-                )}
-
-                {/* Building 3 - Appears at streak 5+ */}
-                {userStats.currentStreak >= 5 && (
-                  <div className="transition-all duration-1000 animate-fade-in">
-                    <div className="w-12 h-16 bg-blue-400 rounded-t-lg border border-gray-600">
-                      <div className="w-3 h-3 bg-blue-300 rounded-sm mx-auto mt-1"></div>
-                      <div className="w-2 h-2 bg-yellow-300 rounded-full mx-auto mt-1"></div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Building 4 - Appears at streak 10+ */}
-                {userStats.currentStreak >= 10 && (
-                  <div className="transition-all duration-1000 animate-fade-in">
-                    <div className="w-14 h-18 bg-purple-400 rounded-t-lg border border-gray-600">
-                      <div className="w-3 h-3 bg-purple-300 rounded-sm mx-auto mt-1"></div>
-                      <div className="w-2 h-2 bg-yellow-300 rounded-full mx-auto mt-1"></div>
-                      <div className="w-1 h-1 bg-red-300 rounded-full mx-auto mt-1"></div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Building 5 - Appears at streak 15+ */}
-                {userStats.currentStreak >= 15 && (
-                  <div className="transition-all duration-1000 animate-fade-in">
-                    <div className="w-16 h-20 bg-green-400 rounded-t-lg border border-gray-600">
-                      <div className="w-4 h-4 bg-green-300 rounded-sm mx-auto mt-1"></div>
-                      <div className="w-2 h-2 bg-yellow-300 rounded-full mx-auto mt-1"></div>
-                      <div className="w-1 h-1 bg-blue-300 rounded-full mx-auto mt-1"></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Villagers */}
-              <div className="absolute bottom-16 left-0 right-0 flex justify-center items-end space-x-1 px-4">
-                {/* Villager 1 - Always present but changes based on streak */}
-                <div
-                  className={`transition-all duration-1000 ${
-                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
-                  }`}
-                >
-                  <div className="text-lg">👤</div>
-                </div>
-
-                {/* Villager 2 - Appears at streak 3+ */}
-                {userStats.currentStreak >= 3 && (
-                  <div
-                    className="transition-all duration-1000 animate-bounce"
-                    style={{ animationDelay: "0.5s" }}
-                  >
-                    <div className="text-lg">👤</div>
-                  </div>
-                )}
-
-                {/* Villager 3 - Appears at streak 7+ */}
-                {userStats.currentStreak >= 7 && (
-                  <div
-                    className="transition-all duration-1000 animate-bounce"
-                    style={{ animationDelay: "1s" }}
-                  >
-                    <div className="text-lg">👤</div>
-                  </div>
-                )}
-
-                {/* Villager 4 - Appears at streak 12+ */}
-                {userStats.currentStreak >= 12 && (
-                  <div
-                    className="transition-all duration-1000 animate-bounce"
-                    style={{ animationDelay: "1.5s" }}
-                  >
-                    <div className="text-lg">👤</div>
-                  </div>
-                )}
-
-                {/* Villager 5 - Appears at streak 20+ */}
-                {userStats.currentStreak >= 20 && (
-                  <div
-                    className="transition-all duration-1000 animate-bounce"
-                    style={{ animationDelay: "2s" }}
-                  >
-                    <div className="text-lg">👤</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Trees and Nature */}
-              <div className="absolute bottom-16 left-0 right-0 flex justify-between items-end px-2">
-                {/* Left Tree */}
-                <div
-                  className={`transition-all duration-1000 ${
-                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
-                  }`}
-                >
-                  <div className="text-2xl">🌳</div>
-                </div>
-
-                {/* Right Tree */}
-                <div
-                  className={`transition-all duration-1000 ${
-                    userStats.currentStreak > 0 ? "opacity-100" : "opacity-30"
-                  }`}
-                >
-                  <div className="text-2xl">🌳</div>
-                </div>
-
-                {/* Flowers - appear with higher streaks */}
-                {userStats.currentStreak >= 5 && (
-                  <div className="absolute bottom-4 left-1/4 transition-all duration-1000 animate-pulse">
-                    <div className="text-sm">🌸</div>
-                  </div>
-                )}
-
-                {userStats.currentStreak >= 10 && (
-                  <div
-                    className="absolute bottom-4 right-1/4 transition-all duration-1000 animate-pulse"
-                    style={{ animationDelay: "0.5s" }}
-                  >
-                    <div className="text-sm">🌺</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Food/Resources - more food for higher streaks */}
-              {userStats.currentStreak > 0 && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                  <div className="text-sm animate-pulse">🍎</div>
-                  {userStats.currentStreak >= 5 && (
-                    <div
-                      className="text-sm animate-pulse"
-                      style={{ animationDelay: "0.3s" }}
-                    >
-                      🥖
-                    </div>
-                  )}
-                  {userStats.currentStreak >= 10 && (
-                    <div
-                      className="text-sm animate-pulse"
-                      style={{ animationDelay: "0.6s" }}
-                    >
-                      🧀
-                    </div>
-                  )}
-                  {userStats.currentStreak >= 15 && (
-                    <div
-                      className="text-sm animate-pulse"
-                      style={{ animationDelay: "0.9s" }}
-                    >
-                      🍖
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Dead village overlay for zero streak */}
-              {userStats.currentStreak === 0 && (
-                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">💀</div>
-                    <div className="text-white text-sm font-bold">
-                      Village Starved
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {Math.max(...sortedData.map(([, minutes]) => minutes))}
+                      </div>
+                      <div className="text-sm text-gray-600">Max Minutes</div>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Village Status Message */}
-            <div className="mt-4">
-              {userStats.currentStreak > 0 ? (
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold text-green-600 mb-2">
-                    🏘️ {userStats.currentStreak} Day
-                    {userStats.currentStreak !== 1 ? "s" : ""} Streak!
-                  </h2>
-                  <p className="text-gray-600">
-                    Your study village is thriving!{" "}
-                    {userStats.currentStreak >= 5
-                      ? "The villagers are happy and well-fed!"
-                      : "Keep studying to help it grow!"}
-                  </p>
-                  {userStats.currentStreak >= 10 && (
-                    <p className="text-sm text-green-600 mt-1">
-                      🌟 Your village has become prosperous!
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold text-red-600 mb-2">
-                    💀 Village Starved
-                  </h2>
-                  <p className="text-gray-600">
-                    Your study village has died of starvation! Start studying to
-                    rebuild it.
-                  </p>
-                </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </section>
 
@@ -1390,25 +1180,7 @@ const Study = () => {
             </div>
           </div>
 
-          {/* Achievements */}
-          {userStats.achievements.length > 0 && (
-            <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Achievements
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {userStats.achievements.map((achievement, index) => (
-                  <div
-                    key={index}
-                    className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-4 text-white text-center"
-                  >
-                    <div className="text-2xl mb-2">🏆</div>
-                    <p className="text-sm font-medium">{achievement}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
 
 
         </section>
