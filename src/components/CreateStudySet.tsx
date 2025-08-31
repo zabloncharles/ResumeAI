@@ -528,37 +528,62 @@ export default function CreateStudySet() {
 
                   {/* Visibility */}
                   <div className="space-y-4">
-                    <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <input
-                        type="checkbox"
-                        id="isPublic"
-                        checked={studySet.isPublic}
-                        onChange={(e) =>
-                          setStudySet({ ...studySet, isPublic: e.target.checked })
-                        }
-                        className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
-                      />
-                      <label
-                        htmlFor="isPublic"
-                        className="ml-3 block text-sm text-gray-700"
-                      >
-                        <span className="font-semibold">
-                          Make this set public
-                        </span>
-                        <span className="block text-gray-500 mt-1">
-                          Other users can discover and use this study set
-                        </span>
-                      </label>
-                    </div>
+                    {/* For new sets - show checkbox */}
+                    {!isEditMode && (
+                      <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <input
+                          type="checkbox"
+                          id="isPublic"
+                          checked={studySet.isPublic}
+                          onChange={(e) =>
+                            setStudySet({ ...studySet, isPublic: e.target.checked })
+                          }
+                          className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
+                        />
+                        <label
+                          htmlFor="isPublic"
+                          className="ml-3 block text-sm text-gray-700"
+                        >
+                          <span className="font-semibold">
+                            Make this set public
+                          </span>
+                          <span className="block text-gray-500 mt-1">
+                            Other users can discover and use this study set
+                          </span>
+                        </label>
+                      </div>
+                    )}
 
-                    {/* Make Public Button */}
-                    {!studySet.isPublic && studySet.id && (
-                      <button
-                        onClick={makeSetPublic}
-                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-                      >
-                        Make This Set Public
-                      </button>
+                    {/* For existing sets - show status and make public button */}
+                    {isEditMode && (
+                      <div className="space-y-3">
+                        <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center">
+                            {studySet.isPublic ? (
+                              <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <div className="h-5 w-5 bg-gray-300 rounded-full"></div>
+                            )}
+                            <span className="ml-3 text-sm font-semibold text-gray-700">
+                              {studySet.isPublic ? "Public Set" : "Private Set"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Make Public Button for existing private sets */}
+                        {!studySet.isPublic && studySet.id && (
+                          <button
+                            onClick={makeSetPublic}
+                            className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                          >
+                            Make This Set Public
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* Public Credentials Display */}
