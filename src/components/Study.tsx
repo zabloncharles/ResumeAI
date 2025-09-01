@@ -105,6 +105,11 @@ const Study = () => {
     "flashcards" | "quiz"
   >("flashcards");
   const [isStudying, setIsStudying] = useState(false);
+  
+  // Quiz mode state
+  const [quizOptions, setQuizOptions] = useState<string[]>([]);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [timer, setTimer] = useState(0);
@@ -436,6 +441,14 @@ const Study = () => {
 
     // Clear any pending card updates from previous session
     setPendingCardUpdates([]);
+
+    // Initialize quiz mode if selected
+    if (studyMode === "quiz") {
+      const firstCard = set.flashcards[0];
+      if (firstCard) {
+        setQuizOptions(generateQuizOptions(firstCard.back, set.flashcards.map(c => c.back)));
+      }
+    }
 
     // Scroll to top when study session starts
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -908,6 +921,45 @@ const Study = () => {
     return "text-red-600";
   };
 
+  // Quiz mode functions
+  const generateQuizOptions = (correctAnswer: string, allAnswers: string[]) => {
+    const options = [correctAnswer];
+    const otherAnswers = allAnswers.filter(answer => answer !== correctAnswer);
+    
+    // Shuffle and take up to 3 wrong answers
+    const shuffled = otherAnswers.sort(() => Math.random() - 0.5);
+    options.push(...shuffled.slice(0, 3));
+    
+    // Shuffle the final options
+    return options.sort(() => Math.random() - 0.5);
+  };
+
+  const handleQuizAnswerSelect = (selectedOption: string) => {
+    setSelectedAnswer(selectedOption);
+    const correct = selectedOption === currentSet?.flashcards[currentCardIndex]?.back;
+    setIsAnswerCorrect(correct);
+    
+    if (correct) {
+      markCard("easy");
+    } else {
+      markCard("hard");
+    }
+  };
+
+  const nextQuizQuestion = () => {
+    setSelectedAnswer(null);
+    setIsAnswerCorrect(null);
+    
+    if (currentCardIndex < currentSet!.flashcards.length - 1) {
+      setCurrentCardIndex(currentCardIndex + 1);
+      const nextCard = currentSet!.flashcards[currentCardIndex + 1];
+      setQuizOptions(generateQuizOptions(nextCard.back, currentSet!.flashcards.map(c => c.back)));
+    } else {
+      // Quiz completed
+      endStudySession();
+    }
+  };
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -998,49 +1050,112 @@ const Study = () => {
             </div>
           </div>
 
-          {/* Flashcard */}
-          <div className="max-w-4xl mx-auto mb-8">
-            <div className="bg-white rounded-2xl overflow-hidden">
-              <div className="p-8">
-                <div className="text-center mb-6">
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    {currentCard?.category || 'General'}
-                  </span>
-                </div>
-
-                <div
-                  className="min-h-[300px] flex items-center justify-center cursor-pointer"
-                  onClick={flipCard}
-                >
-                  <div className="text-center">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                      {isFlipped ? currentCard?.back : currentCard?.front}
-                    </h2>
-                    <p className="text-gray-500 text-sm">
-                      Click to {isFlipped ? "show question" : "show answer"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Mastery Level */}
-                <div className="mt-6 text-center">
-                  <div className="flex items-center justify-center space-x-2">
-                    <span className="text-sm text-gray-600">Mastery:</span>
-                    <span
-                      className={`text-sm font-medium ${getMasteryColor(
-                        currentCard?.mastery || 0
-                      )}`}
-                    >
-                      {currentCard?.mastery || 0}%
+          {/* Study Interface - Conditional Rendering for Flashcards vs Quiz */}
+          {studyMode === "flashcards" ? (
+            /* Flashcard Mode */
+            <div className="max-w-4xl mx-auto mb-8">
+              <div className="bg-white rounded-2xl overflow-hidden">
+                <div className="p-8">
+                  <div className="text-center mb-6">
+                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      {currentCard?.category || 'General'}
                     </span>
+                  </div>
+
+                  <div
+                    className="min-h-[300px] flex items-center justify-center cursor-pointer"
+                    onClick={flipCard}
+                  >
+                    <div className="text-center">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                        {isFlipped ? currentCard?.back : currentCard?.front}
+                      </h2>
+                      <p className="text-gray-500 text-sm">
+                        Click to {isFlipped ? "show question" : "show answer"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mastery Level */}
+                  <div className="mt-6 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <span className="text-sm text-gray-600">Mastery:</span>
+                      <span
+                        className={`text-sm font-medium ${getMasteryColor(
+                          currentCard?.mastery || 0
+                        )}`}
+                      >
+                        {currentCard?.mastery || 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Quiz Mode */
+            <div className="max-w-4xl mx-auto mb-8">
+              <div className="bg-white rounded-2xl overflow-hidden">
+                <div className="p-8">
+                  <div className="text-center mb-6">
+                    <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                      Quiz Mode
+                    </span>
+                  </div>
 
-          {/* Navigation and Difficulty Buttons */}
-          <div className="max-w-4xl mx-auto">
+                  <div className="text-center mb-8">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                      {currentCard?.front}
+                    </h2>
+                    <p className="text-gray-500 text-sm">
+                      Choose the correct answer
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {quizOptions.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleQuizAnswerSelect(option)}
+                        disabled={selectedAnswer !== null}
+                        className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                          selectedAnswer === option
+                            ? isAnswerCorrect
+                              ? "border-green-500 bg-green-50 text-green-700"
+                              : "border-red-500 bg-red-50 text-red-700"
+                            : selectedAnswer !== null && option === currentCard?.back
+                            ? "border-green-500 bg-green-50 text-green-700"
+                            : "border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <span className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium mr-3">
+                            {String.fromCharCode(65 + index)}
+                          </span>
+                          <span className="text-lg">{option}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedAnswer !== null && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={nextQuizQuestion}
+                        className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                      >
+                        {currentCardIndex + 1 < currentSet.flashcards.length ? "Next Question" : "Finish Quiz"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation and Difficulty Buttons - Only for Flashcard Mode */}
+          {studyMode === "flashcards" && (
+            <div className="max-w-4xl mx-auto">
             <div className="flex items-center justify-between bg-white rounded-xl p-6">
               <button
                 onClick={previousCard}
@@ -1084,6 +1199,7 @@ const Study = () => {
               </button>
             </div>
           </div>
+          )}
         </div>
         <Footer />
       </>
