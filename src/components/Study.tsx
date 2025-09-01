@@ -102,7 +102,7 @@ const Study = () => {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [studyMode, setStudyMode] = useState<
-    "flashcards" | "quiz" | "matching"
+    "flashcards" | "quiz"
   >("flashcards");
   const [isStudying, setIsStudying] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -1664,66 +1664,93 @@ const Study = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => startStudySession(set)}
-                      disabled={set.flashcards.length === 0}
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <PlayIcon className="h-5 w-5" />
-                      <span>Start Studying</span>
-                    </button>
+                  <div className="space-y-3">
+                    {/* Study Mode Selector */}
+                    <div className="flex items-center space-x-4 text-sm">
+                      <span className="text-gray-600">Study Mode:</span>
+                      <button
+                        onClick={() => setStudyMode("flashcards")}
+                        className={`px-3 py-1 rounded ${
+                          studyMode === "flashcards"
+                            ? "bg-blue-100 text-blue-700 font-medium"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        📝 Flashcards
+                      </button>
+                      <button
+                        onClick={() => setStudyMode("quiz")}
+                        className={`px-3 py-1 rounded ${
+                          studyMode === "quiz"
+                            ? "bg-purple-100 text-purple-700 font-medium"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        ❓ Quiz
+                      </button>
+                    </div>
 
-                    <div className="flex items-center space-x-2">
-                      {set.createdBy === memoizedUser?.uid && (
-                        <>
-                          <button
-                            onClick={() => navigate(`/edit/${set.id}`)}
-                            className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                            title="Edit Set"
-                          >
-                            <svg
-                              className="h-4 w-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedSetId(set.id);
-                              setShowCreateCardModal(true);
-                            }}
-                            className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                            title="Add Card"
-                          >
-                            <PlusIcon className="h-4 w-4" />
-                          </button>
-                          {!set.isPublic && (
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => startStudySession(set)}
+                        disabled={set.flashcards.length === 0}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <PlayIcon className="h-5 w-5" />
+                        <span>Start Studying</span>
+                      </button>
+
+                      <div className="flex items-center space-x-2">
+                        {set.createdBy === memoizedUser?.uid && (
+                          <>
                             <button
-                              onClick={() => makeSetPublic(set)}
-                              className="p-2 text-gray-600 hover:text-green-600 transition-colors"
-                              title="Make Public"
+                              onClick={() => navigate(`/edit/${set.id}`)}
+                              className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                              title="Edit Set"
                             >
-                              <EyeIcon className="h-4 w-4" />
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
                             </button>
-                          )}
-                          <button
-                            onClick={() => deleteStudySet(set.id)}
-                            className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                            title="Delete Set"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
+                            <button
+                              onClick={() => {
+                                setSelectedSetId(set.id);
+                                setShowCreateCardModal(true);
+                              }}
+                              className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                              title="Add Card"
+                            >
+                              <PlusIcon className="h-4 w-4" />
+                            </button>
+                            {!set.isPublic && (
+                              <button
+                                onClick={() => makeSetPublic(set)}
+                                className="p-2 text-gray-600 hover:text-green-600 transition-colors"
+                                title="Make Public"
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteStudySet(set.id)}
+                              className="p-2 text-gray-600 hover:text-red-600 transition-colors"
+                              title="Delete Set"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
