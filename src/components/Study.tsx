@@ -446,7 +446,9 @@ const Study = () => {
     if (studyMode === "quiz") {
       const firstCard = set.flashcards[0];
       if (firstCard) {
-        setQuizOptions(generateQuizOptions(firstCard.back, set.flashcards.map(c => c.back)));
+        // Only use answers from the current study set
+        const currentSetAnswers = set.flashcards.map(c => c.back);
+        setQuizOptions(generateQuizOptions(firstCard.back, currentSetAnswers));
       }
     }
 
@@ -922,11 +924,11 @@ const Study = () => {
   };
 
   // Quiz mode functions
-  const generateQuizOptions = (correctAnswer: string, allAnswers: string[]) => {
+  const generateQuizOptions = (correctAnswer: string, currentSetAnswers: string[]) => {
     const options = [correctAnswer];
-    const otherAnswers = allAnswers.filter(answer => answer !== correctAnswer);
+    const otherAnswers = currentSetAnswers.filter(answer => answer !== correctAnswer);
     
-    // Shuffle and take up to 3 wrong answers
+    // Shuffle and take up to 3 wrong answers from the current set only
     const shuffled = otherAnswers.sort(() => Math.random() - 0.5);
     options.push(...shuffled.slice(0, 3));
     
@@ -953,7 +955,9 @@ const Study = () => {
     if (currentCardIndex < currentSet!.flashcards.length - 1) {
       setCurrentCardIndex(currentCardIndex + 1);
       const nextCard = currentSet!.flashcards[currentCardIndex + 1];
-      setQuizOptions(generateQuizOptions(nextCard.back, currentSet!.flashcards.map(c => c.back)));
+      // Only use answers from the current study set
+      const currentSetAnswers = currentSet!.flashcards.map(c => c.back);
+      setQuizOptions(generateQuizOptions(nextCard.back, currentSetAnswers));
     } else {
       // Quiz completed
       endStudySession();
