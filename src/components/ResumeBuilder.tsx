@@ -106,6 +106,7 @@ const ResumeBuilder = () => {
   const autoSaveTimerRef = useRef<number | null>(null);
   const [hasPendingSync, setHasPendingSync] = useState(false);
   const lastSyncedAtRef = useRef<number>(0);
+  const lastSyncedContentRef = useRef<string | null>(null);
 
   // Lock body scroll when paste modal is open
   useEffect(() => {
@@ -431,8 +432,14 @@ const ResumeBuilder = () => {
     }
     autoSaveTimerRef.current = window.setTimeout(() => {
       try {
-        localStorage.setItem("resume", JSON.stringify(resumeData));
-        setHasPendingSync(true);
+        const currentStr = JSON.stringify(resumeData);
+        localStorage.setItem("resume", currentStr);
+        if (lastSyncedContentRef.current === null) {
+          // First run; don't mark pending unless it differs from loaded baseline
+          setHasPendingSync(true);
+        } else {
+          setHasPendingSync(lastSyncedContentRef.current !== currentStr);
+        }
       } catch {}
     }, 600);
 
@@ -458,6 +465,13 @@ const ResumeBuilder = () => {
       if (!resumeStr) return;
       const resume = JSON.parse(resumeStr);
 
+      // Skip if no changes since last sync
+      const currentStr = JSON.stringify(resume);
+      if (lastSyncedContentRef.current === currentStr) {
+        setHasPendingSync(false);
+        return;
+      }
+
       const resumeDataToSave = {
         ...resume,
         lastUpdated: new Date().toISOString(),
@@ -470,6 +484,7 @@ const ResumeBuilder = () => {
       await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
 
       lastSyncedAtRef.current = now;
+      lastSyncedContentRef.current = currentStr;
       setHasPendingSync(false);
     } catch (e) {
       // Keep pending flag so we retry on next safe event
