@@ -485,8 +485,25 @@ const Courses = () => {
         }
       }
 
+      // Fallback for legal track if generator returned nothing
+      let fallback: any[] = [];
+      const prof = (profession || "").toLowerCase();
+      const specLower = (specialization || "").toLowerCase();
+      if (rawGeneratedSteps.length === 0 && (prof.includes("law") || specLower.includes("law"))) {
+        fallback = [
+          { id: "hs", title: "High School Diploma", description: "Complete secondary education", prerequisiteIds: ["you"], childrenIds: [], status: "planned" },
+          { id: "bachelor", title: "Bachelor's Degree (Pre‑Law/Political Science)", description: "4‑year undergraduate program", prerequisiteIds: ["you"], childrenIds: [], status: "planned" },
+          { id: "lsat", title: "LSAT", description: "Prepare and take the LSAT exam", prerequisiteIds: ["bachelor"], childrenIds: [], status: "planned" },
+          { id: "jd", title: "Law School (JD)", description: "3‑year Juris Doctor program", prerequisiteIds: ["lsat"], childrenIds: [], status: "planned" },
+          { id: "clinics", title: "Clinics & Internships", description: "Hands‑on experience during JD", prerequisiteIds: ["jd"], childrenIds: [], status: "planned" },
+          { id: "bar", title: "Bar Exam", description: "Pass the bar in your jurisdiction", prerequisiteIds: ["jd"], childrenIds: [], status: "planned" },
+          { id: "clerkship", title: "Clerkship/Associate Role", description: "Start in criminal law practice", prerequisiteIds: ["bar"], childrenIds: [], status: "planned" },
+        ];
+      }
+
       const stepsPlanned = [
         ...schoolProgramSteps,
+        ...fallback,
         ...rawGeneratedSteps.map((step: any) => ({ ...step, status: "planned" })),
       ];
       const stepsWithStatus = sanitizeSteps(stepsPlanned);
@@ -772,17 +789,57 @@ const Courses = () => {
             <div className="flex flex-col items-center">
               {steps && steps.length > 0 ? (
                 (() => {
-                  const stepMap = buildStepMap(steps);
                   const seq = computeSequenceIndexMap(steps);
-                  // Start from a node with smallest sequence index
-                  const startId = steps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999))[0].id;
-                  return <FlowNodeGeneric id={startId} stepMap={stepMap} sequenceMap={seq} />;
+                  const ordered = steps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                  return (
+                    <div className="w-full max-w-3xl space-y-3">
+                      {ordered.map((s, idx) => (
+                        <div key={s.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                              {idx + 1}
+                            </span>
+                            <div className="font-medium text-gray-900">{s.title}</div>
+                          </div>
+                          {s.description && (
+                            <div className="text-sm text-gray-600">{s.description}</div>
+                          )}
+                          {s.prerequisiteIds && s.prerequisiteIds.length > 0 && (
+                            <div className="text-[11px] text-gray-500 mt-1">
+                              Prerequisite: {s.prerequisiteIds.join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
                 })()
               ) : (
                 (() => {
-                  const stepMap = buildStepMap(mockSteps);
                   const seq = computeSequenceIndexMap(mockSteps);
-                  return <FlowNodeGeneric id="you" stepMap={stepMap} sequenceMap={seq} />;
+                  const ordered = mockSteps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                  return (
+                    <div className="w-full max-w-3xl space-y-3">
+                      {ordered.map((s, idx) => (
+                        <div key={s.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                              {idx + 1}
+                            </span>
+                            <div className="font-medium text-gray-900">{s.title}</div>
+                          </div>
+                          {s.description && (
+                            <div className="text-sm text-gray-600">{s.description}</div>
+                          )}
+                          {s.prerequisiteIds && s.prerequisiteIds.length > 0 && (
+                            <div className="text-[11px] text-gray-500 mt-1">
+                              Prerequisite: {s.prerequisiteIds.join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
                 })()
               )}
             </div>
