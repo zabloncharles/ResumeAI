@@ -115,6 +115,18 @@ const ResumeBuilder = () => {
   const [hasPendingSync, setHasPendingSync] = useState(false);
   const lastSyncedAtRef = useRef<number>(0);
 
+  // Lock body scroll when paste modal is open
+  useEffect(() => {
+    if (uiState.showPasteModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [uiState.showPasteModal]);
+
   // Memoize resume templates
   const resumeTemplates = useMemo(
     () => [
@@ -1693,7 +1705,7 @@ const ResumeBuilder = () => {
 
           {/* Paste Resume Modal */}
           {uiState.showPasteModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/40 backdrop-blur-sm">
               <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg relative">
                 <button
                   onClick={() =>
