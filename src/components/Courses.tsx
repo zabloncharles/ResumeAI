@@ -194,6 +194,29 @@ function sanitizeSteps(input: any[]): any[] {
     }));
 }
 
+function findStepIdByTitle(steps: any[], keyword: string): string | null {
+  const k = keyword.toLowerCase();
+  const found = steps.find((s) => (s.title || "").toLowerCase().includes(k));
+  return found ? found.id : null;
+}
+
+function adjustInstitutionPrereqs(steps: any[], profession: string, specialization: string): any[] {
+  const isLaw = /\blaw|lawyer|attorney|bar\b/i.test(profession || "") || /\blaw|criminal\b/i.test(specialization || "");
+  if (!isLaw) return steps;
+  const lsatId = findStepIdByTitle(steps, "LSAT") || findStepIdByTitle(steps, "Bar");
+  const bachelorId = findStepIdByTitle(steps, "Bachelor");
+  return steps.map((s) => {
+    if (s.title?.startsWith("Apply to ") || s.title?.includes("• Explore Programs") || s.title?.includes("• ")) {
+      const prereqs: string[] = [];
+      if (lsatId) prereqs.push(lsatId);
+      else if (bachelorId) prereqs.push(bachelorId);
+      else prereqs.push("you");
+      return { ...s, prerequisiteIds: prereqs };
+    }
+    return s;
+  });
+}
+
 // Compute distance (importance) from root ("you"): lower distance = earlier prerequisite
 function computeDistances(stepsArr: any[]) {
   const map = buildStepMap(stepsArr);
@@ -506,7 +529,9 @@ const Courses = () => {
         ...fallback,
         ...rawGeneratedSteps.map((step: any) => ({ ...step, status: "planned" })),
       ];
-      const stepsWithStatus = sanitizeSteps(stepsPlanned);
+      let stepsWithStatus = sanitizeSteps(stepsPlanned);
+      // Ensure institution steps come after key gates for law paths
+      stepsWithStatus = adjustInstitutionPrereqs(stepsWithStatus, profession, specialization);
       setSteps(stepsWithStatus);
 
       // Save/overwrite last path
@@ -791,6 +816,12 @@ const Courses = () => {
                 (() => {
                   const seq = computeSequenceIndexMap(steps);
                   const ordered = steps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                  const idToTitle: Record<string, string> = Object.fromEntries(ordered.map((s) => [s.id, s.title]));
+                  const fmtPrereqs = (ids?: string[]) =>
+                    (ids || [])
+                      .filter((id) => id && id !== "you")
+                      .map((id) => idToTitle[id] || id)
+                      .filter(Boolean);
                   return (
                     <div className="w-full max-w-3xl space-y-3">
                       {ordered.map((s, idx) => (
@@ -804,11 +835,12 @@ const Courses = () => {
                           {s.description && (
                             <div className="text-sm text-gray-600">{s.description}</div>
                           )}
-                          {s.prerequisiteIds && s.prerequisiteIds.length > 0 && (
-                            <div className="text-[11px] text-gray-500 mt-1">
-                              Prerequisite: {s.prerequisiteIds.join(", ")}
-                            </div>
-                          )}
+                          {(() => {
+                            const pr = fmtPrereqs(s.prerequisiteIds);
+                            return pr.length > 0 ? (
+                              <div className="text-[11px] text-gray-500 mt-1">Prerequisite: {pr.join(", ")}</div>
+                            ) : null;
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -818,6 +850,12 @@ const Courses = () => {
                 (() => {
                   const seq = computeSequenceIndexMap(mockSteps);
                   const ordered = mockSteps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                  const idToTitle: Record<string, string> = Object.fromEntries(ordered.map((s) => [s.id, s.title]));
+                  const fmtPrereqs = (ids?: string[]) =>
+                    (ids || [])
+                      .filter((id) => id && id !== "you")
+                      .map((id) => idToTitle[id] || id)
+                      .filter(Boolean);
                   return (
                     <div className="w-full max-w-3xl space-y-3">
                       {ordered.map((s, idx) => (
@@ -831,11 +869,12 @@ const Courses = () => {
                           {s.description && (
                             <div className="text-sm text-gray-600">{s.description}</div>
                           )}
-                          {s.prerequisiteIds && s.prerequisiteIds.length > 0 && (
-                            <div className="text-[11px] text-gray-500 mt-1">
-                              Prerequisite: {s.prerequisiteIds.join(", ")}
-                            </div>
-                          )}
+                          {(() => {
+                            const pr = fmtPrereqs(s.prerequisiteIds);
+                            return pr.length > 0 ? (
+                              <div className="text-[11px] text-gray-500 mt-1">Prerequisite: {pr.join(", ")}</div>
+                            ) : null;
+                          })()}
                         </div>
                       ))}
                     </div>
