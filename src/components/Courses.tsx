@@ -360,7 +360,7 @@ const Courses = () => {
   const { user } = useAuth();
   const [profession, setProfession] = useState("");
   const [specialization, setSpecialization] = useState<string>("");
-  const [institution, setInstitution] = useState<string>("");
+  // removed institution input
   const [suggestedSpecs, setSuggestedSpecs] = useState<string[]>([]);
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -385,10 +385,7 @@ const Courses = () => {
       const currentUser = user || auth.currentUser;
       if (!currentUser) return;
       try {
-        const q = query(
-          collection(db, "paths"),
-          where("userId", "==", currentUser.uid)
-        );
+        const q = query(collection(db, "paths"), where("userId", "==", currentUser.uid));
         const snap = await getDocs(q);
         if (snap.empty) return;
         let latestDoc: any = null;
@@ -408,7 +405,6 @@ const Courses = () => {
           setCurrentPathId(latestDoc.id);
           setProfession(latestDoc.profession || "");
           setSpecialization(latestDoc.specialization || "");
-          setInstitution(latestDoc.institution || "");
           if (Array.isArray(latestDoc.steps)) {
             setSteps(latestDoc.steps);
           }
@@ -458,7 +454,7 @@ const Courses = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ profession, specialization, institution }),
+        body: JSON.stringify({ profession, specialization }),
       });
 
       if (!response.ok) {
@@ -483,19 +479,8 @@ const Courses = () => {
         (s: any) => s.id !== "you"
       );
 
-      // If institution provided, enrich with program steps from Scorecard
-      let schoolProgramSteps: any[] = [];
-      if (institution) {
-        // Minimal: include admissions/application step only (Scorecard removed)
-        schoolProgramSteps.push({
-          id: `admissions_${Date.now()}`,
-          title: `Apply to ${institution}`,
-          description: "Prepare application materials, required tests, and financial aid",
-          prerequisiteIds: ["you"],
-          childrenIds: [],
-          status: "planned",
-        });
-      }
+      // Institution support removed; do not inject admissions/programs
+      const schoolProgramSteps: any[] = [];
 
       // Fallback for legal track if generator returned nothing
       let fallback: any[] = [];
@@ -589,7 +574,6 @@ const Courses = () => {
             userId: currentUser.uid,
             profession,
             specialization,
-            institution,
             steps: stepsWithStatus,
             updatedAt: serverTimestamp(),
           });
@@ -598,7 +582,6 @@ const Courses = () => {
             userId: currentUser.uid,
             profession,
             specialization,
-            institution,
             steps: stepsWithStatus,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -626,7 +609,6 @@ const Courses = () => {
           userId: currentUser.uid,
           profession,
           specialization,
-          institution,
           steps: nextSteps,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -771,14 +753,6 @@ const Courses = () => {
                   value={specialization}
                   onChange={(e) => setSpecialization(e.target.value)}
                   placeholder="Specialization (optional unless career is broad)"
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
-                />
-
-                <input
-                  type="text"
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
-                  placeholder="Institution (optional, e.g., Harvard University)"
                   className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
                 />
 
