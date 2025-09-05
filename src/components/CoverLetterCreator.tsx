@@ -13,7 +13,7 @@ import Footer from "./Footer";
 import thumbsupPng from "../thumbsup.png";
 
 interface CoverLetterCreatorProps {
-  resumeData: any;
+  resumeData?: any;
 }
 
 const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
@@ -24,27 +24,86 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [effectiveResume, setEffectiveResume] = useState<any>(resumeData || {});
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
 
-  const getPrompt = () => {
-    const profession = resumeData.personalInfo.title || "";
-    const summary = resumeData.profile || "";
-    const experience =
-      resumeData.experience
-        ?.map(
-          (exp: any) =>
-            `- ${exp.title} at ${exp.company}: ${exp.description.join(" ")}`
-        )
-        .join("\n") || "";
-    if (mode === "resume") {
-      return `Generate a professional cover letter for a ${profession} using the following resume information.\nSummary: ${summary}\nExperience:\n${experience}\nMake it concise, compelling, and suitable for job applications.`;
+  // Load resume from localStorage if not provided via props
+  useEffect(() => {
+    if (!resumeData || Object.keys(resumeData || {}).length === 0) {
+      const stored = localStorage.getItem("resume");
+      if (stored) {
+        try {
+          setEffectiveResume(JSON.parse(stored));
+        } catch {
+          setEffectiveResume(resumeData || {});
+        }
+      }
     } else {
-      return `Generate a professional cover letter for a ${profession} using the following resume information.\nSummary: ${summary}\nExperience:\n${experience}\nTailor the cover letter to this job description: ${jobDescription}\nMake it concise, compelling, and aligned with the job requirements.`;
+      setEffectiveResume(resumeData);
     }
+  }, [resumeData]);
+
+  const getPrompt = () => {
+    const pi = effectiveResume?.personalInfo || {};
+    const profession = pi.title || "";
+    const fullName = pi.fullName || "";
+    const email = pi.email || "";
+    const phone = pi.phone || "";
+    const location = pi.location || "";
+    const summary = effectiveResume?.profile || "";
+    const experiences = Array.isArray(effectiveResume?.experience)
+      ? effectiveResume.experience
+      : [];
+    const experienceBullets = experiences
+      .map((exp: any) => {
+        const bullets = Array.isArray(exp.description)
+          ? exp.description.filter(Boolean).join(" ")
+          : "";
+        return `- ${exp.title || "Role"} at ${exp.company || "Company"}: ${bullets}`;
+      })
+      .join("\n");
+
+    const base = `You are a helpful assistant writing a professional cover letter. Use the REAL data provided. Do not output any placeholder tokens in brackets. If a field is missing, omit that line entirely. Keep it 180-250 words, confident, and specific. Avoid generic filler. Include 1–2 quantifiable achievements from experience.`;
+
+    const header = `Candidate: ${fullName}\nTitle: ${profession}\nEmail: ${email}\nPhone: ${phone}\nLocation: ${location}`;
+    const resumeBlock = `Summary: ${summary}\nExperience:\n${experienceBullets}`;
+
+    if (mode === "resume") {
+      return `${base}\n\n${header}\n\n${resumeBlock}\n\nWrite a general-purpose cover letter suitable for applications in this field. Do not use placeholders for company or hiring manager; keep it company-agnostic.`;
+    }
+
+    return `${base}\n\n${header}\n\n${resumeBlock}\n\nTailor the cover letter to this job description:\n${jobDescription}\n\nDo not invent missing facts. No bracket placeholders.`;
+  };
+
+  // Cleanup common bracket placeholders in model output using known values
+  const personalizeOutput = (content: string) => {
+    const pi = effectiveResume?.personalInfo || {};
+    const replacements: Record<string, string> = {
+      "[Your Name]": pi.fullName || "",
+      "[Email Address]": pi.email || "",
+      "[Phone Number]": pi.phone || "",
+      "[City, State, Zip]": pi.location || "",
+      "[Your Address]": "",
+      "[Date]": new Date().toLocaleDateString(),
+      "[Hiring Manager's Name]": "",
+      "[Company Name]": "",
+      "[Company Address]": "",
+    };
+    let out = content;
+    for (const [needle, val] of Object.entries(replacements)) {
+      const regex = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      out = out.replace(regex, val);
+    }
+    // Remove any remaining bracketed placeholders lines completely
+    out = out
+      .split("\n")
+      .filter((line) => !line.trim().match(/^\[.*\]$/))
+      .join("\n");
+    return out;
   };
 
   const generateCoverLetter = async () => {
@@ -73,7 +132,8 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
         return;
       }
       const data = await response.json();
-      setCoverLetter(data.content || "");
+      const raw = data.content || "";
+      setCoverLetter(personalizeOutput(raw));
     } catch (err) {
       setError("Failed to generate cover letter. Please try again.");
     } finally {
