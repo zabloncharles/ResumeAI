@@ -14,6 +14,7 @@ import About from "./components/Pages/About";
 import Contact from "./components/Pages/Contact";
 import Privacy from "./components/Pages/Privacy";
 import Terms from "./components/Pages/Terms";
+import Courses from "./components/Courses";
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/courses" element={<Courses />} />
         </Routes>
       </div>
     </Router>
