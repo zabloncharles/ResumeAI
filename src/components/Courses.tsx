@@ -1,5 +1,5 @@
 import Navbar from "./Navbar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { db, auth } from "../firebase";
 // import { onAuthStateChanged, User } from "firebase/auth";
@@ -10,6 +10,10 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  updateDoc,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 import Footer from "./Footer";
 import { useAuth } from "../contexts/AuthContext";
@@ -169,16 +173,48 @@ const Courses = () => {
   const [error, setError] = useState("");
   const [view, setView] = useState<"timeline" | "board">("timeline");
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [currentPathId, setCurrentPathId] = useState<string | null>(null);
+
+  // Load last saved path for user (client-side pick latest)
+  useEffect(() => {
+    (async () => {
+      const currentUser = user || auth.currentUser;
+      if (!currentUser) return;
+      try {
+        const q = query(collection(db, "paths"), where("userId", "==", currentUser.uid));
+        const snap = await getDocs(q);
+        if (snap.empty) return;
+        let latestDoc: any = null;
+        snap.forEach((d) => {
+          const data = d.data();
+          const ts = (data.updatedAt?.toMillis?.() || data.updatedAt?.seconds * 1000) ||
+                     (data.createdAt?.toMillis?.() || data.createdAt?.seconds * 1000) || 0;
+          if (!latestDoc || ts > latestDoc._ts) {
+            latestDoc = { id: d.id, ...data, _ts: ts };
+          }
+        });
+        if (latestDoc) {
+          setCurrentPathId(latestDoc.id);
+          setProfession(latestDoc.profession || "");
+          if (Array.isArray(latestDoc.steps)) {
+            setSteps(latestDoc.steps);
+          }
+        }
+      } catch (e) {
+        // non-blocking
+      }
+    })();
+  }, [user]);
 
   // Initialize board with mock statuses if entering board view with no steps
-  React.useEffect(() => {
+  useEffect(() => {
     if (view === "board" && steps.length === 0) {
       const initialized = mockSteps
         .filter((s) => s.id !== "you")
         .map((s) => ({ ...s, status: "planned" }));
       setSteps(initialized);
     }
-  }, [view]);
+  }, [view, steps.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,15 +265,53 @@ const Courses = () => {
           status: "planned",
         }));
       setSteps(stepsWithStatus);
+
+      // Save as last path
+      try {
+        const ref = await addDoc(collection(db, "paths"), {
+          userId: currentUser.uid,
+          profession,
+          steps: stepsWithStatus,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        setCurrentPathId(ref.id);
+      } catch (e) {
+        // non-blocking
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     }
     setLoading(false);
   };
 
+  const persistBoard = async (nextSteps: any[]) => {
+    const currentUser = user || auth.currentUser;
+    if (!currentUser) return;
+    try {
+      if (currentPathId) {
+        await updateDoc(doc(db, "paths", currentPathId), {
+          steps: nextSteps,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        const ref = await addDoc(collection(db, "paths"), {
+          userId: currentUser.uid,
+          profession,
+          steps: nextSteps,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        setCurrentPathId(ref.id);
+      }
+    } catch (e) {
+      // non-blocking
+    }
+  };
+
   const advanceStep = (id: string) => {
-    setSteps((prev) =>
-      prev.map((s) =>
+    setSteps((prev) => {
+      const next = prev.map((s) =>
         s.id === id
           ? {
               ...s,
@@ -249,8 +323,11 @@ const Courses = () => {
                   : "released",
             }
           : s
-      )
-    );
+      );
+      // Persist updated board
+      persistBoard(next);
+      return next;
+    });
   };
 
   const renderBoard = () => {
