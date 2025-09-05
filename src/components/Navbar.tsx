@@ -36,28 +36,40 @@ const Navbar = () => {
         );
         setIsAdmin(userData.role === "admin");
       }
-    } else {
-      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        setUser(firebaseUser);
-        if (firebaseUser) {
-          localStorage.setItem("user", JSON.stringify(firebaseUser));
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+          })
+        );
+        try {
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setFirstName(
-              userData.firstName ||
-                firebaseUser.displayName?.split(" ")[0] ||
-                ""
+              userData.firstName || firebaseUser.displayName?.split(" ")[0] || ""
             );
             setIsAdmin(userData.role === "admin");
             localStorage.setItem("userData", JSON.stringify(userData));
           }
-        } else {
+        } catch (err) {
+          // Avoid breaking navbar if permissions fail; fall back to defaults
+          const fallbackName = firebaseUser.displayName?.split(" ")[0] || "";
+          setFirstName(fallbackName);
           setIsAdmin(false);
         }
-      });
-      return () => unsubscribe();
-    }
+      } else {
+        setIsAdmin(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleSignOut = async () => {

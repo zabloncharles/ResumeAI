@@ -466,11 +466,14 @@ const ResumeBuilder = () => {
         console.error("[Firebase] Error loading resume:", error);
         if (error.code === "permission-denied") {
           setFirestoreError(
-            "You don't have permission to load this resume. Please try signing in again."
+            "You don't have permission to load this resume. Using local data if available."
           );
-          // Force re-authentication
-          await auth.signOut();
-          setUiState((prev) => ({ ...prev, showSignInModal: true }));
+          const cached = localStorage.getItem("resume");
+          if (cached) {
+            try {
+              setResumeData(JSON.parse(cached));
+            } catch {}
+          }
         } else if (error.message === "Firestore is not initialized") {
           setFirestoreError(
             "Database connection error. Please try again later."
