@@ -51,14 +51,14 @@ const LoadingPage = () => {
   const [isQuoteVisible, setIsQuoteVisible] = useState(true);
 
   useEffect(() => {
-    // Animate progress bar - 10 seconds total
+    // Animate progress bar - 4 seconds total
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
           clearInterval(progressInterval);
           return 100;
         }
-        return prev + 0.4; // 0.4% every 40ms = 10 seconds total
+        return prev + 1; // 1% every 40ms = 4 seconds total
       });
     }, 40);
 
@@ -76,10 +76,10 @@ const LoadingPage = () => {
       
     }, 5000);
 
-    // Navigate to resume builder after 10 seconds
+    // Navigate to resume builder after 4 seconds
     const timer = setTimeout(() => {
       navigate('/resume');
-    }, 10000);
+    }, 4000);
 
     return () => {
       clearTimeout(timer);
@@ -89,26 +89,26 @@ const LoadingPage = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center">
       <div className="w-full max-w-md mx-auto px-4">
         <div className="flex flex-col items-center space-y-8">
           {/* Centered Spinner */}
           <div className="relative flex justify-center">
-            <div className="w-16 h-16 border-4 border-gray-700 border-t-white rounded-full animate-spin"></div>
+            <div className="w-16 h-16 border-4 border-gray-200 border-t-[#16aeac] rounded-full animate-spin"></div>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
             <div 
-              className="h-full bg-white transition-all duration-100 ease-out rounded-full"
+              className="h-full bg-[#16aeac] transition-all duration-100 ease-out rounded-full"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
 
           {/* Text */}
           <div className="space-y-2 text-center">
-            <h2 className="text-2xl font-semibold text-white">Preparing Your Resume Builder</h2>
-            <p className="text-gray-400">Setting up your workspace...</p>
+            <h2 className="text-2xl font-semibold text-gray-900">Preparing Your Resume Builder</h2>
+            <p className="text-gray-500">Setting up your workspace...</p>
           </div>
 
           {/* Quotes Section */}
@@ -117,8 +117,8 @@ const LoadingPage = () => {
               isQuoteVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
-            <p className="text-lg text-white italic">"{quotes[currentQuoteIndex].text}"</p>
-            <p className="text-sm text-gray-400 mt-2">— {quotes[currentQuoteIndex].author}</p>
+            <p className="text-lg text-gray-700 italic">"{quotes[currentQuoteIndex].text}"</p>
+            <p className="text-sm text-gray-500 mt-2">— {quotes[currentQuoteIndex].author}</p>
           </div>
         </div>
       </div>
