@@ -23,10 +23,14 @@ const AIResumeAssistant = ({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [showSignInModal, setShowSignInModal] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setAuthReady(true);
+    });
     return () => unsubscribe();
   }, []);
 
@@ -49,7 +53,10 @@ const AIResumeAssistant = ({
   }
 
   const generateSuggestions = async () => {
-    if (!user) {
+    const currentUser = auth.currentUser || user;
+    // Avoid flashing the sign-in modal before auth resolves
+    if (!authReady) return;
+    if (!currentUser) {
       setShowSignInModal(true);
       return;
     }
@@ -59,7 +66,7 @@ const AIResumeAssistant = ({
     setSuggestions([]);
 
     try {
-      const token = await user.getIdToken();
+      const token = await currentUser.getIdToken();
       const prompt = buildPrompt(profession, section);
       const response = await fetch("/.netlify/functions/generateResume", {
         method: "POST",
