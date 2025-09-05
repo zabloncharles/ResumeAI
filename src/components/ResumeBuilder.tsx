@@ -1393,12 +1393,68 @@ const ResumeBuilder = () => {
             </div>
           </div>
 
-          {/* Form Sections */}
-          <div className="p-6">
-            <div className="grid grid-cols-12 gap-6">
-              {/* Left Side - Edit Sections */}
-              <div className="col-span-5">
+          {/* Content Area */}
+          {uiState.activeTopTab === "help" ? (
+            <div className="p-6">
+              <div className="max-w-4xl">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Resume Builder Help</h2>
+                <p className="text-gray-600 mb-8">
+                  Quick guide to building and saving your resume efficiently.
+                </p>
+
                 <div className="space-y-6">
+                  <section className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Getting Started</h3>
+                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
+                      <li>Choose a template in "Choose a Template" on the left.</li>
+                      <li>Open each section (Personal, Summary, Experience, Education, Websites) and fill in fields.</li>
+                      <li>Use the AI Suggestions buttons for summaries and bullet points.</li>
+                    </ul>
+                  </section>
+
+                  <section className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Suggestions</h3>
+                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
+                      <li>Profile: generates 5 concise professional summaries for your title.</li>
+                      <li>Experience: generates achievement bullets for the job title in that card.</li>
+                      <li>Click + on a suggestion to insert it into your resume.</li>
+                    </ul>
+                  </section>
+
+                  <section className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Saving & Sync</h3>
+                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
+                      <li>Auto‑save: changes are saved to your browser automatically after a short pause.</li>
+                      <li>Cloud sync: if you are signed in, changes are synced to Firebase during safe moments (when you switch tabs/windows, the tab becomes hidden, you come back online, or when leaving the page). Writes are throttled to minimize calls.</li>
+                      <li>Manual save: click the disk icon in the header to immediately push to the cloud.</li>
+                    </ul>
+                  </section>
+
+                  <section className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Download PDF</h3>
+                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
+                      <li>Use the "Download PDF" button in the header to export your resume as a PDF.</li>
+                      <li>The PDF uses the currently selected template.</li>
+                    </ul>
+                  </section>
+
+                  <section className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Tips</h3>
+                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
+                      <li>Keep bullet points action‑oriented and quantify results where possible.</li>
+                      <li>Use at most 4–5 bullets per experience for readability.</li>
+                      <li>Switch templates anytime; your content remains the same.</li>
+                    </ul>
+                  </section>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6">
+              <div className="grid grid-cols-12 gap-6">
+                {/* Left Side - Edit Sections */}
+                <div className="col-span-5">
+                  <div className="space-y-6">
                   {/* Templates Section */}
                   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <h2 className="text-lg font-semibold text-gray-900 p-4 border-b border-gray-200">
@@ -1608,20 +1664,21 @@ const ResumeBuilder = () => {
                       <div className="p-6">{renderEditSection()}</div>
                     )}
                   </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Right Side - Resume Preview */}
-              <div className="col-span-7">
-                <div className="sticky top-6 z-[1000]">
-                  <ResumePreview
-                    resumeData={resumeData}
-                    template={uiState.selectedTemplate}
-                  />
+                {/* Right Side - Resume Preview */}
+                <div className="col-span-7">
+                  <div className="sticky top-6 z-[1000]">
+                    <ResumePreview
+                      resumeData={resumeData}
+                      template={uiState.selectedTemplate}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Sign In Modal */}
           <SignInModal
