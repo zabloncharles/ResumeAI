@@ -174,7 +174,7 @@ const LandingPage = () => {
           </div>
           {/* AI Cover Letter Feature Section */}
           <div
-            className="mt-12 max-w-2xl mx-auto bg-gradient-to-r from-green-50 to-yellow-50 border-2 border-gradient-to-r from-green-200 to-yellow-200 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+            className="mt-12 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
             data-aos="fade-up"
             data-aos-delay="300"
           >
