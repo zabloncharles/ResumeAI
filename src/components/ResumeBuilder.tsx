@@ -379,7 +379,7 @@ const ResumeBuilder = () => {
       const resumeStr = localStorage.getItem("resume");
       if (!resumeStr) throw new Error("No resume data in localStorage");
       const resume = JSON.parse(resumeStr);
-              // const token = await user.getIdToken(true);
+      // const token = await user.getIdToken(true);
       const resumeDataToSave = {
         ...resume,
         lastUpdated: new Date().toISOString(),

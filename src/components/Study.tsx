@@ -15,8 +15,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  onSnapshot,
   arrayUnion,
+  writeBatch,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -83,11 +83,11 @@ interface StudySet {
   lastStudied?: Date;
   createdBy: string;
   isPublic: boolean;
-  publicCode?: string;        // Generated when made public
-  publicPassword?: string;    // Generated when made public
-  borrowedFrom?: string;      // UID of original creator
-  isBorrowed?: boolean;       // True if borrowed from another user
-  originalSetId?: string;     // Reference to original set
+  publicCode?: string; // Generated when made public
+  publicPassword?: string; // Generated when made public
+  borrowedFrom?: string; // UID of original creator
+  isBorrowed?: boolean; // True if borrowed from another user
+  originalSetId?: string; // Reference to original set
   progress?: "not_started" | "started" | "completed";
   totalStudyTime: number; // in seconds
   totalSessions: number;
@@ -101,15 +101,19 @@ const Study = () => {
   const [currentSet, setCurrentSet] = useState<StudySet | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyMode, setStudyMode] = useState<
-    "flashcards" | "quiz"
-  >("flashcards");
+  const [studyMode, setStudyMode] = useState<"flashcards" | "quiz">(
+    "flashcards"
+  );
   const [isStudying, setIsStudying] = useState(false);
-  
+
   // Quiz mode state
   const [quizOptions, setQuizOptions] = useState<string[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
+  
+  // Batched updates state
+  const [pendingUpdates, setPendingUpdates] = useState<any[]>([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showAnswer, setShowAnswer] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [timer, setTimer] = useState(0);
@@ -119,7 +123,9 @@ const Study = () => {
   const [showCreateCardModal, setShowCreateCardModal] = useState(false);
   const [showCreateCardForm, setShowCreateCardForm] = useState(false);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "my" | "public" | "borrowed">("all");
+  const [filter, setFilter] = useState<"all" | "my" | "public" | "borrowed">(
+    "all"
+  );
   const [isEditingSet, setIsEditingSet] = useState(false);
   const [editingSet, setEditingSet] = useState<StudySet | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
@@ -139,11 +145,15 @@ const Study = () => {
   // Public set states
   const [showMakePublicModal, setShowMakePublicModal] = useState(false);
   const [showImportPublicModal, setShowImportPublicModal] = useState(false);
-  const [selectedSetForPublic, setSelectedSetForPublic] = useState<StudySet | null>(null);
-  const [publicSetCredentials, setPublicSetCredentials] = useState<{code: string, password: string} | null>(null);
+  const [selectedSetForPublic, setSelectedSetForPublic] =
+    useState<StudySet | null>(null);
+  const [publicSetCredentials, setPublicSetCredentials] = useState<{
+    code: string;
+    password: string;
+  } | null>(null);
   const [importForm, setImportForm] = useState({
     code: "",
-    password: ""
+    password: "",
   });
 
   // Form states
@@ -203,24 +213,38 @@ const Study = () => {
     }
   }, [user, isLoading, navigate]);
 
-  // Load study sets from Firebase - OPTIMIZED with single listener
+  // Load study sets with localStorage caching - NO real-time listeners
   useEffect(() => {
     if (!memoizedUser) return;
 
     const loadStudySets = async () => {
       try {
+        // Check localStorage first
+        const cacheKey = `studySets_${memoizedUser.uid}`;
+        const cachedData = localStorage.getItem(cacheKey);
+        const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+        
+        // Use cache if it's less than 10 minutes old
+        const isCacheValid = cacheTimestamp && 
+          (Date.now() - parseInt(cacheTimestamp)) < 10 * 60 * 1000;
+        
+        if (cachedData && isCacheValid) {
+          console.log("Using cached study sets");
+          const cachedSets = JSON.parse(cachedData);
+          setStudySets(cachedSets);
+          return;
+        }
+
+        // Load from Firebase only if cache is invalid
+        console.log("Loading study sets from Firebase (one-time load)");
         let q;
-        // Temporary workaround: Use simple queries while indexes are building
         if (memoizedFilter === "my") {
           q = query(
             collection(db, "studySets"),
             where("createdBy", "==", memoizedUser.uid)
           );
         } else if (memoizedFilter === "public") {
-          q = query(
-            collection(db, "studySets"),
-            where("isPublic", "==", true)
-          );
+          q = query(collection(db, "studySets"), where("isPublic", "==", true));
         } else if (memoizedFilter === "borrowed") {
           q = query(
             collection(db, "studySets"),
@@ -230,74 +254,77 @@ const Study = () => {
           q = query(collection(db, "studySets"));
         }
 
-        // Single onSnapshot listener instead of multiple getDocs calls
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
-          const sets: StudySet[] = [];
-          
-          // Batch load flashcards for all sets at once
-          const flashcardPromises = snapshot.docs.map(async (doc) => {
-            const setData = doc.data();
-            const flashcardsQuery = query(
-              collection(db, "studySets", doc.id, "flashcards"),
-              orderBy("createdAt", "asc")
+        // Single getDocs call instead of onSnapshot listener
+        const snapshot = await getDocs(q);
+        const sets: StudySet[] = [];
+
+        // Batch load flashcards for all sets at once
+        const flashcardPromises = snapshot.docs.map(async (doc) => {
+          const setData = doc.data();
+          const flashcardsQuery = query(
+            collection(db, "studySets", doc.id, "flashcards"),
+            orderBy("createdAt", "asc")
+          );
+          const flashcardsSnapshot = await getDocs(flashcardsQuery);
+          const flashcards = flashcardsSnapshot.docs.map((cardDoc) => ({
+            id: cardDoc.id,
+            ...cardDoc.data(),
+            createdAt: cardDoc.data().createdAt?.toDate() || new Date(),
+            lastReviewed: cardDoc.data().lastReviewed?.toDate(),
+          })) as Flashcard[];
+
+          // Determine progress based on study activity and mastery
+          let progress: "not_started" | "started" | "completed" = "not_started";
+          if (setData.lastStudied) {
+            const lastStudiedDate = setData.lastStudied.toDate
+              ? setData.lastStudied.toDate()
+              : new Date(setData.lastStudied);
+            const today = new Date();
+            const daysSinceLastStudy = Math.floor(
+              (today.getTime() - lastStudiedDate.getTime()) / (1000 * 60 * 60 * 24)
             );
-            const flashcardsSnapshot = await getDocs(flashcardsQuery);
-            const flashcards = flashcardsSnapshot.docs.map((cardDoc) => ({
-              id: cardDoc.id,
-              ...cardDoc.data(),
-              createdAt: cardDoc.data().createdAt?.toDate() || new Date(),
-              lastReviewed: cardDoc.data().lastReviewed?.toDate(),
-            })) as Flashcard[];
 
-            // Determine progress based on study activity and mastery
-            let progress: "not_started" | "started" | "completed" =
-              "not_started";
-            if (setData.lastStudied) {
-              const lastStudiedDate = setData.lastStudied.toDate ? setData.lastStudied.toDate() : new Date(setData.lastStudied);
-              const today = new Date();
-              const daysSinceLastStudy = Math.floor((today.getTime() - lastStudiedDate.getTime()) / (1000 * 60 * 60 * 24));
-              
-              const avgMastery =
-                flashcards.length > 0
-                  ? flashcards.reduce((acc, card) => acc + card.mastery, 0) /
-                    flashcards.length
-                  : 0;
-              
-              // If completed (80%+ mastery), stay completed
-              if (avgMastery >= 80) {
-                progress = "completed";
-              }
-              // If studied within last day, stay started
-              else if (daysSinceLastStudy <= 1) {
-                progress = "started";
-              }
-              // If more than 1 day since last study, go back to not started
-              else {
-                progress = "not_started";
-              }
+            const avgMastery =
+              flashcards.length > 0
+                ? flashcards.reduce((acc, card) => acc + card.mastery, 0) / flashcards.length
+                : 0;
+
+            // If completed (80%+ mastery), stay completed
+            if (avgMastery >= 80) {
+              progress = "completed";
             }
+            // If studied within last day, stay started
+            else if (daysSinceLastStudy <= 1) {
+              progress = "started";
+            }
+            // If more than 1 day since last study, go back to not started
+            else {
+              progress = "not_started";
+            }
+          }
 
-            return {
-              id: doc.id,
-              ...setData,
-              flashcards,
-              cardCount: flashcards.length,
-              createdAt: setData.createdAt?.toDate() || new Date(),
-              lastStudied: setData.lastStudied?.toDate(),
-              progress,
-            } as StudySet;
-          });
-
-          // Wait for all flashcard loading to complete
-          const resolvedSets = await Promise.all(flashcardPromises);
-          
-          // Client-side sorting since we removed orderBy from queries
-          resolvedSets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-          
-          setStudySets(resolvedSets);
+          return {
+            id: doc.id,
+            ...setData,
+            flashcards,
+            cardCount: flashcards.length,
+            createdAt: setData.createdAt?.toDate() || new Date(),
+            lastStudied: setData.lastStudied?.toDate(),
+            progress,
+          } as StudySet;
         });
 
-        return unsubscribe;
+        // Wait for all flashcard loading to complete
+        const resolvedSets = await Promise.all(flashcardPromises);
+
+        // Client-side sorting
+        resolvedSets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+        // Cache the results
+        localStorage.setItem(cacheKey, JSON.stringify(resolvedSets));
+        localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+        
+        setStudySets(resolvedSets);
       } catch (error) {
         console.error("Error loading study sets:", error);
       }
@@ -379,8 +406,6 @@ const Study = () => {
     return timeXP + reviewXP + accuracyXP + streakBonus;
   };
 
-
-
   const updateStreak = async (): Promise<number> => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -424,8 +449,6 @@ const Study = () => {
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-
-
   const startStudySession = async (set: StudySet) => {
     const startTime = new Date();
     setSessionStartTime(startTime);
@@ -447,13 +470,13 @@ const Study = () => {
       const firstCard = set.flashcards[0];
       if (firstCard) {
         // Only use answers from the current study set
-        const currentSetAnswers = set.flashcards.map(c => c.back);
+        const currentSetAnswers = set.flashcards.map((c) => c.back);
         setQuizOptions(generateQuizOptions(firstCard.back, currentSetAnswers));
       }
     }
 
     // Scroll to top when study session starts
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
     // Create new study session
     const newSession: StudySession = {
@@ -504,8 +527,6 @@ const Study = () => {
         correctAnswers,
         xpEarned,
       };
-
-
 
       // Update streak
       const newStreak = await updateStreak();
@@ -590,11 +611,13 @@ const Study = () => {
   };
 
   // Batch update state to reduce Firebase calls
-  const [pendingCardUpdates, setPendingCardUpdates] = useState<Array<{
-    cardId: string;
-    mastery: number;
-    lastReviewed: Date;
-  }>>([]);
+  const [pendingCardUpdates, setPendingCardUpdates] = useState<
+    Array<{
+      cardId: string;
+      mastery: number;
+      lastReviewed: Date;
+    }>
+  >([]);
 
   const markCard = async (difficulty: "easy" | "medium" | "hard") => {
     if (currentSet && memoizedUser) {
@@ -613,15 +636,14 @@ const Study = () => {
         total: prev.total + 1,
       }));
 
-      // Add to pending updates instead of immediate Firebase call
-      setPendingCardUpdates((prev) => [
-        ...prev,
-        {
-          cardId: currentCard.id,
-          mastery: newMastery,
-          lastReviewed: new Date(),
-        },
-      ]);
+      // Add to batched updates instead of immediate Firebase call
+      addPendingUpdate({
+        type: 'card',
+        setId: currentSet.id,
+        cardId: currentCard.id,
+        mastery: newMastery,
+        lastReviewed: new Date(),
+      });
 
       // Update local state immediately for better UX
       setCurrentSet((prev) => {
@@ -658,7 +680,7 @@ const Study = () => {
       const avgMastery =
         currentSet.flashcards.reduce((acc, card) => acc + card.mastery, 0) /
         currentSet.flashcards.length;
-      
+
       let newProgress: "not_started" | "started" | "completed";
       if (avgMastery >= 80) {
         newProgress = "completed";
@@ -804,7 +826,9 @@ const Study = () => {
       }
 
       // Get the original study set
-      const originalSetDoc = await getDoc(doc(db, "studySets", publicSetData.originalSetId));
+      const originalSetDoc = await getDoc(
+        doc(db, "studySets", publicSetData.originalSetId)
+      );
       if (!originalSetDoc.exists()) {
         alert("Original study set not found.");
         return;
@@ -818,7 +842,7 @@ const Study = () => {
         orderBy("createdAt", "asc")
       );
       const flashcardsSnapshot = await getDocs(flashcardsQuery);
-      const flashcards = flashcardsSnapshot.docs.map(doc => ({
+      const flashcards = flashcardsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date(),
@@ -841,7 +865,7 @@ const Study = () => {
       });
 
       // Add all flashcards to the new set
-      const addFlashcardPromises = flashcards.map(flashcard => 
+      const addFlashcardPromises = flashcards.map((flashcard) =>
         addDoc(collection(db, "studySets", newSetRef.id, "flashcards"), {
           front: flashcard.front,
           back: flashcard.back,
@@ -889,8 +913,8 @@ const Study = () => {
 
   // Utility functions for public sets
   const generatePublicCode = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let result = "";
     for (let i = 0; i < 6; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
@@ -898,8 +922,8 @@ const Study = () => {
   };
 
   const generatePublicPassword = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let result = "";
     for (let i = 0; i < 4; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
@@ -924,23 +948,29 @@ const Study = () => {
   };
 
   // Quiz mode functions
-  const generateQuizOptions = (correctAnswer: string, currentSetAnswers: string[]) => {
+  const generateQuizOptions = (
+    correctAnswer: string,
+    currentSetAnswers: string[]
+  ) => {
     const options = [correctAnswer];
-    const otherAnswers = currentSetAnswers.filter(answer => answer !== correctAnswer);
-    
+    const otherAnswers = currentSetAnswers.filter(
+      (answer) => answer !== correctAnswer
+    );
+
     // Shuffle and take up to 3 wrong answers from the current set only
     const shuffled = otherAnswers.sort(() => Math.random() - 0.5);
     options.push(...shuffled.slice(0, 3));
-    
+
     // Shuffle the final options
     return options.sort(() => Math.random() - 0.5);
   };
 
   const handleQuizAnswerSelect = (selectedOption: string) => {
     setSelectedAnswer(selectedOption);
-    const correct = selectedOption === currentSet?.flashcards[currentCardIndex]?.back;
+    const correct =
+      selectedOption === currentSet?.flashcards[currentCardIndex]?.back;
     setIsAnswerCorrect(correct);
-    
+
     if (correct) {
       markCard("easy");
     } else {
@@ -951,18 +981,114 @@ const Study = () => {
   const nextQuizQuestion = () => {
     setSelectedAnswer(null);
     setIsAnswerCorrect(null);
-    
+
     if (currentCardIndex < currentSet!.flashcards.length - 1) {
       setCurrentCardIndex(currentCardIndex + 1);
       const nextCard = currentSet!.flashcards[currentCardIndex + 1];
       // Only use answers from the current study set
-      const currentSetAnswers = currentSet!.flashcards.map(c => c.back);
+      const currentSetAnswers = currentSet!.flashcards.map((c) => c.back);
       setQuizOptions(generateQuizOptions(nextCard.back, currentSetAnswers));
     } else {
       // Quiz completed
       endStudySession();
     }
   };
+
+  // Batched update functions
+  const addPendingUpdate = (update: any) => {
+    setPendingUpdates(prev => [...prev, { ...update, timestamp: Date.now() }]);
+  };
+
+  const syncPendingUpdates = async () => {
+    if (pendingUpdates.length === 0 || !memoizedUser) return;
+    
+    try {
+      console.log(`Syncing ${pendingUpdates.length} pending updates to Firebase`);
+      
+      // Group updates by type and batch them
+      const cardUpdates = pendingUpdates.filter(u => u.type === 'card');
+      const setUpdates = pendingUpdates.filter(u => u.type === 'set');
+      const userUpdates = pendingUpdates.filter(u => u.type === 'user');
+      
+      // Batch card updates
+      if (cardUpdates.length > 0) {
+        const batch = writeBatch(db);
+        cardUpdates.forEach(update => {
+          const cardRef = doc(db, "studySets", update.setId, "flashcards", update.cardId);
+          batch.update(cardRef, { mastery: update.mastery });
+        });
+        await batch.commit();
+      }
+      
+      // Batch set updates
+      if (setUpdates.length > 0) {
+        const batch = writeBatch(db);
+        setUpdates.forEach(update => {
+          const setRef = doc(db, "studySets", update.setId);
+          batch.update(setRef, update.data);
+        });
+        await batch.commit();
+      }
+      
+      // User updates (usually single)
+      if (userUpdates.length > 0) {
+        const userRef = doc(db, "users", memoizedUser.uid);
+        const latestUserUpdate = userUpdates[userUpdates.length - 1];
+        await updateDoc(userRef, latestUserUpdate.data);
+      }
+      
+      // Clear pending updates and update cache
+      setPendingUpdates([]);
+      
+      // Update localStorage cache
+      const cacheKey = `studySets_${memoizedUser.uid}`;
+      localStorage.removeItem(cacheKey);
+      localStorage.removeItem(`${cacheKey}_timestamp`);
+      
+      console.log("Successfully synced all pending updates");
+    } catch (error) {
+      console.error("Error syncing pending updates:", error);
+    }
+  };
+
+  // Window focus/blur event handlers
+  useEffect(() => {
+    const handleWindowBlur = () => {
+      console.log("Window lost focus - syncing pending updates");
+      syncPendingUpdates();
+    };
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log("Back online - syncing pending updates");
+      syncPendingUpdates();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log("Gone offline - updates will be queued");
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [pendingUpdates, memoizedUser]);
+
+  // Sync on component unmount
+  useEffect(() => {
+    return () => {
+      if (pendingUpdates.length > 0) {
+        console.log("Component unmounting - syncing pending updates");
+        syncPendingUpdates();
+      }
+    };
+  }, []);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -978,11 +1104,9 @@ const Study = () => {
     return null;
   }
 
-
-
   if (isStudying && currentSet) {
     // Check if we have flashcards and a valid current card
-      if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
+    if (!currentSet.flashcards || currentSet.flashcards.length === 0) {
       return (
         <>
           <Navbar />
@@ -991,7 +1115,9 @@ const Study = () => {
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 {currentSet.title}
               </h1>
-              <p className="text-gray-600 mb-8">No flashcards found in this study set.</p>
+              <p className="text-gray-600 mb-8">
+                No flashcards found in this study set.
+              </p>
               <button
                 onClick={() => setIsStudying(false)}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
@@ -1003,7 +1129,7 @@ const Study = () => {
         </>
       );
     }
-    
+
     const currentCard = currentSet.flashcards[currentCardIndex];
 
     return (
@@ -1018,7 +1144,8 @@ const Study = () => {
                   {currentSet.title}
                 </h1>
                 <p className="text-gray-600">
-                  Card {currentCardIndex + 1} of {currentSet?.flashcards?.length || 0}
+                  Card {currentCardIndex + 1} of{" "}
+                  {currentSet?.flashcards?.length || 0}
                 </p>
               </div>
               <div className="flex items-center space-x-4">
@@ -1062,7 +1189,7 @@ const Study = () => {
                 <div className="p-8">
                   <div className="text-center mb-6">
                     <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      {currentCard?.category || 'General'}
+                      {currentCard?.category || "General"}
                     </span>
                   </div>
 
@@ -1127,7 +1254,8 @@ const Study = () => {
                             ? isAnswerCorrect
                               ? "border-green-500 bg-green-50 text-green-700"
                               : "border-red-500 bg-red-50 text-red-700"
-                            : selectedAnswer !== null && option === currentCard?.back
+                            : selectedAnswer !== null &&
+                              option === currentCard?.back
                             ? "border-green-500 bg-green-50 text-green-700"
                             : "border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100"
                         }`}
@@ -1148,7 +1276,9 @@ const Study = () => {
                         onClick={nextQuizQuestion}
                         className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
                       >
-                        {currentCardIndex + 1 < currentSet.flashcards.length ? "Next Question" : "Finish Quiz"}
+                        {currentCardIndex + 1 < currentSet.flashcards.length
+                          ? "Next Question"
+                          : "Finish Quiz"}
                       </button>
                     </div>
                   )}
@@ -1160,49 +1290,52 @@ const Study = () => {
           {/* Navigation and Difficulty Buttons - Only for Flashcard Mode */}
           {studyMode === "flashcards" && (
             <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between bg-white rounded-xl p-6">
-              <button
-                onClick={previousCard}
-                disabled={currentCardIndex === 0}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span>Previous</span>
-              </button>
+              <div className="flex items-center justify-between bg-white rounded-xl p-6">
+                <button
+                  onClick={previousCard}
+                  disabled={currentCardIndex === 0}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ArrowLeftIcon className="h-5 w-5" />
+                  <span>Previous</span>
+                </button>
 
-              <div className="flex space-x-3">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => markCard("hard")}
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    <XCircleIcon className="h-5 w-5" />
+                    <span>Hard</span>
+                  </button>
+                  <button
+                    onClick={() => markCard("medium")}
+                    className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
+                  >
+                    <span>Medium</span>
+                  </button>
+                  <button
+                    onClick={() => markCard("easy")}
+                    className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                  >
+                    <CheckCircleIcon className="h-5 w-5" />
+                    <span>Easy</span>
+                  </button>
+                </div>
+
                 <button
-                  onClick={() => markCard("hard")}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  onClick={nextCard}
+                  disabled={
+                    currentCardIndex ===
+                    (currentSet?.flashcards?.length || 0) - 1
+                  }
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <XCircleIcon className="h-5 w-5" />
-                  <span>Hard</span>
-                </button>
-                <button
-                  onClick={() => markCard("medium")}
-                  className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
-                >
-                  <span>Medium</span>
-                </button>
-                <button
-                  onClick={() => markCard("easy")}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                >
-                  <CheckCircleIcon className="h-5 w-5" />
-                  <span>Easy</span>
+                  <span>Next</span>
+                  <ArrowRightIcon className="h-5 w-5" />
                 </button>
               </div>
-
-              <button
-                onClick={nextCard}
-                disabled={currentCardIndex === (currentSet?.flashcards?.length || 0) - 1}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <span>Next</span>
-                <ArrowRightIcon className="h-5 w-5" />
-              </button>
             </div>
-          </div>
           )}
         </div>
         <Footer />
@@ -1272,7 +1405,7 @@ const Study = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-6">
               Study Stats & Progress
             </h3>
-            
+
             {/* Study Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {/* Study Streak */}
@@ -1331,56 +1464,78 @@ const Study = () => {
                 </div>
               </div>
             </div>
-            
+
             <h4 className="text-md font-semibold text-gray-900 mb-4">
               Study Time Progress
             </h4>
             {(() => {
               // Process study history to get daily study time
               const dailyStudyTime = new Map<string, number>();
-              
-              userStats.studyHistory.forEach(session => {
-                const startTime = session.startTime instanceof Date 
-                  ? session.startTime 
-                  : new Date(session.startTime);
-                const dateKey = startTime.toISOString().split('T')[0]; // YYYY-MM-DD format
-                
-                dailyStudyTime.set(dateKey, (dailyStudyTime.get(dateKey) || 0) + session.duration);
+
+              userStats.studyHistory.forEach((session) => {
+                const startTime =
+                  session.startTime instanceof Date
+                    ? session.startTime
+                    : new Date(session.startTime);
+                const dateKey = startTime.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+                dailyStudyTime.set(
+                  dateKey,
+                  (dailyStudyTime.get(dateKey) || 0) + session.duration
+                );
               });
-              
+
               // Convert to sorted array of [date, minutes] pairs
-              const sortedData: [string, number][] = Array.from(dailyStudyTime.entries())
+              const sortedData: [string, number][] = Array.from(
+                dailyStudyTime.entries()
+              )
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([date, seconds]) => [date, Math.round(seconds / 60)]); // Convert to minutes
-              
+
               if (sortedData.length === 0) {
                 return (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-4xl mb-2">📊</div>
-                    <p>No study data yet. Start studying to see your progress!</p>
+                    <p>
+                      No study data yet. Start studying to see your progress!
+                    </p>
                   </div>
                 );
               }
-              
-              const maxMinutes = Math.max(...sortedData.map(([, minutes]) => minutes));
+
+              const maxMinutes = Math.max(
+                ...sortedData.map(([, minutes]) => minutes)
+              );
               const chartHeight = 200;
               const chartWidth = Math.max(400, sortedData.length * 60);
-              
+
               return (
                 <div className="overflow-x-auto">
-                  <div className="relative" style={{ width: chartWidth, height: chartHeight }}>
+                  <div
+                    className="relative"
+                    style={{ width: chartWidth, height: chartHeight }}
+                  >
                     {/* Y-axis labels */}
                     <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 pr-2">
-                      {[maxMinutes, Math.round(maxMinutes * 0.75), Math.round(maxMinutes * 0.5), Math.round(maxMinutes * 0.25), 0].map((value, index) => (
+                      {[
+                        maxMinutes,
+                        Math.round(maxMinutes * 0.75),
+                        Math.round(maxMinutes * 0.5),
+                        Math.round(maxMinutes * 0.25),
+                        0,
+                      ].map((value, index) => (
                         <div key={index} className="flex items-center">
                           <span>{value}m</span>
                           <div className="ml-2 w-2 h-px bg-gray-200"></div>
                         </div>
                       ))}
                     </div>
-                    
+
                     {/* Grid lines */}
-                    <svg className="absolute inset-0 w-full h-full" style={{ left: '40px' }}>
+                    <svg
+                      className="absolute inset-0 w-full h-full"
+                      style={{ left: "40px" }}
+                    >
                       {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
                         <line
                           key={index}
@@ -1393,24 +1548,35 @@ const Study = () => {
                         />
                       ))}
                     </svg>
-                    
+
                     {/* Line graph */}
-                    <svg className="absolute inset-0 w-full h-full" style={{ left: '40px' }}>
+                    <svg
+                      className="absolute inset-0 w-full h-full"
+                      style={{ left: "40px" }}
+                    >
                       <polyline
                         fill="none"
                         stroke="#10b981"
                         strokeWidth="3"
-                        points={sortedData.map(([date, minutes], index) => {
-                          const x = (index / (sortedData.length - 1)) * (chartWidth - 40);
-                          const y = chartHeight - (minutes / maxMinutes) * chartHeight;
-                          return `${x},${y}`;
-                        }).join(' ')}
+                        points={sortedData
+                          .map(([date, minutes], index) => {
+                            const x =
+                              (index / (sortedData.length - 1)) *
+                              (chartWidth - 40);
+                            const y =
+                              chartHeight -
+                              (minutes / maxMinutes) * chartHeight;
+                            return `${x},${y}`;
+                          })
+                          .join(" ")}
                       />
-                      
+
                       {/* Data points */}
                       {sortedData.map(([date, minutes], index) => {
-                        const x = (index / (sortedData.length - 1)) * (chartWidth - 40);
-                        const y = chartHeight - (minutes / maxMinutes) * chartHeight;
+                        const x =
+                          (index / (sortedData.length - 1)) * (chartWidth - 40);
+                        const y =
+                          chartHeight - (minutes / maxMinutes) * chartHeight;
                         return (
                           <circle
                             key={index}
@@ -1423,23 +1589,32 @@ const Study = () => {
                         );
                       })}
                     </svg>
-                    
+
                     {/* X-axis labels */}
-                    <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500" style={{ left: '40px' }}>
+                    <div
+                      className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500"
+                      style={{ left: "40px" }}
+                    >
                       {sortedData.map(([date], index) => {
-                        const displayDate = new Date(date).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        });
+                        const displayDate = new Date(date).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                          }
+                        );
                         return (
-                          <div key={index} className="text-center transform -rotate-45 origin-bottom-left">
+                          <div
+                            key={index}
+                            className="text-center transform -rotate-45 origin-bottom-left"
+                          >
                             {displayDate}
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                  
+
                   {/* Summary stats */}
                   <div className="mt-4 grid grid-cols-3 gap-4 text-center">
                     <div className="bg-gray-50 rounded-lg p-3">
@@ -1450,9 +1625,16 @@ const Study = () => {
                     </div>
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="text-2xl font-bold text-blue-600">
-                        {Math.round(sortedData.reduce((sum, [, minutes]) => sum + minutes, 0) / sortedData.length)}
+                        {Math.round(
+                          sortedData.reduce(
+                            (sum, [, minutes]) => sum + minutes,
+                            0
+                          ) / sortedData.length
+                        )}
                       </div>
-                      <div className="text-sm text-gray-600">Avg Minutes/Day</div>
+                      <div className="text-sm text-gray-600">
+                        Avg Minutes/Day
+                      </div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="text-2xl font-bold text-purple-600">
@@ -1467,8 +1649,6 @@ const Study = () => {
           </div>
         </section>
 
-
-
         {/* Kanban Board */}
         <section className="max-w-7xl mx-auto mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -1478,109 +1658,112 @@ const Study = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 divide-x divide-gray-300">
               {/* Not Started */}
               <div className="px-4 first:pl-0 last:pr-0">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-700">
-                  Not Started
-                </h3>
-                <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm font-medium">
-                  {
-                    studySets.filter(
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    Not Started
+                  </h3>
+                  <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm font-medium">
+                    {
+                      studySets.filter(
+                        (set) => !set.progress || set.progress === "not_started"
+                      ).length
+                    }
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {studySets
+                    .filter(
                       (set) => !set.progress || set.progress === "not_started"
-                    ).length
-                  }
-                </span>
-              </div>
-              <div className="space-y-3">
-                {studySets
-                  .filter(
+                    )
+                    .slice(0, 3)
+                    .map((set) => (
+                      <div
+                        key={set.id}
+                        className="bg-white rounded-lg p-3 border border-gray-200 cursor-pointer transition-colors duration-200"
+                        onClick={() => startStudySession(set)}
+                      >
+                        <h4 className="font-medium text-gray-900 text-sm mb-1">
+                          {set.title}
+                        </h4>
+                        <p className="text-gray-500 text-xs">
+                          {set.cardCount} cards
+                        </p>
+                      </div>
+                    ))}
+                  {studySets.filter(
                     (set) => !set.progress || set.progress === "not_started"
-                  )
-                  .slice(0, 3)
-                  .map((set) => (
-                    <div
-                      key={set.id}
-                      className="bg-white rounded-lg p-3 border border-gray-200 cursor-pointer transition-colors duration-200"
-                      onClick={() => startStudySession(set)}
-                    >
-                      <h4 className="font-medium text-gray-900 text-sm mb-1">
-                        {set.title}
-                      </h4>
-                      <p className="text-gray-500 text-xs">
-                        {set.cardCount} cards
-                      </p>
+                  ).length > 3 && (
+                    <div className="text-center text-gray-500 text-sm">
+                      +
+                      {studySets.filter(
+                        (set) => !set.progress || set.progress === "not_started"
+                      ).length - 3}{" "}
+                      more
                     </div>
-                  ))}
-                {studySets.filter(
-                  (set) => !set.progress || set.progress === "not_started"
-                ).length > 3 && (
-                  <div className="text-center text-gray-500 text-sm">
-                    +
-                    {studySets.filter(
-                      (set) => !set.progress || set.progress === "not_started"
-                    ).length - 3}{" "}
-                    more
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
               </div>
 
               {/* Started Studying */}
               <div className="px-4 first:pl-0 last:pr-0">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-blue-700">
-                  Started Studying
-                </h3>
-                <span className="bg-blue-200 text-blue-700 px-2 py-1 rounded-full text-sm font-medium">
-                  {studySets.filter((set) => set.progress === "started").length}
-                </span>
-              </div>
-              <div className="space-y-3">
-                {studySets
-                  .filter((set) => set.progress === "started")
-                  .slice(0, 3)
-                  .map((set) => (
-                    <div
-                      key={set.id}
-                      className="bg-white rounded-lg p-3 border border-blue-200 cursor-pointer transition-colors duration-200"
-                      onClick={() => startStudySession(set)}
-                    >
-                      <h4 className="font-medium text-gray-900 text-sm mb-1">
-                        {set.title}
-                      </h4>
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-500 text-xs">
-                          {set.cardCount} cards
-                        </p>
-                        <div className="w-16 bg-gray-200 rounded-full h-1">
-                          <div
-                            className="bg-blue-500 h-1 rounded-full"
-                            style={{
-                              width: `${
-                                set.flashcards.length > 0
-                                  ? Math.round(
-                                      set.flashcards.reduce(
-                                        (acc, card) => acc + card.mastery,
-                                        0
-                                      ) / set.flashcards.length
-                                    )
-                                  : 0
-                              }%`,
-                            }}
-                          ></div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-blue-700">
+                    Started Studying
+                  </h3>
+                  <span className="bg-blue-200 text-blue-700 px-2 py-1 rounded-full text-sm font-medium">
+                    {
+                      studySets.filter((set) => set.progress === "started")
+                        .length
+                    }
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {studySets
+                    .filter((set) => set.progress === "started")
+                    .slice(0, 3)
+                    .map((set) => (
+                      <div
+                        key={set.id}
+                        className="bg-white rounded-lg p-3 border border-blue-200 cursor-pointer transition-colors duration-200"
+                        onClick={() => startStudySession(set)}
+                      >
+                        <h4 className="font-medium text-gray-900 text-sm mb-1">
+                          {set.title}
+                        </h4>
+                        <div className="flex items-center justify-between">
+                          <p className="text-gray-500 text-xs">
+                            {set.cardCount} cards
+                          </p>
+                          <div className="w-16 bg-gray-200 rounded-full h-1">
+                            <div
+                              className="bg-blue-500 h-1 rounded-full"
+                              style={{
+                                width: `${
+                                  set.flashcards.length > 0
+                                    ? Math.round(
+                                        set.flashcards.reduce(
+                                          (acc, card) => acc + card.mastery,
+                                          0
+                                        ) / set.flashcards.length
+                                      )
+                                    : 0
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  {studySets.filter((set) => set.progress === "started")
+                    .length > 3 && (
+                    <div className="text-center text-blue-500 text-sm">
+                      +
+                      {studySets.filter((set) => set.progress === "started")
+                        .length - 3}{" "}
+                      more
                     </div>
-                  ))}
-                {studySets.filter((set) => set.progress === "started").length >
-                  3 && (
-                  <div className="text-center text-blue-500 text-sm">
-                    +
-                    {studySets.filter((set) => set.progress === "started")
-                      .length - 3}{" "}
-                    more
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
               </div>
 
               {/* Completed */}
@@ -1713,7 +1896,7 @@ const Study = () => {
             {studySets.map((set) => (
               <div
                 key={set.id}
-                                    className="bg-white rounded-2xl transition-colors duration-300 overflow-hidden"
+                className="bg-white rounded-2xl transition-colors duration-300 overflow-hidden"
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -2227,9 +2410,10 @@ const Study = () => {
                 Set Made Public!
               </h2>
               <p className="text-gray-600 mb-6">
-                Your study set is now public. Share these credentials with others to let them import your set.
+                Your study set is now public. Share these credentials with
+                others to let them import your set.
               </p>
-              
+
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <div className="mb-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -2243,14 +2427,16 @@ const Study = () => {
                       className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono text-lg text-center"
                     />
                     <button
-                      onClick={() => navigator.clipboard.writeText(publicSetCredentials.code)}
+                      onClick={() =>
+                        navigator.clipboard.writeText(publicSetCredentials.code)
+                      }
                       className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       Copy
                     </button>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Password
@@ -2263,7 +2449,11 @@ const Study = () => {
                       className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono text-lg text-center"
                     />
                     <button
-                      onClick={() => navigator.clipboard.writeText(publicSetCredentials.password)}
+                      onClick={() =>
+                        navigator.clipboard.writeText(
+                          publicSetCredentials.password
+                        )
+                      }
                       className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       Copy
@@ -2271,7 +2461,7 @@ const Study = () => {
                   </div>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => {
                   setShowMakePublicModal(false);
@@ -2329,7 +2519,10 @@ const Study = () => {
                     type="text"
                     value={importForm.code}
                     onChange={(e) =>
-                      setImportForm({ ...importForm, code: e.target.value.toUpperCase() })
+                      setImportForm({
+                        ...importForm,
+                        code: e.target.value.toUpperCase(),
+                      })
                     }
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 font-mono text-center"
                     placeholder="Enter 6-character code"
@@ -2346,7 +2539,10 @@ const Study = () => {
                     type="text"
                     value={importForm.password}
                     onChange={(e) =>
-                      setImportForm({ ...importForm, password: e.target.value.toUpperCase() })
+                      setImportForm({
+                        ...importForm,
+                        password: e.target.value.toUpperCase(),
+                      })
                     }
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 font-mono text-center"
                     placeholder="Enter 4-character password"
