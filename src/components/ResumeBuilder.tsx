@@ -112,6 +112,8 @@ const ResumeBuilder = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const autoSaveTimerRef = useRef<number | null>(null);
+  const [hasPendingSync, setHasPendingSync] = useState(false);
+  const lastSyncedAtRef = useRef<number>(0);
 
   // Memoize resume templates
   const resumeTemplates = useMemo(
@@ -434,6 +436,7 @@ const ResumeBuilder = () => {
     autoSaveTimerRef.current = window.setTimeout(() => {
       try {
         localStorage.setItem("resume", JSON.stringify(resumeData));
+        setHasPendingSync(true);
       } catch {}
     }, 600);
 
@@ -443,6 +446,73 @@ const ResumeBuilder = () => {
       }
     };
   }, [resumeData]);
+
+  // Internal save to Firestore without UI prompts; throttled to avoid excess writes
+  const syncLocalResumeToFirestore = useCallback(async () => {
+    try {
+      if (!isAuthenticated || !auth.currentUser) return;
+      if (!navigator.onLine) return;
+      if (!hasPendingSync) return;
+
+      const now = Date.now();
+      // Throttle: at most one write every 8s
+      if (now - lastSyncedAtRef.current < 8000) return;
+
+      const resumeStr = localStorage.getItem("resume");
+      if (!resumeStr) return;
+      const resume = JSON.parse(resumeStr);
+
+      const resumeDataToSave = {
+        ...resume,
+        lastUpdated: new Date().toISOString(),
+        userId: auth.currentUser.uid,
+        updatedBy: auth.currentUser.uid,
+      };
+
+      if (currentResumeId) {
+        const resumeDocRef = doc(db, "resumes", currentResumeId);
+        await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
+      } else {
+        const resumesCol = collection(db, "resumes");
+        const docRef = await addDoc(resumesCol, resumeDataToSave);
+        const resumeId = docRef.id;
+        setCurrentResumeId(resumeId);
+        // Best-effort link to user document; ignore permission errors
+        try {
+          const userRef = doc(db, "users", auth.currentUser.uid);
+          await updateDoc(userRef, { resumeIds: arrayUnion(resumeId) });
+        } catch {}
+      }
+
+      lastSyncedAtRef.current = now;
+      setHasPendingSync(false);
+    } catch (e) {
+      // Keep pending flag so we retry on next safe event
+    }
+  }, [isAuthenticated, currentResumeId, hasPendingSync]);
+
+  // Flush pending changes on safe lifecycle/network events
+  useEffect(() => {
+    const onBlur = () => syncLocalResumeToFirestore();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        syncLocalResumeToFirestore();
+      }
+    };
+    const onOnline = () => syncLocalResumeToFirestore();
+
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
+
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
+      // Best-effort flush on unmount
+      void syncLocalResumeToFirestore();
+    };
+  }, [syncLocalResumeToFirestore]);
 
   // Improve the load resume data function with auth handling
   const loadResumeData = useCallback(
