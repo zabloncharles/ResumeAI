@@ -110,6 +110,7 @@ const ResumeBuilder = () => {
 
   // Add auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   // Memoize resume templates
   const resumeTemplates = useMemo(
@@ -318,52 +319,63 @@ const ResumeBuilder = () => {
     setUiState((prev) => ({ ...prev, showPasteModal: true }));
   };
 
-  // On mount: check localStorage for user and resume
+  // On mount: seed user from localStorage for UI, then always subscribe to auth state
   useEffect(() => {
-    // Auth: check localStorage first
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-    } else {
-      // Only call Firebase if not in localStorage
-      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-          setUser(firebaseUser);
-          setIsAuthenticated(true);
-          localStorage.setItem("user", JSON.stringify(firebaseUser));
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-          localStorage.removeItem("user");
-        }
-      });
-      return () => unsubscribe();
+      try {
+        setUser(JSON.parse(storedUser));
+        setIsAuthenticated(true);
+      } catch {}
     }
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setIsAuthenticated(true);
+        // Store a minimal snapshot; don't persist the full Firebase user object
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+          })
+        );
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem("user");
+      }
+      setAuthReady(true);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // On mount: check localStorage for resume
+  // On mount/update: prefer localStorage resume; only fetch after authReady and real Firebase user
   useEffect(() => {
     const storedResume = localStorage.getItem("resume");
     if (storedResume) {
-      console.log("[ResumeBuilder] Loaded resume from localStorage");
       setResumeData(JSON.parse(storedResume));
       setLoading(false);
-    } else if (user && isAuthenticated) {
-      console.log(
-        "[ResumeBuilder] No resume in localStorage, fetching from Firestore"
-      );
-      // Only fetch from Firebase if not in localStorage
+      return;
+    }
+
+    if (authReady && auth.currentUser) {
       setLoading(true);
-      loadResumeData(user.uid).then((data) => {
+      loadResumeData(auth.currentUser.uid).then((data) => {
         if (data) {
           setResumeData(data);
           localStorage.setItem("resume", JSON.stringify(data));
         }
         setLoading(false);
       });
+    } else if (authReady && !auth.currentUser) {
+      // Auth resolved and no user; stop loading
+      setLoading(false);
     }
-  }, [user, isAuthenticated]);
+  }, [authReady, isAuthenticated]);
 
   // On save: push localStorage resume to Firebase
   const handleManualSave = useCallback(async () => {
@@ -475,14 +487,17 @@ const ResumeBuilder = () => {
 
   useEffect(() => {
     const fetchAndLoadResume = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      // Skip if a cached resume exists
+      const cached = localStorage.getItem("resume");
+      if (cached) return;
+
+      // Wait until auth is ready and we have a real Firebase user
+      if (!authReady || !auth.currentUser) return;
+
       setLoading(true);
       try {
         // Fetch user's resumeIds
-        const userRef = doc(db, "users", user.uid);
+        const userRef = doc(db, "users", auth.currentUser.uid);
         const userSnap = await getDoc(userRef);
         const userData = userSnap.data();
         const resumeIds = userData?.resumeIds || [];
@@ -494,6 +509,7 @@ const ResumeBuilder = () => {
           if (resumeSnap.exists()) {
             setResumeData(resumeSnap.data() as ResumeData);
             setCurrentResumeId(resumeId);
+            localStorage.setItem("resume", JSON.stringify(resumeSnap.data()));
           }
         }
       } catch (error) {
@@ -503,7 +519,7 @@ const ResumeBuilder = () => {
       }
     };
     fetchAndLoadResume();
-  }, [user]);
+  }, [authReady]);
 
   const renderEditSection = useCallback(() => {
     switch (uiState.activeSection) {
