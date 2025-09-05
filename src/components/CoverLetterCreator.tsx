@@ -62,7 +62,9 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
         const bullets = Array.isArray(exp.description)
           ? exp.description.filter(Boolean).join(" ")
           : "";
-        return `- ${exp.title || "Role"} at ${exp.company || "Company"}: ${bullets}`;
+        return `- ${exp.title || "Role"} at ${
+          exp.company || "Company"
+        }: ${bullets}`;
       })
       .join("\n");
 
@@ -94,7 +96,10 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
     };
     let out = content;
     for (const [needle, val] of Object.entries(replacements)) {
-      const regex = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      const regex = new RegExp(
+        needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        "g"
+      );
       out = out.replace(regex, val);
     }
     // Remove any remaining bracketed placeholders lines completely
@@ -162,12 +167,13 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
       {/* Minimal Generator */}
       <section className="w-full bg-white pt-28 pb-10 px-4">
         <div className="max-w-3xl w-full mx-auto">
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
               Cover Letter Generator
             </h1>
             <p className="text-gray-600 mt-2">
-              Generate a clean, tailored cover letter from your resume or a job description.
+              Generate a clean, tailored cover letter from your resume or a job
+              description.
             </p>
           </div>
 
@@ -181,16 +187,24 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               <button
                 className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                   mode === "resume"
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-300 bg-white text-gray-900 hover:border-gray-400"
+                    ? "border-[#16aeac] bg-[#16aeac] text-white"
+                    : "border-gray-300 bg-white text-gray-900 hover:border-[#16aeac]"
                 }`}
                 onClick={() => setMode("resume")}
               >
                 <div className="flex items-center gap-2">
-                  <DocumentTextIcon className={`h-5 w-5 ${mode === "resume" ? "text-white" : "text-gray-700"}`} />
+                  <DocumentTextIcon
+                    className={`h-5 w-5 ${
+                      mode === "resume" ? "text-white" : "text-[#16aeac]"
+                    }`}
+                  />
                   <span className="font-medium">From Resume</span>
                 </div>
-                <div className={`text-xs mt-1 ${mode === "resume" ? "text-white/80" : "text-gray-500"}`}>
+                <div
+                  className={`text-xs mt-1 ${
+                    mode === "resume" ? "text-white/80" : "text-gray-500"
+                  }`}
+                >
                   Uses your saved resume details.
                 </div>
               </button>
@@ -198,16 +212,24 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               <button
                 className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                   mode === "job"
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-300 bg-white text-gray-900 hover:border-gray-400"
+                    ? "border-[#16aeac] bg-[#16aeac] text-white"
+                    : "border-gray-300 bg-white text-gray-900 hover:border-[#16aeac]"
                 }`}
                 onClick={() => setMode("job")}
               >
                 <div className="flex items-center gap-2">
-                  <BriefcaseIcon className={`h-5 w-5 ${mode === "job" ? "text-white" : "text-gray-700"}`} />
+                  <BriefcaseIcon
+                    className={`h-5 w-5 ${
+                      mode === "job" ? "text-white" : "text-[#16aeac]"
+                    }`}
+                  />
                   <span className="font-medium">For Specific Job</span>
                 </div>
-                <div className={`text-xs mt-1 ${mode === "job" ? "text-white/80" : "text-gray-500"}`}>
+                <div
+                  className={`text-xs mt-1 ${
+                    mode === "job" ? "text-white/80" : "text-gray-500"
+                  }`}
+                >
                   Paste a job description to tailor the letter.
                 </div>
               </button>
@@ -229,7 +251,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             )}
 
             <button
-              className="w-full px-5 py-3 rounded-lg bg-gray-900 text-white font-semibold hover:bg-black transition-colors flex items-center justify-center"
+              className="w-full px-5 py-3 rounded-lg bg-[#16aeac] text-white font-semibold hover:bg-[#139b99] transition-colors flex items-center justify-center"
               onClick={generateCoverLetter}
               disabled={isLoading || (mode === "job" && !jobDescription.trim())}
             >
@@ -259,14 +281,13 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                 </>
               ) : (
                 <>
-                  <SparklesIcon className="h-5 w-5 mr-2 text-white" /> Generate Cover Letter
+                  <SparklesIcon className="h-5 w-5 mr-2 text-white" /> Generate
+                  Cover Letter
                 </>
               )}
             </button>
 
-            {error && (
-              <div className="text-red-600 mt-4 text-sm">{error}</div>
-            )}
+            {error && <div className="text-red-600 mt-4 text-sm">{error}</div>}
 
             {coverLetter && (
               <div className="mt-6">
@@ -282,7 +303,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                 />
                 <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-end">
                   <button
-                    className={`flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-900 hover:bg-gray-50 ${
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-[#16aeac] border-[#16aeac] hover:bg-[#16aeac]/10 ${
                       copied ? "opacity-70" : ""
                     }`}
                     onClick={handleCopy}
@@ -291,7 +312,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     {copied ? "Copied!" : "Copy"}
                   </button>
                   <button
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#16aeac] text-white hover:bg-[#139b99]"
                     onClick={handleDownload}
                   >
                     <ArrowDownTrayIcon className="h-5 w-5" /> Download .txt
@@ -346,11 +367,15 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
       <section className="w-full bg-white px-4 pb-16">
         <div className="max-w-3xl w-full mx-auto text-center">
           <div className="bg-white border border-gray-200 rounded-xl p-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Want a matching resume?</h2>
-            <p className="text-gray-600 mb-4">Use our AI Resume Builder for a cohesive application.</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Want a matching resume?
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Use our AI Resume Builder for a cohesive application.
+            </p>
             <a
               href="/resume"
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-gray-900 text-white font-semibold hover:bg-black"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#16aeac] text-white font-semibold hover:bg-[#139b99]"
             >
               Open Resume Builder
             </a>

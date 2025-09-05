@@ -116,7 +116,7 @@ const LandingPage = () => {
       <Navbar />
 
       {/* Hero Section + AI Cover Letter Section with shared video background */}
-      <div className="relative overflow-hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Blurred background video */}
         <video
           className="absolute inset-0 w-full h-full object-cover z-0 blur-md"
@@ -174,7 +174,7 @@ const LandingPage = () => {
           </div>
           {/* AI Cover Letter Feature Section */}
           <div
-            className="mt-12 max-w-2xl mx-auto bg-gradient-to-r from-green-50 to-yellow-50 border-2 border-gradient-to-r from-green-200 to-yellow-200 rounded-xl p-8 flex flex-col items-center text-center shadow-lg"
+            className="mt-12 max-w-2xl mx-auto bg-gradient-to-r from-green-50 to-yellow-50 border-2 border-gradient-to-r from-green-200 to-yellow-200 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
             data-aos="fade-up"
             data-aos-delay="300"
           >
