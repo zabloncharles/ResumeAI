@@ -215,12 +215,35 @@ const Dashboard = () => {
           profileChart[m].users += 1;
           // If you track monthly resume/coverLetter counts per user, add here. Otherwise leave 0.
         }
+        // Fetch resumes and aggregate by month
+        try {
+          const resumesSnap = await getDocs(collection(db, "resumes"));
+          const resumeCounts = new Array(12).fill(0) as number[];
+          resumesSnap.forEach((rd) => {
+            const data = rd.data() as any;
+            let date: Date | null = null;
+            const tryDate = (val: any) => {
+              if (!val) return null;
+              if (typeof val === "object" && typeof val.toDate === "function") return val.toDate();
+              const d = new Date(val as string);
+              return isNaN(d.getTime()) ? null : d;
+            };
+            date = tryDate(data.createdAt) || tryDate(data.lastUpdated) || null;
+            const m = date ? date.getMonth() : 0;
+            resumeCounts[m] = (resumeCounts[m] || 0) + 1;
+          });
+          for (let i = 0; i < 12; i++) {
+            profileChart[i].resume = resumeCounts[i] || 0;
+          }
+        } catch {}
+
         setApiTokenChartData(apiChart);
-        // Only update the users series on profile impression chart, keep others as 0 unless tracked
+        // Update users and resume series on profile impression chart
         setProfileImpressionData((prev: { month: string; coverLetter: number; resume: number; careerPath: number; users: number; }[]) =>
           prev.map((row: { month: string; coverLetter: number; resume: number; careerPath: number; users: number; }, idx: number) => ({
             ...row,
             users: profileChart[idx].users,
+            resume: profileChart[idx].resume,
           }))
         );
       } catch (e) {
