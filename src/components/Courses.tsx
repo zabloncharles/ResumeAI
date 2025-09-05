@@ -78,14 +78,64 @@ function buildStepMap(stepsArr: any[]) {
   return Object.fromEntries((stepsArr || []).map((s) => [s.id, s]));
 }
 
+// Heuristic: detect if profession is broad/generic
+function isGeneralProfession(term: string) {
+  const lower = term.trim().toLowerCase();
+  if (!lower) return false;
+  const generic = [
+    "doctor",
+    "physician",
+    "engineer",
+    "developer",
+    "designer",
+    "scientist",
+    "lawyer",
+    "nurse",
+    "teacher",
+    "analyst",
+    "marketing",
+    "business",
+  ];
+  return generic.some((g) => lower === g || lower.includes(g)) || lower.split(" ").length === 1;
+}
+
+// Suggest specializations for broad careers (demo list)
+function suggestSpecializations(term: string): string[] {
+  const t = term.toLowerCase();
+  if (t.includes("doctor") || t.includes("physician"))
+    return [
+      "Internal Medicine",
+      "Pediatrics",
+      "General Surgery",
+      "Orthopedics",
+      "Psychiatry",
+      "Dermatology",
+    ];
+  if (t.includes("engineer"))
+    return [
+      "Software Engineer",
+      "Electrical Engineer",
+      "Mechanical Engineer",
+      "Civil Engineer",
+      "Aerospace Engineer",
+      "Biomedical Engineer",
+    ];
+  if (t.includes("developer"))
+    return ["Frontend Developer", "Backend Developer", "Full‑Stack Developer", "Mobile Developer"];
+  if (t.includes("designer"))
+    return ["UX Designer", "UI Designer", "Product Designer", "Graphic Designer"];
+  if (t.includes("lawyer")) return ["Corporate Lawyer", "Criminal Lawyer", "IP Lawyer", "Tax Lawyer"];
+  if (t.includes("nurse")) return ["RN (Registered Nurse)", "NP (Nurse Practitioner)", "ICU Nurse", "OR Nurse"];
+  if (t.includes("teacher")) return ["Elementary", "High School", "Special Education", "ESL Teacher"];
+  return ["Specialization A", "Specialization B", "Specialization C"];
+}
+
 // Compute distance (importance) from root ("you"): lower distance = earlier prerequisite
 function computeDistances(stepsArr: any[]) {
   const map = buildStepMap(stepsArr);
   const distance: Record<string, number> = {};
-  // Initialize
   Object.keys(map).forEach((id) => (distance[id] = Number.POSITIVE_INFINITY));
   if (map["you"]) distance["you"] = 0;
-  // Relax edges from prerequisites -> step (BFS-like)
   let updated = true;
   let guard = 0;
   while (updated && guard < 1000) {
@@ -113,7 +163,6 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
     .filter(Boolean);
   return (
     <div className="flex flex-col items-center relative">
-      {/* Prerequisite note */}
       {step.prerequisiteIds &&
         step.prerequisiteIds.length > 0 &&
         step.id !== "you" && (
@@ -123,14 +172,12 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
               .join(", ")}
           </div>
         )}
-      {/* Node card */}
       <div className="bg-white rounded-xl shadow border px-6 py-3 mb-4 text-center min-w-[180px]">
         <div className="font-semibold text-lg mb-1">{step.title}</div>
         {step.description && (
           <div className="text-xs text-gray-500">{step.description}</div>
         )}
       </div>
-      {/* Draw lines to children */}
       {children.length > 0 && (
         <div className="flex flex-row justify-center items-start w-full relative">
           {children.map((child: any) => (
@@ -168,12 +215,25 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
 const Courses = () => {
   const { user } = useAuth();
   const [profession, setProfession] = useState("");
+  const [specialization, setSpecialization] = useState<string>("");
+  const [institution, setInstitution] = useState<string>("");
+  const [suggestedSpecs, setSuggestedSpecs] = useState<string[]>([]);
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<"timeline" | "board">("timeline");
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [currentPathId, setCurrentPathId] = useState<string | null>(null);
+
+  // Suggest specializations when profession changes
+  useEffect(() => {
+    setSpecialization("");
+    if (isGeneralProfession(profession)) {
+      setSuggestedSpecs(suggestSpecializations(profession));
+    } else {
+      setSuggestedSpecs([]);
+    }
+  }, [profession]);
 
   // Load last saved path for user (client-side pick latest)
   useEffect(() => {
@@ -196,6 +256,8 @@ const Courses = () => {
         if (latestDoc) {
           setCurrentPathId(latestDoc.id);
           setProfession(latestDoc.profession || "");
+          setSpecialization(latestDoc.specialization || "");
+          setInstitution(latestDoc.institution || "");
           if (Array.isArray(latestDoc.steps)) {
             setSteps(latestDoc.steps);
           }
@@ -222,6 +284,14 @@ const Courses = () => {
     setError("");
     setSteps([]);
     try {
+      // Enforce specialization for general careers
+      if (isGeneralProfession(profession) && !specialization) {
+        setSuggestedSpecs(suggestSpecializations(profession));
+        setError("Please select a specialization to generate a detailed path.");
+        setLoading(false);
+        return;
+      }
+
       const currentUser = user || auth.currentUser;
       if (!currentUser) {
         setShowSignInModal(true);
@@ -237,7 +307,7 @@ const Courses = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ profession }),
+        body: JSON.stringify({ profession, specialization, institution }),
       });
 
       if (!response.ok) {
@@ -266,12 +336,14 @@ const Courses = () => {
         }));
       setSteps(stepsWithStatus);
 
-      // Save as last path (overwrite existing if present)
+      // Save/overwrite last path
       try {
         if (currentPathId) {
           await updateDoc(doc(db, "paths", currentPathId), {
             userId: currentUser.uid,
             profession,
+            specialization,
+            institution,
             steps: stepsWithStatus,
             updatedAt: serverTimestamp(),
           });
@@ -279,15 +351,15 @@ const Courses = () => {
           const ref = await addDoc(collection(db, "paths"), {
             userId: currentUser.uid,
             profession,
+            specialization,
+            institution,
             steps: stepsWithStatus,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
           setCurrentPathId(ref.id);
         }
-      } catch (e) {
-        // non-blocking
-      }
+      } catch (e) {}
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     }
@@ -307,15 +379,15 @@ const Courses = () => {
         const ref = await addDoc(collection(db, "paths"), {
           userId: currentUser.uid,
           profession,
+          specialization,
+          institution,
           steps: nextSteps,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
         setCurrentPathId(ref.id);
       }
-    } catch (e) {
-      // non-blocking
-    }
+    } catch (e) {}
   };
 
   const advanceStep = (id: string) => {
@@ -333,7 +405,6 @@ const Courses = () => {
             }
           : s
       );
-      // Persist updated board
       persistBoard(next);
       return next;
     });
@@ -415,19 +486,56 @@ const Courses = () => {
             </p>
 
             <form onSubmit={handleSubmit} className="w-full max-w-md">
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col gap-3">
                 <input
                   type="text"
                   value={profession}
                   onChange={(e) => setProfession(e.target.value)}
-                  placeholder="Enter your profession (e.g., Software Engineer)"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                  placeholder="Career (e.g., Doctor, Software Engineer)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
                   required
                 />
+
+                {suggestedSpecs.length > 0 && !specialization && (
+                  <div className="text-left">
+                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                      Choose a specialization
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {suggestedSpecs.map((s) => (
+                        <button
+                          type="button"
+                          key={s}
+                          onClick={() => setSpecialization(s)}
+                          className="px-3 py-1 rounded-full border border-gray-300 text-sm hover:bg-gray-50"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="Specialization (optional unless career is broad)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                />
+
+                <input
+                  type="text"
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="Institution (optional, e.g., Harvard University)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                />
+
                 <button
                   type="submit"
                   disabled={loading || !profession.trim()}
-                  className="px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#16aeac]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                  className="mt-1 px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#16aeac]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
                 >
                   {loading ? (
                     <div className="flex items-center">
@@ -460,14 +568,14 @@ const Courses = () => {
                     </>
                   )}
                 </button>
+
+                {error && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
               </div>
             </form>
-
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg max-w-md">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
           </div>
         </div>
 
