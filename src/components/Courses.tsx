@@ -14,6 +14,7 @@ import {
 import Footer from "./Footer";
 import { useAuth } from "../contexts/AuthContext";
 import SignInModal from "./SignInModal";
+import React from "react";
 
 // MOCKED STEPS DATA FOR DEMO (replace with real API data structure as needed)
 const mockSteps = [
@@ -73,6 +74,32 @@ function buildStepMap(stepsArr: any[]) {
   return Object.fromEntries((stepsArr || []).map((s) => [s.id, s]));
 }
 
+// Compute distance (importance) from root ("you"): lower distance = earlier prerequisite
+function computeDistances(stepsArr: any[]) {
+  const map = buildStepMap(stepsArr);
+  const distance: Record<string, number> = {};
+  // Initialize
+  Object.keys(map).forEach((id) => (distance[id] = Number.POSITIVE_INFINITY));
+  if (map["you"]) distance["you"] = 0;
+  // Relax edges from prerequisites -> step (BFS-like)
+  let updated = true;
+  let guard = 0;
+  while (updated && guard < 1000) {
+    updated = false;
+    guard += 1;
+    for (const step of stepsArr) {
+      for (const pid of step.prerequisiteIds || []) {
+        const cand = (distance[pid] ?? Infinity) + 1;
+        if (cand < (distance[step.id] ?? Infinity)) {
+          distance[step.id] = cand;
+          updated = true;
+        }
+      }
+    }
+  }
+  return distance;
+}
+
 // Helper: recursively render the flowchart for any steps array
 function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
   const step = stepMap[id];
@@ -87,8 +114,7 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
         step.prerequisiteIds.length > 0 &&
         step.id !== "you" && (
           <div className="text-xs text-gray-400 mb-1">
-            Prerequisite:{" "}
-            {step.prerequisiteIds
+            Prerequisite: {step.prerequisiteIds
               .map((pid: string) => stepMap[pid]?.title)
               .join(", ")}
           </div>
@@ -103,7 +129,6 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
       {/* Draw lines to children */}
       {children.length > 0 && (
         <div className="flex flex-row justify-center items-start w-full relative">
-          {/* SVG lines for each child, supporting multiple prerequisites */}
           {children.map((child: any) => (
             <svg
               key={child.id}
@@ -125,7 +150,6 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
               )}
             </svg>
           ))}
-          {/* Children nodes */}
           {children.map((child: any) => (
             <div key={child.id} className="mx-4 mt-8">
               <FlowNodeGeneric id={child.id} stepMap={stepMap} />
@@ -145,6 +169,16 @@ const Courses = () => {
   const [error, setError] = useState("");
   const [view, setView] = useState<"timeline" | "board">("timeline");
   const [showSignInModal, setShowSignInModal] = useState(false);
+
+  // Initialize board with mock statuses if entering board view with no steps
+  React.useEffect(() => {
+    if (view === "board" && steps.length === 0) {
+      const initialized = mockSteps
+        .filter((s) => s.id !== "you")
+        .map((s) => ({ ...s, status: "planned" }));
+      setSteps(initialized);
+    }
+  }, [view]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +212,6 @@ const Courses = () => {
       const data = await response.json();
       const totalTokens = data.total_tokens || 0;
 
-      // Increment call count and totalTokens in Firestore
       try {
         const userRef = doc(db, "users", currentUser.uid);
         await setDoc(
@@ -186,32 +219,96 @@ const Courses = () => {
           { callCount: increment(1), totalTokens: increment(totalTokens) },
           { merge: true }
         );
-      } catch (e) {
-        // Non-blocking
-      }
+      } catch (e) {}
 
-      // For demo: randomly assign status to steps if not present
       const statuses = ["planned", "inprogress", "released"];
-      const stepsWithStatus = (data.steps || []).map(
-        (step: any, idx: number) => ({
+      const stepsWithStatus = (data.steps || [])
+        .filter((s: any) => s.id !== "you")
+        .map((step: any, idx: number) => ({
           ...step,
           status: step.status || statuses[idx % statuses.length],
-        })
-      );
+        }));
       setSteps(stepsWithStatus);
-
-      // Add to paths collection if roadmap fetch was successful
-      if (stepsWithStatus.length > 0) {
-        await addDoc(collection(db, "paths"), {
-          createdAt: serverTimestamp(),
-          userId: currentUser.uid,
-          profession,
-        });
-      }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     }
     setLoading(false);
+  };
+
+  const advanceStep = (id: string) => {
+    setSteps((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              status:
+                s.status === "planned"
+                  ? "inprogress"
+                  : s.status === "inprogress"
+                  ? "released"
+                  : "released",
+            }
+          : s
+      )
+    );
+  };
+
+  const renderBoard = () => {
+    const stepsArr = steps;
+    const dist = computeDistances([{ id: "you", prerequisiteIds: [], childrenIds: [] }, ...mockSteps]);
+    const byStatus = (status: string) =>
+      stepsArr
+        .filter((s) => (s.status || "planned") === status)
+        .sort((a, b) => (dist[a.id] || 999) - (dist[b.id] || 999));
+
+    const col = (
+      title: string,
+      items: any[],
+      accent: string
+    ) => (
+      <div className="px-2">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className={`text-sm font-semibold ${accent}`}>{title}</h3>
+          <span className="text-xs text-gray-500">{items.length}</span>
+        </div>
+        <div className="space-y-2">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => advanceStep(item.id)}
+              className="w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-gray-900">
+                  {item.title}
+                </span>
+                <span className="text-[10px] text-gray-500">Advance →</span>
+              </div>
+              {item.prerequisiteIds && item.prerequisiteIds.length > 0 && (
+                <div className="text-[11px] text-gray-500">
+                  Requires: {item.prerequisiteIds.join(", ")}
+                </div>
+              )}
+            </button>
+          ))}
+          {items.length === 0 && (
+            <div className="text-xs text-gray-400 py-2 text-center border border-dashed border-gray-200 rounded-lg">
+              Empty
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="w-full max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {col("Prerequisites", byStatus("planned"), "text-gray-700")}
+          {col("In Progress", byStatus("inprogress"), "text-blue-700")}
+          {col("Completed", byStatus("released"), "text-green-700")}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -290,7 +387,7 @@ const Courses = () => {
 
         {/* Toggle Menu */}
         <div className="flex justify-center mb-10 gap-4">
-          <div className="inline-flex rounded-full bg-white border border-gray-200 p-1 shadow-sm">
+          <div className="inline-flex rounded-full bg-white border border-gray-200 p-1">
             <button
               className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
                 view === "timeline"
@@ -317,18 +414,18 @@ const Courses = () => {
         {/* Roadmap Section */}
         {view === "timeline" && (
           <div className="w-full max-w-6xl mx-auto pb-16">
-            {/* FLOWCHART RENDERING */}
             <div className="flex flex-col items-center">
               {steps && steps.length > 0 ? (
-                <FlowNodeGeneric
-                  id={steps[0].id}
-                  stepMap={buildStepMap(steps)}
-                />
+                <FlowNodeGeneric id={steps[0].id} stepMap={buildStepMap(steps)} />
               ) : (
                 <FlowNodeGeneric id="you" stepMap={buildStepMap(mockSteps)} />
               )}
             </div>
           </div>
+        )}
+
+        {view === "board" && (
+          <div className="w-full max-w-6xl mx-auto pb-16">{renderBoard()}</div>
         )}
 
         {/* How it works Section */}
