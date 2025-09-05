@@ -96,7 +96,10 @@ function isGeneralProfession(term: string) {
     "marketing",
     "business",
   ];
-  return generic.some((g) => lower === g || lower.includes(g)) || lower.split(" ").length === 1;
+  return (
+    generic.some((g) => lower === g || lower.includes(g)) ||
+    lower.split(" ").length === 1
+  );
 }
 
 // Suggest specializations for broad careers (demo list)
@@ -104,11 +107,12 @@ function suggestSpecializations(term: string): string[] {
   const t = term.toLowerCase();
   if (t.includes("doctor") || t.includes("physician"))
     return [
-      "Psychiatrist",
-      "Cardiologist",
-      "Dermatologist",
-      "General Surgeon",
-      "Pediatrician",
+      "Internal Medicine",
+      "Pediatrics",
+      "General Surgery",
+      "Orthopedics",
+      "Psychiatry",
+      "Dermatology",
     ];
   if (t.includes("engineer"))
     return [
@@ -116,151 +120,43 @@ function suggestSpecializations(term: string): string[] {
       "Electrical Engineer",
       "Mechanical Engineer",
       "Civil Engineer",
+      "Aerospace Engineer",
       "Biomedical Engineer",
     ];
   if (t.includes("developer"))
-    return ["Frontend Developer", "Backend Developer", "Full‑Stack Developer", "Mobile Developer"];
+    return [
+      "Frontend Developer",
+      "Backend Developer",
+      "Full‑Stack Developer",
+      "Mobile Developer",
+    ];
   if (t.includes("designer"))
-    return ["UX Designer", "UI Designer", "Product Designer", "Graphic Designer"];
-  if (t.includes("lawyer") || t.includes("law")) return ["Criminal Lawyer", "Corporate Lawyer", "IP Lawyer", "Tax Lawyer"];
-  if (t.includes("nurse")) return ["RN (Registered Nurse)", "NP (Nurse Practitioner)", "ICU Nurse", "OR Nurse"];
-  if (t.includes("teacher")) return ["Elementary Teacher", "High School Teacher", "Special Education Teacher"];
-  return ["Data Analyst", "Product Manager", "Cybersecurity Analyst"];
-}
-
-// Heuristic: is college required for a specialization
-function isCollegeRequired(spec: string): boolean {
-  const s = (spec || "").toLowerCase();
-  const must = ["psychiatrist", "doctor", "surgeon", "lawyer", "attorney", "nurse", "engineer", "teacher", "pharmacist", "dentist", "architect"];
-  if (must.some((k) => s.includes(k))) return true;
-  // tech roles often benefit from degrees, but not strictly required
-  const optional = ["developer", "designer", "analyst", "marketer", "pm", "product manager"];
-  if (optional.some((k) => s.includes(k))) return false;
-  return false;
-}
-
-// Scorecard: find top schools by program keyword
-function getProgramKeywordsForSpec(spec: string): string[] {
-  const s = (spec || "").toLowerCase();
-  // Law-related mappings to CIP titles
-  if (s.includes("tax")) return ["Tax Law", "Law"];
-  if (s.includes("ip") || s.includes("intellectual property")) return ["Intellectual Property Law", "Law"];
-  if (s.includes("corporate") || s.includes("business")) return ["Business/Corporate Law", "Law"];
-  if (s.includes("criminal")) return ["Criminal Law", "Law"];
-  if (s.includes("environment")) return ["Environmental Law", "Law"];
-  if (s.includes("family")) return ["Family Law", "Law"];
-  // Medical
-  if (s.includes("psychiatrist")) return ["Psychiatry", "Medicine", "Medical"];
-  // Engineering / CS
-  if (s.includes("software")) return ["Computer Science", "Software Engineering"];
-  if (s.includes("electrical")) return ["Electrical Engineering", "Engineering"];
-  if (s.includes("mechanical")) return ["Mechanical Engineering", "Engineering"];
-  return [spec || "", "Law", "Engineering", "Computer Science"]; // generic fallbacks
-}
-
-async function fetchTopSchoolsByProgram(program: string): Promise<string[]> {
-  try {
-    const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
-    if (!apiKey || !program) return [];
-    // Use search by program keyword via fields filter
-    const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
-    const fields = "id,school.name,latest.programs.cip_4_digit.title";
-    const keywords = getProgramKeywordsForSpec(program).filter(Boolean);
-    let names: string[] = [];
-    for (const kw of keywords) {
-      const url = `${base}?fields=${encodeURIComponent(fields)}&latest.programs.cip_4_digit.title__icontains=${encodeURIComponent(
-        kw
-      )}&per_page=5&api_key=${encodeURIComponent(apiKey)}`;
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const results = json?.results || [];
-      const batch = results.map((r: any) => r?.school?.name).filter(Boolean);
-      names = Array.from(new Set([...names, ...batch]));
-      if (names.length >= 3) break;
-    }
-    return names.slice(0, 3);
-  } catch {
-    return [];
-  }
-}
-
-// Scorecard: typeahead institution suggestions
-async function fetchInstitutionSuggestions(qs: string): Promise<string[]> {
-  try {
-    const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
-    if (!apiKey || !qs) return [];
-    const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
-    const fields = "school.name";
-    const url = `${base}?fields=${encodeURIComponent(fields)}&school.name__icontains=${encodeURIComponent(
-      qs
-    )}&per_page=5&api_key=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const json = await res.json();
-    const results = json?.results || [];
-    return Array.from(new Set(results.map((r: any) => r?.school?.name).filter(Boolean)));
-  } catch {
-    return [];
-  }
-}
-
-// Degree course templates (simple) for path injection
-function getDegreeCourses(spec: string): string[] {
-  const s = (spec || "").toLowerCase();
-  if (s.includes("psychiatrist") || s.includes("doctor"))
-    return ["Biology I", "General Chemistry", "Organic Chemistry", "Physics", "Psychology", "Biochemistry"];
-  if (s.includes("law")) return ["Constitutional Law", "Criminal Law", "Torts", "Contracts", "Evidence", "Legal Writing"];
-  if (s.includes("software") || s.includes("developer")) return ["Data Structures", "Algorithms", "Databases", "Operating Systems", "Web Development", "Computer Networks"];
-  return ["Core 1", "Core 2", "Elective 1", "Elective 2"];
+    return [
+      "UX Designer",
+      "UI Designer",
+      "Product Designer",
+      "Graphic Designer",
+    ];
+  if (t.includes("lawyer"))
+    return ["Corporate Lawyer", "Criminal Lawyer", "IP Lawyer", "Tax Lawyer"];
+  if (t.includes("nurse"))
+    return [
+      "RN (Registered Nurse)",
+      "NP (Nurse Practitioner)",
+      "ICU Nurse",
+      "OR Nurse",
+    ];
+  if (t.includes("teacher"))
+    return ["Elementary", "High School", "Special Education", "ESL Teacher"];
+  return ["Specialization A", "Specialization B", "Specialization C"];
 }
 
 // College Scorecard integration: fetch programs for an institution
-async function fetchScorecardPrograms(institution: string): Promise<{ code?: string; title: string }[]> {
-  try {
-    const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
-    if (!apiKey || !institution) return [];
-    const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
-    const fields = [
-      "id",
-      "school.name",
-      "latest.programs.cip_4_digit.code",
-      "latest.programs.cip_4_digit.title",
-    ].join(",");
-    const buildUrl = (nameParam: string) =>
-      `${base}?${nameParam}=${encodeURIComponent(institution)}&fields=${encodeURIComponent(
-        fields
-      )}&per_page=1&api_key=${encodeURIComponent(apiKey)}`;
-
-    let url = buildUrl("school.name__icontains");
-    let res = await fetch(url);
-    if (!res.ok) {
-      url = buildUrl("school.name");
-      res = await fetch(url);
-    }
-    if (!res.ok) {
-      console.warn("[Scorecard] HTTP error", res.status);
-      return [];
-    }
-    const json = await res.json();
-    const results = json?.results || [];
-    if (results.length === 0) {
-      console.info("[Scorecard] No school results for", institution);
-      return [];
-    }
-    const programs =
-      results[0]?.latest?.programs?.cip_4_digit ||
-      results[0]?.latest?.programs ||
-      [];
-    const mapped = (programs || [])
-      .map((p: any) => ({ code: p?.code, title: p?.title }))
-      .filter((p: any) => !!p.title);
-    console.info("[Scorecard] Programs fetched:", mapped.length);
-    return mapped;
-  } catch (e) {
-    console.warn("[Scorecard] Exception:", e);
-    return [];
-  }
+async function fetchScorecardPrograms(
+  institution: string
+): Promise<{ code?: string; title: string }[]> {
+  // Scorecard removed: return no programs
+  return [];
 }
 
 function sanitizeSteps(input: any[]): any[] {
@@ -275,7 +171,9 @@ function sanitizeSteps(input: any[]): any[] {
     })
     .map((s) => ({
       ...s,
-      prerequisiteIds: (s.prerequisiteIds || []).filter((pid: string) => pid && pid !== s.id),
+      prerequisiteIds: (s.prerequisiteIds || []).filter(
+        (pid: string) => pid && pid !== s.id
+      ),
     }));
 }
 
@@ -285,13 +183,24 @@ function findStepIdByTitle(steps: any[], keyword: string): string | null {
   return found ? found.id : null;
 }
 
-function adjustInstitutionPrereqs(steps: any[], profession: string, specialization: string): any[] {
-  const isLaw = /\blaw|lawyer|attorney|bar\b/i.test(profession || "") || /\blaw|criminal\b/i.test(specialization || "");
+function adjustInstitutionPrereqs(
+  steps: any[],
+  profession: string,
+  specialization: string
+): any[] {
+  const isLaw =
+    /\blaw|lawyer|attorney|bar\b/i.test(profession || "") ||
+    /\blaw|criminal\b/i.test(specialization || "");
   if (!isLaw) return steps;
-  const lsatId = findStepIdByTitle(steps, "LSAT") || findStepIdByTitle(steps, "Bar");
+  const lsatId =
+    findStepIdByTitle(steps, "LSAT") || findStepIdByTitle(steps, "Bar");
   const bachelorId = findStepIdByTitle(steps, "Bachelor");
   return steps.map((s) => {
-    if (s.title?.startsWith("Apply to ") || s.title?.includes("• Explore Programs") || s.title?.includes("• ")) {
+    if (
+      s.title?.startsWith("Apply to ") ||
+      s.title?.includes("• Explore Programs") ||
+      s.title?.includes("• ")
+    ) {
       const prereqs: string[] = [];
       if (lsatId) prereqs.push(lsatId);
       else if (bachelorId) prereqs.push(bachelorId);
@@ -370,7 +279,15 @@ function computeSequenceIndexMap(stepsArr: any[]): Record<string, number> {
 }
 
 // Helper: recursively render the flowchart for any steps array
-function FlowNodeGeneric({ id, stepMap, sequenceMap }: { id: string; stepMap: any; sequenceMap: Record<string, number> }) {
+function FlowNodeGeneric({
+  id,
+  stepMap,
+  sequenceMap,
+}: {
+  id: string;
+  stepMap: any;
+  sequenceMap: Record<string, number>;
+}) {
   const step = stepMap[id];
   if (!step) return null;
   const children = (step.childrenIds || [])
@@ -382,7 +299,8 @@ function FlowNodeGeneric({ id, stepMap, sequenceMap }: { id: string; stepMap: an
         step.prerequisiteIds.length > 0 &&
         step.id !== "you" && (
           <div className="text-xs text-gray-400 mb-1">
-            Prerequisite: {step.prerequisiteIds
+            Prerequisite:{" "}
+            {step.prerequisiteIds
               .map((pid: string) => stepMap[pid]?.title)
               .join(", ")}
           </div>
@@ -425,7 +343,11 @@ function FlowNodeGeneric({ id, stepMap, sequenceMap }: { id: string; stepMap: an
           ))}
           {children.map((child: any) => (
             <div key={child.id} className="mx-4 mt-8">
-              <FlowNodeGeneric id={child.id} stepMap={stepMap} sequenceMap={sequenceMap} />
+              <FlowNodeGeneric
+                id={child.id}
+                stepMap={stepMap}
+                sequenceMap={sequenceMap}
+              />
             </div>
           ))}
         </div>
@@ -440,8 +362,6 @@ const Courses = () => {
   const [specialization, setSpecialization] = useState<string>("");
   const [institution, setInstitution] = useState<string>("");
   const [suggestedSpecs, setSuggestedSpecs] = useState<string[]>([]);
-  const [schoolSuggestions, setSchoolSuggestions] = useState<string[]>([]);
-  const [topSchools, setTopSchools] = useState<string[]>([]);
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -459,47 +379,27 @@ const Courses = () => {
     }
   }, [profession]);
 
-  useEffect(() => {
-    (async () => {
-      if (!specialization) {
-        setTopSchools([]);
-        return;
-      }
-      if (isCollegeRequired(specialization)) {
-        const schools = await fetchTopSchoolsByProgram(specialization);
-        setTopSchools(schools);
-      } else {
-        setTopSchools([]);
-      }
-    })();
-  }, [specialization]);
-
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (!institution || institution.length < 3) {
-        setSchoolSuggestions([]);
-        return;
-      }
-      const list = await fetchInstitutionSuggestions(institution);
-      setSchoolSuggestions(list);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [institution]);
-
   // Load last saved path for user (client-side pick latest)
   useEffect(() => {
     (async () => {
       const currentUser = user || auth.currentUser;
       if (!currentUser) return;
       try {
-        const q = query(collection(db, "paths"), where("userId", "==", currentUser.uid));
+        const q = query(
+          collection(db, "paths"),
+          where("userId", "==", currentUser.uid)
+        );
         const snap = await getDocs(q);
         if (snap.empty) return;
         let latestDoc: any = null;
         snap.forEach((d) => {
           const data = d.data();
-          const ts = (data.updatedAt?.toMillis?.() || data.updatedAt?.seconds * 1000) ||
-                     (data.createdAt?.toMillis?.() || data.createdAt?.seconds * 1000) || 0;
+          const ts =
+            data.updatedAt?.toMillis?.() ||
+            data.updatedAt?.seconds * 1000 ||
+            data.createdAt?.toMillis?.() ||
+            data.createdAt?.seconds * 1000 ||
+            0;
           if (!latestDoc || ts > latestDoc._ts) {
             latestDoc = { id: d.id, ...data, _ts: ts };
           }
@@ -579,29 +479,15 @@ const Courses = () => {
       } catch (e) {}
 
       // Initialize all steps as planned (Prerequisites) until user advances them
-      const rawGeneratedSteps = (data.steps || []).filter((s: any) => s.id !== "you");
+      const rawGeneratedSteps = (data.steps || []).filter(
+        (s: any) => s.id !== "you"
+      );
 
       // If institution provided, enrich with program steps from Scorecard
       let schoolProgramSteps: any[] = [];
       if (institution) {
-        const programs = await fetchScorecardPrograms(institution);
-        let filtered = programs;
-        if (specialization && !/^specialization\s[a-c]$/i.test(specialization.trim())) {
-          const spec = specialization.toLowerCase();
-          const f = programs.filter((p) => p.title?.toLowerCase?.().includes(spec));
-          if (f.length > 0) filtered = f;
-        }
-        const top = filtered.slice(0, 5);
-        schoolProgramSteps = top.map((p, idx) => ({
-          id: `program_${p.code || idx}_${Date.now()}`,
-          title: `${institution} • ${p.title}`,
-          description: "Program relevant to your specialization",
-          prerequisiteIds: ["you"],
-          childrenIds: [],
-          status: "planned",
-        }));
-        // Always include an admissions/application step
-        schoolProgramSteps.unshift({
+        // Minimal: include admissions/application step only (Scorecard removed)
+        schoolProgramSteps.push({
           id: `admissions_${Date.now()}`,
           title: `Apply to ${institution}`,
           description: "Prepare application materials, required tests, and financial aid",
@@ -609,57 +495,91 @@ const Courses = () => {
           childrenIds: [],
           status: "planned",
         });
-        // If no programs were found, include a discovery step so user still sees the school reflected
-        if (top.length === 0) {
-          schoolProgramSteps.push({
-            id: `explore_${Date.now()}`,
-            title: `${institution} • Explore Programs`,
-            description: "Review the institution's catalog to pick the best major",
-            prerequisiteIds: ["you"],
-            childrenIds: [],
-            status: "planned",
-          });
-        }
       }
 
       // Fallback for legal track if generator returned nothing
       let fallback: any[] = [];
       const prof = (profession || "").toLowerCase();
       const specLower = (specialization || "").toLowerCase();
-      if (rawGeneratedSteps.length === 0 && (prof.includes("law") || specLower.includes("law"))) {
+      if (
+        rawGeneratedSteps.length === 0 &&
+        (prof.includes("law") || specLower.includes("law"))
+      ) {
         fallback = [
-          { id: "hs", title: "High School Diploma", description: "Complete secondary education", prerequisiteIds: ["you"], childrenIds: [], status: "planned" },
-          { id: "bachelor", title: "Bachelor's Degree (Pre‑Law/Political Science)", description: "4‑year undergraduate program", prerequisiteIds: ["you"], childrenIds: [], status: "planned" },
-          { id: "lsat", title: "LSAT", description: "Prepare and take the LSAT exam", prerequisiteIds: ["bachelor"], childrenIds: [], status: "planned" },
-          { id: "jd", title: "Law School (JD)", description: "3‑year Juris Doctor program", prerequisiteIds: ["lsat"], childrenIds: [], status: "planned" },
-          { id: "clinics", title: "Clinics & Internships", description: "Hands‑on experience during JD", prerequisiteIds: ["jd"], childrenIds: [], status: "planned" },
-          { id: "bar", title: "Bar Exam", description: "Pass the bar in your jurisdiction", prerequisiteIds: ["jd"], childrenIds: [], status: "planned" },
-          { id: "clerkship", title: "Clerkship/Associate Role", description: "Start in criminal law practice", prerequisiteIds: ["bar"], childrenIds: [], status: "planned" },
+          {
+            id: "hs",
+            title: "High School Diploma",
+            description: "Complete secondary education",
+            prerequisiteIds: ["you"],
+            childrenIds: [],
+            status: "planned",
+          },
+          {
+            id: "bachelor",
+            title: "Bachelor's Degree (Pre‑Law/Political Science)",
+            description: "4‑year undergraduate program",
+            prerequisiteIds: ["you"],
+            childrenIds: [],
+            status: "planned",
+          },
+          {
+            id: "lsat",
+            title: "LSAT",
+            description: "Prepare and take the LSAT exam",
+            prerequisiteIds: ["bachelor"],
+            childrenIds: [],
+            status: "planned",
+          },
+          {
+            id: "jd",
+            title: "Law School (JD)",
+            description: "3‑year Juris Doctor program",
+            prerequisiteIds: ["lsat"],
+            childrenIds: [],
+            status: "planned",
+          },
+          {
+            id: "clinics",
+            title: "Clinics & Internships",
+            description: "Hands‑on experience during JD",
+            prerequisiteIds: ["jd"],
+            childrenIds: [],
+            status: "planned",
+          },
+          {
+            id: "bar",
+            title: "Bar Exam",
+            description: "Pass the bar in your jurisdiction",
+            prerequisiteIds: ["jd"],
+            childrenIds: [],
+            status: "planned",
+          },
+          {
+            id: "clerkship",
+            title: "Clerkship/Associate Role",
+            description: "Start in criminal law practice",
+            prerequisiteIds: ["bar"],
+            childrenIds: [],
+            status: "planned",
+          },
         ];
       }
 
       const stepsPlanned = [
         ...schoolProgramSteps,
         ...fallback,
-        ...rawGeneratedSteps.map((step: any) => ({ ...step, status: "planned" })),
+        ...rawGeneratedSteps.map((step: any) => ({
+          ...step,
+          status: "planned",
+        })),
       ];
       let stepsWithStatus = sanitizeSteps(stepsPlanned);
       // Ensure institution steps come after key gates for law paths
-      stepsWithStatus = adjustInstitutionPrereqs(stepsWithStatus, profession, specialization);
-
-      // If college required and we have specialization + institution/any school, inject degree courses
-      if (isCollegeRequired(specialization)) {
-        const courses = getDegreeCourses(specialization).map((c, idx) => ({
-          id: `course_${idx}_${Date.now()}`,
-          title: `Course: ${c}`,
-          description: `Core course for ${specialization}`,
-          prerequisiteIds: [findStepIdByTitle(stepsWithStatus, "Bachelor") || "you"],
-          childrenIds: [],
-          status: "planned",
-        }));
-        stepsWithStatus = sanitizeSteps([...stepsWithStatus, ...courses]);
-      }
-
+      stepsWithStatus = adjustInstitutionPrereqs(
+        stepsWithStatus,
+        profession,
+        specialization
+      );
       setSteps(stepsWithStatus);
 
       // Save/overwrite last path
@@ -738,17 +658,16 @@ const Courses = () => {
 
   const renderBoard = () => {
     const stepsArr = steps;
-    const dist = computeDistances([{ id: "you", prerequisiteIds: [], childrenIds: [] }, ...mockSteps]);
+    const dist = computeDistances([
+      { id: "you", prerequisiteIds: [], childrenIds: [] },
+      ...mockSteps,
+    ]);
     const byStatus = (status: string) =>
       stepsArr
         .filter((s) => (s.status || "planned") === status)
         .sort((a, b) => (dist[a.id] || 999) - (dist[b.id] || 999));
 
-    const col = (
-      title: string,
-      items: any[],
-      accent: string
-    ) => (
+    const col = (title: string, items: any[], accent: string) => (
       <div className="px-2">
         <div className="flex items-center justify-between mb-3">
           <h3 className={`text-sm font-semibold ${accent}`}>{title}</h3>
@@ -812,8 +731,8 @@ const Courses = () => {
               <span className="text-[#16aeac]">Career Path</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl">
-              Get personalized career guidance and step-by-step roadmap to achieve
-              your professional goals
+              Get personalized career guidance and step-by-step roadmap to
+              achieve your professional goals
             </p>
 
             <form onSubmit={handleSubmit} className="w-full max-w-md">
@@ -847,52 +766,21 @@ const Courses = () => {
                   </div>
                 )}
 
-                {specialization && isCollegeRequired(specialization) && (
-                  <div className="text-left">
-                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-                      Top schools for {specialization}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-1">
-                      {topSchools.map((s) => (
-                        <button
-                          type="button"
-                          key={s}
-                          onClick={() => setInstitution(s)}
-                          className="px-3 py-1 rounded-full border border-gray-300 text-sm hover:bg-gray-50"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <input
+                  type="text"
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="Specialization (optional unless career is broad)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                />
 
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={institution}
-                    onChange={(e) => setInstitution(e.target.value)}
-                    placeholder="Institution (optional, e.g., Harvard University)"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
-                  />
-                  {schoolSuggestions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-sm max-h-48 overflow-auto">
-                      {schoolSuggestions.map((s) => (
-                        <button
-                          type="button"
-                          key={s}
-                          onClick={() => {
-                            setInstitution(s);
-                            setSchoolSuggestions([]);
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="Institution (optional, e.g., Harvard University)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                />
 
                 <button
                   type="submit"
@@ -971,75 +859,97 @@ const Courses = () => {
         {view === "timeline" && (
           <div className="w-full max-w-6xl mx-auto pb-16">
             <div className="flex flex-col items-center">
-              {steps && steps.length > 0 ? (
-                (() => {
-                  const seq = computeSequenceIndexMap(steps);
-                  const ordered = steps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
-                  const idToTitle: Record<string, string> = Object.fromEntries(ordered.map((s) => [s.id, s.title]));
-                  const fmtPrereqs = (ids?: string[]) =>
-                    (ids || [])
-                      .filter((id) => id && id !== "you")
-                      .map((id) => idToTitle[id] || id)
-                      .filter(Boolean);
-                  return (
-                    <div className="w-full max-w-3xl space-y-3">
-                      {ordered.map((s, idx) => (
-                        <div key={s.id} className="bg-white rounded-lg border border-gray-200 p-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                              {idx + 1}
-                            </span>
-                            <div className="font-medium text-gray-900">{s.title}</div>
+              {steps && steps.length > 0
+                ? (() => {
+                    const seq = computeSequenceIndexMap(steps);
+                    const ordered = steps
+                      .slice()
+                      .sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                    const idToTitle: Record<string, string> =
+                      Object.fromEntries(ordered.map((s) => [s.id, s.title]));
+                    const fmtPrereqs = (ids?: string[]) =>
+                      (ids || [])
+                        .filter((id) => id && id !== "you")
+                        .map((id) => idToTitle[id] || id)
+                        .filter(Boolean);
+                    return (
+                      <div className="w-full max-w-3xl space-y-3">
+                        {ordered.map((s, idx) => (
+                          <div
+                            key={s.id}
+                            className="bg-white rounded-lg border border-gray-200 p-4"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                {idx + 1}
+                              </span>
+                              <div className="font-medium text-gray-900">
+                                {s.title}
+                              </div>
+                            </div>
+                            {s.description && (
+                              <div className="text-sm text-gray-600">
+                                {s.description}
+                              </div>
+                            )}
+                            {(() => {
+                              const pr = fmtPrereqs(s.prerequisiteIds);
+                              return pr.length > 0 ? (
+                                <div className="text-[11px] text-gray-500 mt-1">
+                                  Prerequisite: {pr.join(", ")}
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
-                          {s.description && (
-                            <div className="text-sm text-gray-600">{s.description}</div>
-                          )}
-                          {(() => {
-                            const pr = fmtPrereqs(s.prerequisiteIds);
-                            return pr.length > 0 ? (
-                              <div className="text-[11px] text-gray-500 mt-1">Prerequisite: {pr.join(", ")}</div>
-                            ) : null;
-                          })()}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()
-              ) : (
-                (() => {
-                  const seq = computeSequenceIndexMap(mockSteps);
-                  const ordered = mockSteps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
-                  const idToTitle: Record<string, string> = Object.fromEntries(ordered.map((s) => [s.id, s.title]));
-                  const fmtPrereqs = (ids?: string[]) =>
-                    (ids || [])
-                      .filter((id) => id && id !== "you")
-                      .map((id) => idToTitle[id] || id)
-                      .filter(Boolean);
-                  return (
-                    <div className="w-full max-w-3xl space-y-3">
-                      {ordered.map((s, idx) => (
-                        <div key={s.id} className="bg-white rounded-lg border border-gray-200 p-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                              {idx + 1}
-                            </span>
-                            <div className="font-medium text-gray-900">{s.title}</div>
+                        ))}
+                      </div>
+                    );
+                  })()
+                : (() => {
+                    const seq = computeSequenceIndexMap(mockSteps);
+                    const ordered = mockSteps
+                      .slice()
+                      .sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                    const idToTitle: Record<string, string> =
+                      Object.fromEntries(ordered.map((s) => [s.id, s.title]));
+                    const fmtPrereqs = (ids?: string[]) =>
+                      (ids || [])
+                        .filter((id) => id && id !== "you")
+                        .map((id) => idToTitle[id] || id)
+                        .filter(Boolean);
+                    return (
+                      <div className="w-full max-w-3xl space-y-3">
+                        {ordered.map((s, idx) => (
+                          <div
+                            key={s.id}
+                            className="bg-white rounded-lg border border-gray-200 p-4"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                {idx + 1}
+                              </span>
+                              <div className="font-medium text-gray-900">
+                                {s.title}
+                              </div>
+                            </div>
+                            {s.description && (
+                              <div className="text-sm text-gray-600">
+                                {s.description}
+                              </div>
+                            )}
+                            {(() => {
+                              const pr = fmtPrereqs(s.prerequisiteIds);
+                              return pr.length > 0 ? (
+                                <div className="text-[11px] text-gray-500 mt-1">
+                                  Prerequisite: {pr.join(", ")}
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
-                          {s.description && (
-                            <div className="text-sm text-gray-600">{s.description}</div>
-                          )}
-                          {(() => {
-                            const pr = fmtPrereqs(s.prerequisiteIds);
-                            return pr.length > 0 ? (
-                              <div className="text-[11px] text-gray-500 mt-1">Prerequisite: {pr.join(", ")}</div>
-                            ) : null;
-                          })()}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()
-              )}
+                        ))}
+                      </div>
+                    );
+                  })()}
             </div>
           </div>
         )}
@@ -1125,7 +1035,10 @@ const Courses = () => {
             setShowSignInModal(false);
             setTimeout(() => {
               const form = document.querySelector("form");
-              form && (form as HTMLFormElement).dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+              form &&
+                (form as HTMLFormElement).dispatchEvent(
+                  new Event("submit", { cancelable: true, bubbles: true })
+                );
             }, 300);
           }}
         />
