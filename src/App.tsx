@@ -9,6 +9,11 @@ import AccountSettings from "./components/AccountSettings";
 import Study from "./components/Study";
 import CreateStudySet from "./components/CreateStudySet";
 import SplashCursor from "./components/SplashCursor";
+import Services from "./components/Pages/Services";
+import About from "./components/Pages/About";
+import Contact from "./components/Pages/Contact";
+import Privacy from "./components/Pages/Privacy";
+import Terms from "./components/Pages/Terms";
 
 function App() {
   return (
@@ -46,6 +51,11 @@ function App() {
           <Route path="/study" element={<Study />} />
           <Route path="/create" element={<CreateStudySet />} />
           <Route path="/edit/:studySetId" element={<CreateStudySet />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
         </Routes>
       </div>
     </Router>

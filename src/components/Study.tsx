@@ -110,7 +110,7 @@ const Study = () => {
   const [quizOptions, setQuizOptions] = useState<string[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
-  
+
   // Batched updates state
   const [pendingUpdates, setPendingUpdates] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -223,15 +223,40 @@ const Study = () => {
         const cacheKey = `studySets_${memoizedUser.uid}`;
         const cachedData = localStorage.getItem(cacheKey);
         const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
-        
+
         // Use cache if it's less than 10 minutes old
-        const isCacheValid = cacheTimestamp && 
-          (Date.now() - parseInt(cacheTimestamp)) < 10 * 60 * 1000;
-        
+        const isCacheValid =
+          cacheTimestamp &&
+          Date.now() - parseInt(cacheTimestamp) < 10 * 60 * 1000;
+
         if (cachedData && isCacheValid) {
           console.log("Using cached study sets");
-          const cachedSets = JSON.parse(cachedData);
-          setStudySets(cachedSets);
+          const rawSets = JSON.parse(cachedData);
+          const revivedSets: StudySet[] = (rawSets || []).map((set: any) => ({
+            ...set,
+            createdAt:
+              set.createdAt instanceof Date
+                ? set.createdAt
+                : new Date(set.createdAt),
+            lastStudied: set.lastStudied
+              ? set.lastStudied instanceof Date
+                ? set.lastStudied
+                : new Date(set.lastStudied)
+              : undefined,
+            flashcards: (set.flashcards || []).map((card: any) => ({
+              ...card,
+              createdAt:
+                card.createdAt instanceof Date
+                  ? card.createdAt
+                  : new Date(card.createdAt),
+              lastReviewed: card.lastReviewed
+                ? card.lastReviewed instanceof Date
+                  ? card.lastReviewed
+                  : new Date(card.lastReviewed)
+                : undefined,
+            })),
+          }));
+          setStudySets(revivedSets);
           return;
         }
 
@@ -281,12 +306,14 @@ const Study = () => {
               : new Date(setData.lastStudied);
             const today = new Date();
             const daysSinceLastStudy = Math.floor(
-              (today.getTime() - lastStudiedDate.getTime()) / (1000 * 60 * 60 * 24)
+              (today.getTime() - lastStudiedDate.getTime()) /
+                (1000 * 60 * 60 * 24)
             );
 
             const avgMastery =
               flashcards.length > 0
-                ? flashcards.reduce((acc, card) => acc + card.mastery, 0) / flashcards.length
+                ? flashcards.reduce((acc, card) => acc + card.mastery, 0) /
+                  flashcards.length
                 : 0;
 
             // If completed (80%+ mastery), stay completed
@@ -318,12 +345,14 @@ const Study = () => {
         const resolvedSets = await Promise.all(flashcardPromises);
 
         // Client-side sorting
-        resolvedSets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        resolvedSets.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
 
         // Cache the results
         localStorage.setItem(cacheKey, JSON.stringify(resolvedSets));
         localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
-        
+
         setStudySets(resolvedSets);
       } catch (error) {
         console.error("Error loading study sets:", error);
@@ -638,7 +667,7 @@ const Study = () => {
 
       // Add to batched updates instead of immediate Firebase call
       addPendingUpdate({
-        type: 'card',
+        type: "card",
         setId: currentSet.id,
         cardId: currentCard.id,
         mastery: newMastery,
@@ -996,55 +1025,66 @@ const Study = () => {
 
   // Batched update functions
   const addPendingUpdate = (update: any) => {
-    setPendingUpdates(prev => [...prev, { ...update, timestamp: Date.now() }]);
+    setPendingUpdates((prev) => [
+      ...prev,
+      { ...update, timestamp: Date.now() },
+    ]);
   };
 
   const syncPendingUpdates = async () => {
     if (pendingUpdates.length === 0 || !memoizedUser) return;
-    
+
     try {
-      console.log(`Syncing ${pendingUpdates.length} pending updates to Firebase`);
-      
+      console.log(
+        `Syncing ${pendingUpdates.length} pending updates to Firebase`
+      );
+
       // Group updates by type and batch them
-      const cardUpdates = pendingUpdates.filter(u => u.type === 'card');
-      const setUpdates = pendingUpdates.filter(u => u.type === 'set');
-      const userUpdates = pendingUpdates.filter(u => u.type === 'user');
-      
+      const cardUpdates = pendingUpdates.filter((u) => u.type === "card");
+      const setUpdates = pendingUpdates.filter((u) => u.type === "set");
+      const userUpdates = pendingUpdates.filter((u) => u.type === "user");
+
       // Batch card updates
       if (cardUpdates.length > 0) {
         const batch = writeBatch(db);
-        cardUpdates.forEach(update => {
-          const cardRef = doc(db, "studySets", update.setId, "flashcards", update.cardId);
+        cardUpdates.forEach((update) => {
+          const cardRef = doc(
+            db,
+            "studySets",
+            update.setId,
+            "flashcards",
+            update.cardId
+          );
           batch.update(cardRef, { mastery: update.mastery });
         });
         await batch.commit();
       }
-      
+
       // Batch set updates
       if (setUpdates.length > 0) {
         const batch = writeBatch(db);
-        setUpdates.forEach(update => {
+        setUpdates.forEach((update) => {
           const setRef = doc(db, "studySets", update.setId);
           batch.update(setRef, update.data);
         });
         await batch.commit();
       }
-      
+
       // User updates (usually single)
       if (userUpdates.length > 0) {
         const userRef = doc(db, "users", memoizedUser.uid);
         const latestUserUpdate = userUpdates[userUpdates.length - 1];
         await updateDoc(userRef, latestUserUpdate.data);
       }
-      
+
       // Clear pending updates and update cache
       setPendingUpdates([]);
-      
+
       // Update localStorage cache
       const cacheKey = `studySets_${memoizedUser.uid}`;
       localStorage.removeItem(cacheKey);
       localStorage.removeItem(`${cacheKey}_timestamp`);
-      
+
       console.log("Successfully synced all pending updates");
     } catch (error) {
       console.error("Error syncing pending updates:", error);
@@ -1069,14 +1109,14 @@ const Study = () => {
       console.log("Gone offline - updates will be queued");
     };
 
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [pendingUpdates, memoizedUser]);
 
@@ -1386,7 +1426,7 @@ const Study = () => {
           animation: villageGrow 1s ease-out;
         }
       `}</style>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-32 px-4">
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto text-center mb-12">
           <div className="flex items-center justify-center mb-6">
@@ -1406,246 +1446,298 @@ const Study = () => {
               Study Stats & Progress
             </h3>
 
-            {/* Study Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              {/* Study Streak */}
-              <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-4 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-orange-100 text-xs">Current Streak</p>
-                    <p className="text-2xl font-bold">
-                      {userStats.currentStreak}
-                    </p>
-                    <p className="text-orange-100 text-xs">days</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* Left: Study Stats Cards */}
+              <div>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Study Streak */}
+                  <div className="rounded-lg p-4 bg-orange-50 text-orange-700 border border-orange-200 border-l-4 border-l-orange-500">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-orange-600">
+                          Current Streak
+                        </p>
+                        <p className="text-3xl font-bold text-gray-900">
+                          {userStats.currentStreak}
+                        </p>
+                        <p className="text-xs text-gray-500">days</p>
+                      </div>
+                      <div className="text-xl" aria-hidden>
+                        🔥
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-2xl">🔥</div>
+
+                  {/* Total Study Time */}
+                  <div className="rounded-lg p-4 bg-blue-50 text-blue-700 border border-blue-200 border-l-4 border-l-blue-500">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-blue-600">
+                          Total Study Time
+                        </p>
+                        <p className="text-3xl font-bold text-gray-900">
+                          {Math.floor(userStats.totalStudyTime / 3600)}
+                        </p>
+                        <p className="text-xs text-gray-500">hours</p>
+                      </div>
+                      <div className="text-xl" aria-hidden>
+                        ⏱️
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total XP */}
+                  <div className="rounded-lg p-4 bg-purple-50 text-purple-700 border border-purple-200 border-l-4 border-l-purple-500">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-purple-600">
+                          Total XP
+                        </p>
+                        <p className="text-3xl font-bold text-gray-900">
+                          {userStats.totalXP}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Level {userStats.level}
+                        </p>
+                      </div>
+                      <div className="text-xl" aria-hidden>
+                        ⭐
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total Sessions */}
+                  <div className="rounded-lg p-4 bg-green-50 text-green-700 border border-green-200 border-l-4 border-l-green-500">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-green-600">
+                          Study Sessions
+                        </p>
+                        <p className="text-3xl font-bold text-gray-900">
+                          {userStats.totalSessions}
+                        </p>
+                        <p className="text-xs text-gray-500">completed</p>
+                      </div>
+                      <div className="text-xl" aria-hidden>
+                        📚
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Total Study Time */}
-              <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-4 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-blue-100 text-xs">Total Study Time</p>
-                    <p className="text-2xl font-bold">
-                      {Math.floor(userStats.totalStudyTime / 3600)}
-                    </p>
-                    <p className="text-blue-100 text-xs">hours</p>
-                  </div>
-                  <div className="text-2xl">⏱️</div>
-                </div>
-              </div>
+              {/* Right: Study Time Progress Graph */}
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h4 className="text-md font-semibold text-gray-900 mb-4">
+                  Study Time Progress
+                </h4>
+                {(() => {
+                  // Process study history to get daily study time
+                  const dailyStudyTime = new Map<string, number>();
 
-              {/* Total XP */}
-              <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg p-4 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-purple-100 text-xs">Total XP</p>
-                    <p className="text-2xl font-bold">{userStats.totalXP}</p>
-                    <p className="text-purple-100 text-xs">
-                      Level {userStats.level}
-                    </p>
-                  </div>
-                  <div className="text-2xl">⭐</div>
-                </div>
-              </div>
+                  userStats.studyHistory.forEach((session) => {
+                    const startTime =
+                      session.startTime instanceof Date
+                        ? session.startTime
+                        : new Date(session.startTime);
+                    const dateKey = startTime.toISOString().split("T")[0]; // YYYY-MM-DD format
 
-              {/* Total Sessions */}
-              <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-4 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-100 text-xs">Study Sessions</p>
-                    <p className="text-2xl font-bold">
-                      {userStats.totalSessions}
-                    </p>
-                    <p className="text-green-100 text-xs">completed</p>
-                  </div>
-                  <div className="text-2xl">📚</div>
-                </div>
+                    dailyStudyTime.set(
+                      dateKey,
+                      (dailyStudyTime.get(dateKey) || 0) + session.duration
+                    );
+                  });
+
+                  // Convert to sorted array of [date, minutes] pairs
+                  const sortedData: [string, number][] = Array.from(
+                    dailyStudyTime.entries()
+                  )
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([date, seconds]) => [date, Math.round(seconds / 60)]); // Convert to minutes
+
+                  if (sortedData.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">📊</div>
+                        <p>
+                          No study data yet. Start studying to see your
+                          progress!
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  const maxMinutes = Math.max(
+                    ...sortedData.map(([, minutes]) => minutes)
+                  );
+                  const chartHeight = 200;
+                  const chartWidth = Math.max(400, sortedData.length * 60);
+
+                  // Padding to keep line within bounds
+                  const paddingLeft = 48; // room for y-axis labels
+                  const paddingRight = 16;
+                  const paddingTop = 8;
+                  const paddingBottom = 24; // room for x-axis labels
+                  const innerWidth = Math.max(
+                    1,
+                    chartWidth - paddingLeft - paddingRight
+                  );
+                  const innerHeight = Math.max(
+                    1,
+                    chartHeight - paddingTop - paddingBottom
+                  );
+
+                  // Avoid divide-by-zero; render flat line if all minutes are 0
+                  const safeMax = maxMinutes > 0 ? maxMinutes : 1;
+                  const xDenominator = Math.max(1, sortedData.length - 1);
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <div
+                        className="relative"
+                        style={{ width: chartWidth, height: chartHeight }}
+                      >
+                        {/* Y-axis labels */}
+                        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 pr-2">
+                          {[
+                            maxMinutes,
+                            Math.round(maxMinutes * 0.75),
+                            Math.round(maxMinutes * 0.5),
+                            Math.round(maxMinutes * 0.25),
+                            0,
+                          ].map((value, index) => (
+                            <div key={index} className="flex items-center">
+                              <span>{value}m</span>
+                              <div className="ml-2 w-2 h-px bg-gray-200"></div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Grid lines */}
+                        <svg
+                          className="absolute inset-0 w-full h-full"
+                          style={{ left: `${paddingLeft}px` }}
+                        >
+                          {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
+                            <line
+                              key={index}
+                              x1={0}
+                              y1={paddingTop + innerHeight * ratio}
+                              x2={innerWidth}
+                              y2={paddingTop + innerHeight * ratio}
+                              stroke="#e5e7eb"
+                              strokeWidth="1"
+                            />
+                          ))}
+                        </svg>
+
+                        {/* Line graph */}
+                        <svg
+                          className="absolute inset-0 w-full h-full"
+                          style={{ left: `${paddingLeft}px` }}
+                        >
+                          <polyline
+                            fill="none"
+                            stroke="#10b981"
+                            strokeWidth="3"
+                            points={sortedData
+                              .map(([date, minutes], index) => {
+                                const x = (index / xDenominator) * innerWidth;
+                                const y =
+                                  paddingTop +
+                                  innerHeight -
+                                  (minutes / safeMax) * innerHeight;
+                                return `${x},${y}`;
+                              })
+                              .join(" ")}
+                          />
+
+                          {/* Data points */}
+                          {sortedData.map(([date, minutes], index) => {
+                            const x = (index / xDenominator) * innerWidth;
+                            const y =
+                              paddingTop +
+                              innerHeight -
+                              (minutes / safeMax) * innerHeight;
+                            return (
+                              <circle
+                                key={index}
+                                cx={x}
+                                cy={y}
+                                r="4"
+                                fill="#10b981"
+                                className="hover:r-6 transition-all duration-200"
+                              />
+                            );
+                          })}
+                        </svg>
+
+                        {/* X-axis labels */}
+                        <div
+                          className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500"
+                          style={{
+                            left: `${paddingLeft}px`,
+                            right: `${paddingRight}px`,
+                          }}
+                        >
+                          {sortedData.map(([date], index) => {
+                            const displayDate = new Date(
+                              date
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            });
+                            return (
+                              <div
+                                key={index}
+                                className="text-center transform -rotate-45 origin-bottom-left"
+                              >
+                                {displayDate}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Summary stats */}
+                      <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-green-600">
+                            {sortedData.length}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Days Studied
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {Math.round(
+                              sortedData.reduce(
+                                (sum, [, minutes]) => sum + minutes,
+                                0
+                              ) / sortedData.length
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Avg Minutes/Day
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {Math.max(
+                              ...sortedData.map(([, minutes]) => minutes)
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Max Minutes
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
-
-            <h4 className="text-md font-semibold text-gray-900 mb-4">
-              Study Time Progress
-            </h4>
-            {(() => {
-              // Process study history to get daily study time
-              const dailyStudyTime = new Map<string, number>();
-
-              userStats.studyHistory.forEach((session) => {
-                const startTime =
-                  session.startTime instanceof Date
-                    ? session.startTime
-                    : new Date(session.startTime);
-                const dateKey = startTime.toISOString().split("T")[0]; // YYYY-MM-DD format
-
-                dailyStudyTime.set(
-                  dateKey,
-                  (dailyStudyTime.get(dateKey) || 0) + session.duration
-                );
-              });
-
-              // Convert to sorted array of [date, minutes] pairs
-              const sortedData: [string, number][] = Array.from(
-                dailyStudyTime.entries()
-              )
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([date, seconds]) => [date, Math.round(seconds / 60)]); // Convert to minutes
-
-              if (sortedData.length === 0) {
-                return (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-4xl mb-2">📊</div>
-                    <p>
-                      No study data yet. Start studying to see your progress!
-                    </p>
-                  </div>
-                );
-              }
-
-              const maxMinutes = Math.max(
-                ...sortedData.map(([, minutes]) => minutes)
-              );
-              const chartHeight = 200;
-              const chartWidth = Math.max(400, sortedData.length * 60);
-
-              return (
-                <div className="overflow-x-auto">
-                  <div
-                    className="relative"
-                    style={{ width: chartWidth, height: chartHeight }}
-                  >
-                    {/* Y-axis labels */}
-                    <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 pr-2">
-                      {[
-                        maxMinutes,
-                        Math.round(maxMinutes * 0.75),
-                        Math.round(maxMinutes * 0.5),
-                        Math.round(maxMinutes * 0.25),
-                        0,
-                      ].map((value, index) => (
-                        <div key={index} className="flex items-center">
-                          <span>{value}m</span>
-                          <div className="ml-2 w-2 h-px bg-gray-200"></div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Grid lines */}
-                    <svg
-                      className="absolute inset-0 w-full h-full"
-                      style={{ left: "40px" }}
-                    >
-                      {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
-                        <line
-                          key={index}
-                          x1="0"
-                          y1={chartHeight * ratio}
-                          x2={chartWidth - 40}
-                          y2={chartHeight * ratio}
-                          stroke="#e5e7eb"
-                          strokeWidth="1"
-                        />
-                      ))}
-                    </svg>
-
-                    {/* Line graph */}
-                    <svg
-                      className="absolute inset-0 w-full h-full"
-                      style={{ left: "40px" }}
-                    >
-                      <polyline
-                        fill="none"
-                        stroke="#10b981"
-                        strokeWidth="3"
-                        points={sortedData
-                          .map(([date, minutes], index) => {
-                            const x =
-                              (index / (sortedData.length - 1)) *
-                              (chartWidth - 40);
-                            const y =
-                              chartHeight -
-                              (minutes / maxMinutes) * chartHeight;
-                            return `${x},${y}`;
-                          })
-                          .join(" ")}
-                      />
-
-                      {/* Data points */}
-                      {sortedData.map(([date, minutes], index) => {
-                        const x =
-                          (index / (sortedData.length - 1)) * (chartWidth - 40);
-                        const y =
-                          chartHeight - (minutes / maxMinutes) * chartHeight;
-                        return (
-                          <circle
-                            key={index}
-                            cx={x}
-                            cy={y}
-                            r="4"
-                            fill="#10b981"
-                            className="hover:r-6 transition-all duration-200"
-                          />
-                        );
-                      })}
-                    </svg>
-
-                    {/* X-axis labels */}
-                    <div
-                      className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500"
-                      style={{ left: "40px" }}
-                    >
-                      {sortedData.map(([date], index) => {
-                        const displayDate = new Date(date).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                          }
-                        );
-                        return (
-                          <div
-                            key={index}
-                            className="text-center transform -rotate-45 origin-bottom-left"
-                          >
-                            {displayDate}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Summary stats */}
-                  <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-2xl font-bold text-green-600">
-                        {sortedData.length}
-                      </div>
-                      <div className="text-sm text-gray-600">Days Studied</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {Math.round(
-                          sortedData.reduce(
-                            (sum, [, minutes]) => sum + minutes,
-                            0
-                          ) / sortedData.length
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Avg Minutes/Day
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {Math.max(...sortedData.map(([, minutes]) => minutes))}
-                      </div>
-                      <div className="text-sm text-gray-600">Max Minutes</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         </section>
 

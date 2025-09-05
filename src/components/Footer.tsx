@@ -50,69 +50,69 @@ const Footer = () => (
             {/* Left Column */}
             <ul className="space-y-4">
               <li>
-                <a href="/" className="hover:text-gray-300 transition-colors">
+                <Link to="/" className="hover:text-gray-300 transition-colors">
                   Home
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/services"
+                <Link
+                  to="/services"
                   className="hover:text-gray-300 transition-colors"
                 >
                   Services
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/resume"
+                <Link
+                  to="/resume"
                   className="hover:text-gray-300 transition-colors"
                 >
                   Resume Builder
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/templates"
+                <Link
+                  to="/templates"
                   className="hover:text-gray-300 transition-colors"
                 >
                   Templates
-                </a>
+                </Link>
               </li>
             </ul>
-            
+
             {/* Right Column */}
             <ul className="space-y-4">
               <li>
-                <a
-                  href="/about"
+                <Link
+                  to="/about"
                   className="hover:text-gray-300 transition-colors"
                 >
                   About
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/contact"
+                <Link
+                  to="/contact"
                   className="hover:text-gray-300 transition-colors"
                 >
                   Contact
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/privacy"
+                <Link
+                  to="/privacy"
                   className="hover:text-gray-300 transition-colors"
                 >
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/terms"
+                <Link
+                  to="/terms"
                   className="hover:text-gray-300 transition-colors"
                 >
                   Terms & Conditions
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
