@@ -266,16 +266,25 @@ const Courses = () => {
         }));
       setSteps(stepsWithStatus);
 
-      // Save as last path
+      // Save as last path (overwrite existing if present)
       try {
-        const ref = await addDoc(collection(db, "paths"), {
-          userId: currentUser.uid,
-          profession,
-          steps: stepsWithStatus,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        setCurrentPathId(ref.id);
+        if (currentPathId) {
+          await updateDoc(doc(db, "paths", currentPathId), {
+            userId: currentUser.uid,
+            profession,
+            steps: stepsWithStatus,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          const ref = await addDoc(collection(db, "paths"), {
+            userId: currentUser.uid,
+            profession,
+            steps: stepsWithStatus,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          setCurrentPathId(ref.id);
+        }
       } catch (e) {
         // non-blocking
       }
