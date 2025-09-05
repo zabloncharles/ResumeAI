@@ -413,17 +413,9 @@ const ResumeBuilder = () => {
         userId: user.uid,
         updatedBy: user.uid,
       };
-      if (currentResumeId) {
-        const resumeDocRef = doc(db, "resumes", currentResumeId);
-        await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
-      } else {
-        const resumesCol = collection(db, "resumes");
-        const docRef = await addDoc(resumesCol, resumeDataToSave);
-        const resumeId = docRef.id;
-        setCurrentResumeId(resumeId);
-        const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, { resumeIds: arrayUnion(resumeId) });
-      }
+      // Always overwrite the user's single resume document
+      const resumeDocRef = doc(db, "users", user.uid, "resume", "main");
+      await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
       setSaveStatus("saved");
       setTimeout(() => {
         setSaveStatus(null);
@@ -600,21 +592,12 @@ const ResumeBuilder = () => {
 
       setLoading(true);
       try {
-        // Fetch user's resumeIds
-        const userRef = doc(db, "users", auth.currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        const userData = userSnap.data();
-        const resumeIds = userData?.resumeIds || [];
-        if (resumeIds.length > 0) {
-          // Load the most recent resume (last in array)
-          const resumeId = resumeIds[resumeIds.length - 1];
-          const resumeRef = doc(db, "resumes", resumeId);
-          const resumeSnap = await getDoc(resumeRef);
-          if (resumeSnap.exists()) {
-            setResumeData(resumeSnap.data() as ResumeData);
-            setCurrentResumeId(resumeId);
-            localStorage.setItem("resume", JSON.stringify(resumeSnap.data()));
-          }
+        // Load the single resume doc per user
+        const resumeRef = doc(db, "users", auth.currentUser.uid, "resume", "main");
+        const resumeSnap = await getDoc(resumeRef);
+        if (resumeSnap.exists()) {
+          setResumeData(resumeSnap.data() as ResumeData);
+          localStorage.setItem("resume", JSON.stringify(resumeSnap.data()));
         }
       } catch (error) {
         setFirestoreError("Failed to load resume from resumes collection");
