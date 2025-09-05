@@ -154,8 +154,51 @@ function computeDistances(stepsArr: any[]) {
   return distance;
 }
 
+// Compute a topological sequence index per node (1..N)
+function computeSequenceIndexMap(stepsArr: any[]): Record<string, number> {
+  const idSet = new Set((stepsArr || []).map((s) => s.id));
+  const inDegree: Record<string, number> = {};
+  const adj: Record<string, string[]> = {};
+  (stepsArr || []).forEach((s) => {
+    inDegree[s.id] = 0;
+    adj[s.id] = [];
+  });
+  (stepsArr || []).forEach((s) => {
+    (s.prerequisiteIds || []).forEach((pid: string) => {
+      if (pid === "you") return; // treat root prerequisite as satisfied
+      if (idSet.has(pid)) {
+        inDegree[s.id] += 1;
+        adj[pid] = adj[pid] || [];
+        adj[pid].push(s.id);
+      }
+    });
+  });
+  const queue: string[] = [];
+  Object.keys(inDegree)
+    .sort()
+    .forEach((id) => {
+      if (inDegree[id] === 0) queue.push(id);
+    });
+  const order: string[] = [];
+  while (queue.length) {
+    const id = queue.shift() as string;
+    order.push(id);
+    for (const nxt of adj[id] || []) {
+      inDegree[nxt] -= 1;
+      if (inDegree[nxt] === 0) queue.push(nxt);
+    }
+  }
+  // Fallback: if disconnected nodes remain
+  (stepsArr || []).forEach((s) => {
+    if (!order.includes(s.id)) order.push(s.id);
+  });
+  const map: Record<string, number> = {};
+  order.forEach((id, idx) => (map[id] = idx + 1));
+  return map;
+}
+
 // Helper: recursively render the flowchart for any steps array
-function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
+function FlowNodeGeneric({ id, stepMap, sequenceMap }: { id: string; stepMap: any; sequenceMap: Record<string, number> }) {
   const step = stepMap[id];
   if (!step) return null;
   const children = (step.childrenIds || [])
@@ -172,8 +215,15 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
               .join(", ")}
           </div>
         )}
-      <div className="bg-white rounded-xl shadow border px-6 py-3 mb-4 text-center min-w-[180px]">
-        <div className="font-semibold text-lg mb-1">{step.title}</div>
+      <div className="bg-white rounded-xl shadow border px-6 py-3 mb-4 text-center min-w-[220px]">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          {sequenceMap[step.id] && step.id !== "you" && (
+            <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+              {sequenceMap[step.id]}
+            </span>
+          )}
+          <div className="font-semibold text-lg">{step.title}</div>
+        </div>
         {step.description && (
           <div className="text-xs text-gray-500">{step.description}</div>
         )}
@@ -203,7 +253,7 @@ function FlowNodeGeneric({ id, stepMap }: { id: string; stepMap: any }) {
           ))}
           {children.map((child: any) => (
             <div key={child.id} className="mx-4 mt-8">
-              <FlowNodeGeneric id={child.id} stepMap={stepMap} />
+              <FlowNodeGeneric id={child.id} stepMap={stepMap} sequenceMap={sequenceMap} />
             </div>
           ))}
         </div>
@@ -615,9 +665,19 @@ const Courses = () => {
           <div className="w-full max-w-6xl mx-auto pb-16">
             <div className="flex flex-col items-center">
               {steps && steps.length > 0 ? (
-                <FlowNodeGeneric id={steps[0].id} stepMap={buildStepMap(steps)} />
+                (() => {
+                  const stepMap = buildStepMap(steps);
+                  const seq = computeSequenceIndexMap(steps);
+                  // Start from a node with smallest sequence index
+                  const startId = steps.slice().sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999))[0].id;
+                  return <FlowNodeGeneric id={startId} stepMap={stepMap} sequenceMap={seq} />;
+                })()
               ) : (
-                <FlowNodeGeneric id="you" stepMap={buildStepMap(mockSteps)} />
+                (() => {
+                  const stepMap = buildStepMap(mockSteps);
+                  const seq = computeSequenceIndexMap(mockSteps);
+                  return <FlowNodeGeneric id="you" stepMap={stepMap} sequenceMap={seq} />;
+                })()
               )}
             </div>
           </div>
