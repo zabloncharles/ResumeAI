@@ -11,10 +11,11 @@ import CreateStudySet from "./components/CreateStudySet";
 import SplashCursor from "./components/SplashCursor";
 import Services from "./components/Pages/Services";
 import About from "./components/Pages/About";
-import Contact from "./components/Pages/Contact";
+import Contact from "./components/Pages/Contact.tsx";
 import Privacy from "./components/Pages/Privacy";
 import Terms from "./components/Pages/Terms";
 import Courses from "./components/Courses";
+import Jobs from "./components/Pages/Jobs";
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/courses" element={<Courses />} />
+          <Route path="/jobs" element={<Jobs />} />
         </Routes>
       </div>
     </Router>
