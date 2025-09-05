@@ -140,6 +140,24 @@ function isCollegeRequired(spec: string): boolean {
 }
 
 // Scorecard: find top schools by program keyword
+function getProgramKeywordsForSpec(spec: string): string[] {
+  const s = (spec || "").toLowerCase();
+  // Law-related mappings to CIP titles
+  if (s.includes("tax")) return ["Tax Law", "Law"];
+  if (s.includes("ip") || s.includes("intellectual property")) return ["Intellectual Property Law", "Law"];
+  if (s.includes("corporate") || s.includes("business")) return ["Business/Corporate Law", "Law"];
+  if (s.includes("criminal")) return ["Criminal Law", "Law"];
+  if (s.includes("environment")) return ["Environmental Law", "Law"];
+  if (s.includes("family")) return ["Family Law", "Law"];
+  // Medical
+  if (s.includes("psychiatrist")) return ["Psychiatry", "Medicine", "Medical"];
+  // Engineering / CS
+  if (s.includes("software")) return ["Computer Science", "Software Engineering"];
+  if (s.includes("electrical")) return ["Electrical Engineering", "Engineering"];
+  if (s.includes("mechanical")) return ["Mechanical Engineering", "Engineering"];
+  return [spec || "", "Law", "Engineering", "Computer Science"]; // generic fallbacks
+}
+
 async function fetchTopSchoolsByProgram(program: string): Promise<string[]> {
   try {
     const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
@@ -147,20 +165,20 @@ async function fetchTopSchoolsByProgram(program: string): Promise<string[]> {
     // Use search by program keyword via fields filter
     const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
     const fields = "id,school.name,latest.programs.cip_4_digit.title";
-    const url = `${base}?fields=${encodeURIComponent(fields)}&latest.programs.cip_4_digit.title__icontains=${encodeURIComponent(
-      program
-    )}&per_page=3&api_key=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const json = await res.json();
-    const results = json?.results || [];
-    const names = Array.from(
-      new Set(
-        results
-          .map((r: any) => r?.school?.name)
-          .filter(Boolean)
-      )
-    );
+    const keywords = getProgramKeywordsForSpec(program).filter(Boolean);
+    let names: string[] = [];
+    for (const kw of keywords) {
+      const url = `${base}?fields=${encodeURIComponent(fields)}&latest.programs.cip_4_digit.title__icontains=${encodeURIComponent(
+        kw
+      )}&per_page=5&api_key=${encodeURIComponent(apiKey)}`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const results = json?.results || [];
+      const batch = results.map((r: any) => r?.school?.name).filter(Boolean);
+      names = Array.from(new Set([...names, ...batch]));
+      if (names.length >= 3) break;
+    }
     return names.slice(0, 3);
   } catch {
     return [];
