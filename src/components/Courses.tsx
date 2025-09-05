@@ -221,12 +221,12 @@ const Courses = () => {
         );
       } catch (e) {}
 
-      const statuses = ["planned", "inprogress", "released"];
+      // Initialize all steps as planned (Prerequisites) until user advances them
       const stepsWithStatus = (data.steps || [])
         .filter((s: any) => s.id !== "you")
-        .map((step: any, idx: number) => ({
+        .map((step: any) => ({
           ...step,
-          status: step.status || statuses[idx % statuses.length],
+          status: "planned",
         }));
       setSteps(stepsWithStatus);
     } catch (err: any) {
