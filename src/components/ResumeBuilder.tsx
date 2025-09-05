@@ -17,15 +17,7 @@ import AIResumeAssistant from "./AIResumeAssistant";
 import type { ResumeData } from "../types/ResumeData";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  addDoc,
-  collection,
-  arrayUnion,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import SignInModal from "./SignInModal";
 import bunny1 from "../bunny1.png";
 import ResumePreview from "./ResumePreview";
@@ -99,7 +91,7 @@ const ResumeBuilder = () => {
   });
 
   const [resumeData, setResumeData] = useState<ResumeData>(initialResumeData);
-  const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
+  const [currentResumeId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -473,20 +465,9 @@ const ResumeBuilder = () => {
         updatedBy: auth.currentUser.uid,
       };
 
-      if (currentResumeId) {
-        const resumeDocRef = doc(db, "resumes", currentResumeId);
-        await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
-      } else {
-        const resumesCol = collection(db, "resumes");
-        const docRef = await addDoc(resumesCol, resumeDataToSave);
-        const resumeId = docRef.id;
-        setCurrentResumeId(resumeId);
-        // Best-effort link to user document; ignore permission errors
-        try {
-          const userRef = doc(db, "users", auth.currentUser.uid);
-          await updateDoc(userRef, { resumeIds: arrayUnion(resumeId) });
-        } catch {}
-      }
+      // Always write to resumes/{uid}
+      const resumeDocRef = doc(db, "resumes", auth.currentUser.uid);
+      await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
 
       lastSyncedAtRef.current = now;
       setHasPendingSync(false);
