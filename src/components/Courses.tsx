@@ -1,7 +1,7 @@
 import Navbar from "./Navbar";
 import { useState } from "react";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 // import { onAuthStateChanged, User } from "firebase/auth";
 import {
   doc,
@@ -152,16 +152,14 @@ const Courses = () => {
     setError("");
     setSteps([]);
     try {
-      console.log("Current user state:", user);
-      if (!user) {
+      const currentUser = user || auth.currentUser;
+      if (!currentUser) {
         setShowSignInModal(true);
         setLoading(false);
         return;
       }
 
-      console.log("Getting ID token for user:", user.uid);
-      const token = await user.getIdToken();
-      console.log("Token received:", token ? "Yes" : "No");
+      const token = await currentUser.getIdToken();
 
       const response = await fetch("/.netlify/functions/generateCareerPath", {
         method: "POST",
@@ -174,7 +172,6 @@ const Courses = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("API Error:", errorData);
         throw new Error(errorData.error || "Failed to generate career path");
       }
 
@@ -182,30 +179,15 @@ const Courses = () => {
       const totalTokens = data.total_tokens || 0;
 
       // Increment call count and totalTokens in Firestore
-      if (user) {
-        const userRef = doc(db, "users", user.uid);
-        try {
-          console.log(
-            "[Firestore] Attempting to increment callCount and totalTokens for:",
-            user.uid,
-            "Tokens:",
-            totalTokens
-          );
-          await setDoc(
-            userRef,
-            { callCount: increment(1), totalTokens: increment(totalTokens) },
-            { merge: true }
-          );
-          console.log(
-            "[Firestore] callCount and totalTokens incremented for:",
-            user.uid
-          );
-        } catch (e) {
-          console.error(
-            "[Firestore] Error incrementing callCount/totalTokens:",
-            e
-          );
-        }
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
+        await setDoc(
+          userRef,
+          { callCount: increment(1), totalTokens: increment(totalTokens) },
+          { merge: true }
+        );
+      } catch (e) {
+        // Non-blocking
       }
 
       // For demo: randomly assign status to steps if not present
@@ -219,10 +201,10 @@ const Courses = () => {
       setSteps(stepsWithStatus);
 
       // Add to paths collection if roadmap fetch was successful
-      if (user && stepsWithStatus.length > 0) {
+      if (stepsWithStatus.length > 0) {
         await addDoc(collection(db, "paths"), {
           createdAt: serverTimestamp(),
-          userId: user.uid,
+          userId: currentUser.uid,
           profession,
         });
       }
@@ -424,12 +406,10 @@ const Courses = () => {
           onClose={() => setShowSignInModal(false)}
           onSuccess={() => {
             setShowSignInModal(false);
-            // Optionally auto-submit the form after successful sign-in
             setTimeout(() => {
-              if (profession.trim()) {
-                handleSubmit(new Event('submit') as any);
-              }
-            }, 1000);
+              const form = document.querySelector("form");
+              form && (form as HTMLFormElement).dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+            }, 300);
           }}
         />
       </div>
