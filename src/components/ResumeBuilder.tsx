@@ -413,8 +413,8 @@ const ResumeBuilder = () => {
         userId: user.uid,
         updatedBy: user.uid,
       };
-      // Always overwrite the user's single resume document
-      const resumeDocRef = doc(db, "users", user.uid, "resume", "main");
+      // Always overwrite a single resume document keyed by user ID
+      const resumeDocRef = doc(db, "resumes", user.uid);
       await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
       setSaveStatus("saved");
       setTimeout(() => {
@@ -592,8 +592,8 @@ const ResumeBuilder = () => {
 
       setLoading(true);
       try {
-        // Load the single resume doc per user
-        const resumeRef = doc(db, "users", auth.currentUser.uid, "resume", "main");
+        // Load the single resume doc keyed by user ID
+        const resumeRef = doc(db, "resumes", auth.currentUser.uid);
         const resumeSnap = await getDoc(resumeRef);
         if (resumeSnap.exists()) {
           setResumeData(resumeSnap.data() as ResumeData);
