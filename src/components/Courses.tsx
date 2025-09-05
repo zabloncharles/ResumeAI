@@ -104,12 +104,11 @@ function suggestSpecializations(term: string): string[] {
   const t = term.toLowerCase();
   if (t.includes("doctor") || t.includes("physician"))
     return [
-      "Internal Medicine",
-      "Pediatrics",
-      "General Surgery",
-      "Orthopedics",
-      "Psychiatry",
-      "Dermatology",
+      "Psychiatrist",
+      "Cardiologist",
+      "Dermatologist",
+      "General Surgeon",
+      "Pediatrician",
     ];
   if (t.includes("engineer"))
     return [
@@ -117,17 +116,85 @@ function suggestSpecializations(term: string): string[] {
       "Electrical Engineer",
       "Mechanical Engineer",
       "Civil Engineer",
-      "Aerospace Engineer",
       "Biomedical Engineer",
     ];
   if (t.includes("developer"))
     return ["Frontend Developer", "Backend Developer", "Full‑Stack Developer", "Mobile Developer"];
   if (t.includes("designer"))
     return ["UX Designer", "UI Designer", "Product Designer", "Graphic Designer"];
-  if (t.includes("lawyer")) return ["Corporate Lawyer", "Criminal Lawyer", "IP Lawyer", "Tax Lawyer"];
+  if (t.includes("lawyer") || t.includes("law")) return ["Criminal Lawyer", "Corporate Lawyer", "IP Lawyer", "Tax Lawyer"];
   if (t.includes("nurse")) return ["RN (Registered Nurse)", "NP (Nurse Practitioner)", "ICU Nurse", "OR Nurse"];
-  if (t.includes("teacher")) return ["Elementary", "High School", "Special Education", "ESL Teacher"];
-  return ["Specialization A", "Specialization B", "Specialization C"];
+  if (t.includes("teacher")) return ["Elementary Teacher", "High School Teacher", "Special Education Teacher"];
+  return ["Data Analyst", "Product Manager", "Cybersecurity Analyst"];
+}
+
+// Heuristic: is college required for a specialization
+function isCollegeRequired(spec: string): boolean {
+  const s = (spec || "").toLowerCase();
+  const must = ["psychiatrist", "doctor", "surgeon", "lawyer", "attorney", "nurse", "engineer", "teacher", "pharmacist", "dentist", "architect"];
+  if (must.some((k) => s.includes(k))) return true;
+  // tech roles often benefit from degrees, but not strictly required
+  const optional = ["developer", "designer", "analyst", "marketer", "pm", "product manager"];
+  if (optional.some((k) => s.includes(k))) return false;
+  return false;
+}
+
+// Scorecard: find top schools by program keyword
+async function fetchTopSchoolsByProgram(program: string): Promise<string[]> {
+  try {
+    const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
+    if (!apiKey || !program) return [];
+    // Use search by program keyword via fields filter
+    const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
+    const fields = "id,school.name,latest.programs.cip_4_digit.title";
+    const url = `${base}?fields=${encodeURIComponent(fields)}&latest.programs.cip_4_digit.title__icontains=${encodeURIComponent(
+      program
+    )}&per_page=3&api_key=${encodeURIComponent(apiKey)}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const results = json?.results || [];
+    const names = Array.from(
+      new Set(
+        results
+          .map((r: any) => r?.school?.name)
+          .filter(Boolean)
+      )
+    );
+    return names.slice(0, 3);
+  } catch {
+    return [];
+  }
+}
+
+// Scorecard: typeahead institution suggestions
+async function fetchInstitutionSuggestions(qs: string): Promise<string[]> {
+  try {
+    const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
+    if (!apiKey || !qs) return [];
+    const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
+    const fields = "school.name";
+    const url = `${base}?fields=${encodeURIComponent(fields)}&school.name__icontains=${encodeURIComponent(
+      qs
+    )}&per_page=5&api_key=${encodeURIComponent(apiKey)}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const results = json?.results || [];
+    return Array.from(new Set(results.map((r: any) => r?.school?.name).filter(Boolean)));
+  } catch {
+    return [];
+  }
+}
+
+// Degree course templates (simple) for path injection
+function getDegreeCourses(spec: string): string[] {
+  const s = (spec || "").toLowerCase();
+  if (s.includes("psychiatrist") || s.includes("doctor"))
+    return ["Biology I", "General Chemistry", "Organic Chemistry", "Physics", "Psychology", "Biochemistry"];
+  if (s.includes("law")) return ["Constitutional Law", "Criminal Law", "Torts", "Contracts", "Evidence", "Legal Writing"];
+  if (s.includes("software") || s.includes("developer")) return ["Data Structures", "Algorithms", "Databases", "Operating Systems", "Web Development", "Computer Networks"];
+  return ["Core 1", "Core 2", "Elective 1", "Elective 2"];
 }
 
 // College Scorecard integration: fetch programs for an institution
@@ -355,6 +422,8 @@ const Courses = () => {
   const [specialization, setSpecialization] = useState<string>("");
   const [institution, setInstitution] = useState<string>("");
   const [suggestedSpecs, setSuggestedSpecs] = useState<string[]>([]);
+  const [schoolSuggestions, setSchoolSuggestions] = useState<string[]>([]);
+  const [topSchools, setTopSchools] = useState<string[]>([]);
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -371,6 +440,33 @@ const Courses = () => {
       setSuggestedSpecs([]);
     }
   }, [profession]);
+
+  useEffect(() => {
+    (async () => {
+      if (!specialization) {
+        setTopSchools([]);
+        return;
+      }
+      if (isCollegeRequired(specialization)) {
+        const schools = await fetchTopSchoolsByProgram(specialization);
+        setTopSchools(schools);
+      } else {
+        setTopSchools([]);
+      }
+    })();
+  }, [specialization]);
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (!institution || institution.length < 3) {
+        setSchoolSuggestions([]);
+        return;
+      }
+      const list = await fetchInstitutionSuggestions(institution);
+      setSchoolSuggestions(list);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [institution]);
 
   // Load last saved path for user (client-side pick latest)
   useEffect(() => {
@@ -532,6 +628,20 @@ const Courses = () => {
       let stepsWithStatus = sanitizeSteps(stepsPlanned);
       // Ensure institution steps come after key gates for law paths
       stepsWithStatus = adjustInstitutionPrereqs(stepsWithStatus, profession, specialization);
+
+      // If college required and we have specialization + institution/any school, inject degree courses
+      if (isCollegeRequired(specialization)) {
+        const courses = getDegreeCourses(specialization).map((c, idx) => ({
+          id: `course_${idx}_${Date.now()}`,
+          title: `Course: ${c}`,
+          description: `Core course for ${specialization}`,
+          prerequisiteIds: [findStepIdByTitle(stepsWithStatus, "Bachelor") || "you"],
+          childrenIds: [],
+          status: "planned",
+        }));
+        stepsWithStatus = sanitizeSteps([...stepsWithStatus, ...courses]);
+      }
+
       setSteps(stepsWithStatus);
 
       // Save/overwrite last path
@@ -719,21 +829,52 @@ const Courses = () => {
                   </div>
                 )}
 
-                <input
-                  type="text"
-                  value={specialization}
-                  onChange={(e) => setSpecialization(e.target.value)}
-                  placeholder="Specialization (optional unless career is broad)"
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
-                />
+                {specialization && isCollegeRequired(specialization) && (
+                  <div className="text-left">
+                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                      Top schools for {specialization}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {topSchools.map((s) => (
+                        <button
+                          type="button"
+                          key={s}
+                          onClick={() => setInstitution(s)}
+                          className="px-3 py-1 rounded-full border border-gray-300 text-sm hover:bg-gray-50"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <input
-                  type="text"
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
-                  placeholder="Institution (optional, e.g., Harvard University)"
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={institution}
+                    onChange={(e) => setInstitution(e.target.value)}
+                    placeholder="Institution (optional, e.g., Harvard University)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                  />
+                  {schoolSuggestions.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-sm max-h-48 overflow-auto">
+                      {schoolSuggestions.map((s) => (
+                        <button
+                          type="button"
+                          key={s}
+                          onClick={() => {
+                            setInstitution(s);
+                            setSchoolSuggestions([]);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="submit"
