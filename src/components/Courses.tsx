@@ -130,6 +130,46 @@ function suggestSpecializations(term: string): string[] {
   return ["Specialization A", "Specialization B", "Specialization C"];
 }
 
+// College Scorecard integration: fetch programs for an institution
+async function fetchScorecardPrograms(institution: string): Promise<{ code?: string; title: string }[]> {
+  try {
+    const apiKey = (import.meta as any).env?.VITE_SCORECARD_KEY;
+    if (!apiKey || !institution) return [];
+    const base = "https://api.data.gov/ed/collegescorecard/v1/schools";
+    const fields = [
+      "id",
+      "school.name",
+      "latest.programs.cip_4_digit.code",
+      "latest.programs.cip_4_digit.title",
+    ].join(",");
+    const buildUrl = (nameParam: string) =>
+      `${base}?${nameParam}=${encodeURIComponent(institution)}&fields=${encodeURIComponent(
+        fields
+      )}&per_page=1&api_key=${encodeURIComponent(apiKey)}`;
+
+    // Try icontains then fallback to contains
+    let url = buildUrl("school.name__icontains");
+    let res = await fetch(url);
+    if (!res.ok) {
+      url = buildUrl("school.name");
+      res = await fetch(url);
+    }
+    if (!res.ok) return [];
+    const json = await res.json();
+    const results = json?.results || [];
+    if (results.length === 0) return [];
+    const programs =
+      results[0]?.latest?.programs?.cip_4_digit ||
+      results[0]?.latest?.programs ||
+      [];
+    return (programs || [])
+      .map((p: any) => ({ code: p?.code, title: p?.title }))
+      .filter((p: any) => !!p.title);
+  } catch (e) {
+    return [];
+  }
+}
+
 // Compute distance (importance) from root ("you"): lower distance = earlier prerequisite
 function computeDistances(stepsArr: any[]) {
   const map = buildStepMap(stepsArr);
@@ -378,12 +418,44 @@ const Courses = () => {
       } catch (e) {}
 
       // Initialize all steps as planned (Prerequisites) until user advances them
-      const stepsWithStatus = (data.steps || [])
-        .filter((s: any) => s.id !== "you")
-        .map((step: any) => ({
-          ...step,
+      const rawGeneratedSteps = (data.steps || []).filter((s: any) => s.id !== "you");
+
+      // If institution provided, enrich with program steps from Scorecard
+      let schoolProgramSteps: any[] = [];
+      if (institution) {
+        const programs = await fetchScorecardPrograms(institution);
+        let filtered = programs;
+        if (specialization) {
+          const spec = specialization.toLowerCase();
+          filtered = programs.filter((p) => p.title?.toLowerCase?.().includes(spec));
+          if (filtered.length === 0) filtered = programs;
+        }
+        const top = filtered.slice(0, 5);
+        schoolProgramSteps = top.map((p, idx) => ({
+          id: `program_${p.code || idx}`,
+          title: `${institution} • ${p.title}`,
+          description: "Program relevant to your specialization",
+          prerequisiteIds: ["you"],
+          childrenIds: [],
           status: "planned",
         }));
+        // Add generic admission/application step at the top
+        if (schoolProgramSteps.length > 0) {
+          schoolProgramSteps.unshift({
+            id: `admissions_${Date.now()}`,
+            title: `Apply to ${institution}`,
+            description: "Prepare application materials, tests, and financial aid",
+            prerequisiteIds: ["you"],
+            childrenIds: [],
+            status: "planned",
+          });
+        }
+      }
+
+      const stepsWithStatus = [
+        ...schoolProgramSteps,
+        ...rawGeneratedSteps.map((step: any) => ({ ...step, status: "planned" })),
+      ];
       setSteps(stepsWithStatus);
 
       // Save/overwrite last path
