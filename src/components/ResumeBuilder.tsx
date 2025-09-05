@@ -111,6 +111,7 @@ const ResumeBuilder = () => {
   // Add auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const autoSaveTimerRef = useRef<number | null>(null);
 
   // Memoize resume templates
   const resumeTemplates = useMemo(
@@ -424,6 +425,24 @@ const ResumeBuilder = () => {
       setSaving(false);
     }
   }, [user, isAuthenticated, currentResumeId]);
+
+  // Auto-save resume changes to localStorage (debounced)
+  useEffect(() => {
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem("resume", JSON.stringify(resumeData));
+      } catch {}
+    }, 600);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [resumeData]);
 
   // Improve the load resume data function with auth handling
   const loadResumeData = useCallback(
