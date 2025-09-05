@@ -429,16 +429,21 @@ const Courses = () => {
           <span className="text-xs text-gray-500">{items.length}</span>
         </div>
         <div className="space-y-2">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <button
               key={item.id}
               onClick={() => advanceStep(item.id)}
               className="w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">
-                  {item.title}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {item.title}
+                  </span>
+                </div>
                 <span className="text-[10px] text-gray-500">Advance →</span>
               </div>
               {item.prerequisiteIds && item.prerequisiteIds.length > 0 && (
