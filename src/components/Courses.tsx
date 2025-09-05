@@ -147,27 +147,51 @@ async function fetchScorecardPrograms(institution: string): Promise<{ code?: str
         fields
       )}&per_page=1&api_key=${encodeURIComponent(apiKey)}`;
 
-    // Try icontains then fallback to contains
     let url = buildUrl("school.name__icontains");
     let res = await fetch(url);
     if (!res.ok) {
       url = buildUrl("school.name");
       res = await fetch(url);
     }
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn("[Scorecard] HTTP error", res.status);
+      return [];
+    }
     const json = await res.json();
     const results = json?.results || [];
-    if (results.length === 0) return [];
+    if (results.length === 0) {
+      console.info("[Scorecard] No school results for", institution);
+      return [];
+    }
     const programs =
       results[0]?.latest?.programs?.cip_4_digit ||
       results[0]?.latest?.programs ||
       [];
-    return (programs || [])
+    const mapped = (programs || [])
       .map((p: any) => ({ code: p?.code, title: p?.title }))
       .filter((p: any) => !!p.title);
+    console.info("[Scorecard] Programs fetched:", mapped.length);
+    return mapped;
   } catch (e) {
+    console.warn("[Scorecard] Exception:", e);
     return [];
   }
+}
+
+function sanitizeSteps(input: any[]): any[] {
+  const seenTitles = new Set<string>();
+  return (input || [])
+    .filter((s) => {
+      const key = (s.title || "").trim().toLowerCase();
+      if (!key) return false;
+      if (seenTitles.has(key)) return false;
+      seenTitles.add(key);
+      return true;
+    })
+    .map((s) => ({
+      ...s,
+      prerequisiteIds: (s.prerequisiteIds || []).filter((pid: string) => pid && pid !== s.id),
+    }));
 }
 
 // Compute distance (importance) from root ("you"): lower distance = earlier prerequisite
@@ -425,26 +449,35 @@ const Courses = () => {
       if (institution) {
         const programs = await fetchScorecardPrograms(institution);
         let filtered = programs;
-        if (specialization) {
+        if (specialization && !/^specialization\s[a-c]$/i.test(specialization.trim())) {
           const spec = specialization.toLowerCase();
-          filtered = programs.filter((p) => p.title?.toLowerCase?.().includes(spec));
-          if (filtered.length === 0) filtered = programs;
+          const f = programs.filter((p) => p.title?.toLowerCase?.().includes(spec));
+          if (f.length > 0) filtered = f;
         }
         const top = filtered.slice(0, 5);
         schoolProgramSteps = top.map((p, idx) => ({
-          id: `program_${p.code || idx}`,
+          id: `program_${p.code || idx}_${Date.now()}`,
           title: `${institution} • ${p.title}`,
           description: "Program relevant to your specialization",
           prerequisiteIds: ["you"],
           childrenIds: [],
           status: "planned",
         }));
-        // Add generic admission/application step at the top
-        if (schoolProgramSteps.length > 0) {
-          schoolProgramSteps.unshift({
-            id: `admissions_${Date.now()}`,
-            title: `Apply to ${institution}`,
-            description: "Prepare application materials, tests, and financial aid",
+        // Always include an admissions/application step
+        schoolProgramSteps.unshift({
+          id: `admissions_${Date.now()}`,
+          title: `Apply to ${institution}`,
+          description: "Prepare application materials, required tests, and financial aid",
+          prerequisiteIds: ["you"],
+          childrenIds: [],
+          status: "planned",
+        });
+        // If no programs were found, include a discovery step so user still sees the school reflected
+        if (top.length === 0) {
+          schoolProgramSteps.push({
+            id: `explore_${Date.now()}`,
+            title: `${institution} • Explore Programs`,
+            description: "Review the institution's catalog to pick the best major",
             prerequisiteIds: ["you"],
             childrenIds: [],
             status: "planned",
@@ -452,10 +485,11 @@ const Courses = () => {
         }
       }
 
-      const stepsWithStatus = [
+      const stepsPlanned = [
         ...schoolProgramSteps,
         ...rawGeneratedSteps.map((step: any) => ({ ...step, status: "planned" })),
       ];
+      const stepsWithStatus = sanitizeSteps(stepsPlanned);
       setSteps(stepsWithStatus);
 
       // Save/overwrite last path
