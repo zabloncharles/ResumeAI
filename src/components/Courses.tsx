@@ -211,6 +211,69 @@ function adjustInstitutionPrereqs(
   });
 }
 
+function getDetailBulletsForStep(title: string, specialization: string): string[] {
+  const t = (title || "").toLowerCase();
+  const spec = (specialization || "").toLowerCase();
+  // High school details
+  if (t.includes("high school")) {
+    return [
+      "Take AP/IB Biology, Chemistry, Physics, and Calculus",
+      "Volunteer at hospitals/clinics; join HOSA or science clubs",
+      "Shadow physicians; build early clinical exposure",
+      "Prepare for SAT/ACT; craft competitive applications",
+    ];
+  }
+  // Bachelor details (pre‑med)
+  if (t.includes("bachelor")) {
+    return [
+      "Complete pre‑med prerequisites: Bio I/II, Chem I/II, Organic Chem, Physics, Biochem, Statistics, Psychology",
+      "Maintain strong GPA (target 3.6+)",
+      "Clinical experience: scribe/EMT/volunteer; physician shadowing",
+      "Research or publications (optional but beneficial)",
+      "Prepare for MCAT (content review + practice exams)",
+      "Build letters of recommendation and personal statement",
+    ];
+  }
+  // Medical school details
+  if (t.includes("medical school")) {
+    return [
+      "M1–M2: Basic sciences; USMLE Step 1",
+      "M3: Core clinical rotations (IM, Surgery, Pediatrics, Psych, OB/Gyn, FM)",
+      "M4: Sub‑internships and electives in target specialty",
+      "USMLE Step 2 CK; finalize letters of recommendation",
+      "Apply for residency via ERAS; interview season timing",
+    ];
+  }
+  // Residency details
+  if (t.includes("residency")) {
+    if (spec.includes("psych")) {
+      return [
+        "Match into Psychiatry (PGY‑1 to PGY‑4)",
+        "Inpatient psychiatry, outpatient clinics, consult‑liaison, addiction, child psych rotations",
+        "USMLE Step 3; moonlighting policies",
+        "Apply for ABPN board certification after residency",
+        "State medical license; DEA registration",
+        "Optional fellowship (e.g., Child & Adolescent, Addiction, Forensic)",
+      ];
+    }
+    return [
+      "PGY‑1: Intern year; fundamentals and off‑service rotations",
+      "PGY‑2+: Specialty‑specific rotations and electives",
+      "USMLE/COMLEX Step 3; in‑training exams",
+      "Boards eligibility; state license and DEA registration",
+      "Consider fellowship for further subspecialization",
+    ];
+  }
+  return [];
+}
+
+function attachStepDetails(steps: any[], specialization: string): any[] {
+  return steps.map((s) => {
+    const details = getDetailBulletsForStep(s.title, specialization);
+    return details.length > 0 ? { ...s, details } : s;
+  });
+}
+
 // Compute distance (importance) from root ("you"): lower distance = earlier prerequisite
 function computeDistances(stepsArr: any[]) {
   const map = buildStepMap(stepsArr);
@@ -565,6 +628,8 @@ const Courses = () => {
         profession,
         specialization
       );
+      // Attach detail bullets to key steps
+      stepsWithStatus = attachStepDetails(stepsWithStatus, specialization);
       setSteps(stepsWithStatus);
 
       // Save/overwrite last path
@@ -866,6 +931,13 @@ const Courses = () => {
                                 {s.description}
                               </div>
                             )}
+                            {Array.isArray(s.details) && s.details.length > 0 && (
+                              <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
+                                {s.details.map((d: string, i: number) => (
+                                  <li key={i}>{d}</li>
+                                ))}
+                              </ul>
+                            )}
                             {(() => {
                               const pr = fmtPrereqs(s.prerequisiteIds);
                               return pr.length > 0 ? (
@@ -910,6 +982,13 @@ const Courses = () => {
                               <div className="text-sm text-gray-600">
                                 {s.description}
                               </div>
+                            )}
+                            {Array.isArray((s as any).details) && (s as any).details.length > 0 && (
+                              <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
+                                {(s as any).details.map((d: string, i: number) => (
+                                  <li key={i}>{d}</li>
+                                ))}
+                              </ul>
                             )}
                             {(() => {
                               const pr = fmtPrereqs(s.prerequisiteIds);
