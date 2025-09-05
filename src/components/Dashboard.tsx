@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, getDocs, increment } from "firebase/firestore";
 import Navbar from "./Navbar";
 import {
   BarChart,
@@ -35,10 +35,10 @@ const Dashboard = () => {
   console.log("Dashboard component rendered");
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [recentUsers] = useState<UserData[]>([]);
-  const [userLocations] = useState<any[]>([]);
-  const [locationArcs] = useState<any[]>([]);
-  const [topStates] = useState<
+  const [recentUsers, setRecentUsers] = useState<UserData[]>([]);
+  const [userLocations, setUserLocations] = useState<any[]>([]);
+  const [locationArcs, setLocationArcs] = useState<any[]>([]);
+  const [topStates, setTopStates] = useState<
     { state: string; count: number; percent: number }[]
   >([]);
   const globeRef = useRef<any>(null);
@@ -46,7 +46,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Dynamic data for the chart
-  const [profileImpressionData] = useState([
+  const [profileImpressionData, setProfileImpressionData] = useState([
     { month: "Jan", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
     { month: "Feb", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
     { month: "Mar", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
@@ -111,9 +111,7 @@ const Dashboard = () => {
       // Increment API call count for the user
       try {
         const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, {
-          totalApiCalls: 1,
-        });
+        await updateDoc(userRef, { totalApiCalls: increment(1) });
       } catch (error) {
         console.error("[Dashboard] Error incrementing API call count:", error);
       }
@@ -145,6 +143,92 @@ const Dashboard = () => {
       fetchUserData();
     })();
   }, [user]);
+
+  // Fetch all users once to populate dashboard stats
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const allUsers: UserData[] = [];
+        usersSnap.forEach((d) => {
+          const data = d.data() as any;
+          allUsers.push({
+            id: d.id,
+            email: data.email || "",
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+            createdAt: data.createdAt || "",
+            lastLogin: data.lastLogin || "",
+            totalResumes: data.totalResumes || 0,
+            totalApiCalls: data.totalApiCalls || 0,
+            totalTokens: data.totalTokens || 0,
+            location: data.location || "",
+            type: data.type || "free",
+            state: data.state || "",
+          });
+        });
+        setRecentUsers(allUsers);
+
+        // Build locations from "lat,lng" in location string if present
+        const locs: any[] = [];
+        for (const u of allUsers) {
+          if (u.location && typeof u.location === "string" && u.location.includes(",")) {
+            const [latStr, lngStr] = u.location.split(",");
+            const lat = parseFloat(latStr);
+            const lng = parseFloat(lngStr);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              locs.push({ lat, lng, name: `${u.firstName} ${u.lastName}`.trim() || u.email || "User" });
+            }
+          }
+        }
+        setUserLocations(locs);
+        setLocationArcs([]);
+
+        // Top states aggregation (top 3)
+        const stateCounts: Record<string, number> = {};
+        for (const u of allUsers) {
+          if (u.state) stateCounts[u.state] = (stateCounts[u.state] || 0) + 1;
+        }
+        const totalUsers = allUsers.length || 1;
+        const top = Object.entries(stateCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([state, count]) => ({ state, count, percent: Math.round((count / totalUsers) * 100) }));
+        setTopStates(top);
+
+        // Aggregate API calls & tokens by month from user totals keyed by createdAt month
+        const months = [
+          "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+        ];
+        const apiChart = months.map((m) => ({ month: m, apiCalls: 0, tokens: 0 }));
+        const profileChart = months.map((m) => ({ month: m, coverLetter: 0, resume: 0, careerPath: 0, users: 0 }));
+
+        for (const u of allUsers) {
+          let createdAtDate: Date | null = null;
+          if (u.createdAt) {
+            const d = new Date(u.createdAt as string);
+            if (!isNaN(d.getTime())) createdAtDate = d;
+          }
+          const m = createdAtDate ? createdAtDate.getMonth() : 0;
+          apiChart[m].apiCalls += u.totalApiCalls || 0;
+          apiChart[m].tokens += u.totalTokens || 0;
+          profileChart[m].users += 1;
+          // If you track monthly resume/coverLetter counts per user, add here. Otherwise leave 0.
+        }
+        setApiTokenChartData(apiChart);
+        // Only update the users series on profile impression chart, keep others as 0 unless tracked
+        setProfileImpressionData((prev: { month: string; coverLetter: number; resume: number; careerPath: number; users: number; }[]) =>
+          prev.map((row: { month: string; coverLetter: number; resume: number; careerPath: number; users: number; }, idx: number) => ({
+            ...row,
+            users: profileChart[idx].users,
+          }))
+        );
+      } catch (e) {
+        // Non-fatal; leave defaults
+      }
+    };
+    fetchAllUsers();
+  }, [db]);
 
   useEffect(() => {
     if (globeRef.current) {
