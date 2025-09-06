@@ -29,8 +29,8 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   PlayIcon,
-  PauseIcon,
-  ChartBarIcon,
+  // PauseIcon,
+  // ChartBarIcon,
   PlusIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -113,21 +113,22 @@ const Study = () => {
 
   // Batched updates state
   const [pendingUpdates, setPendingUpdates] = useState<any[]>([]);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showAnswer, setShowAnswer] = useState(false);
+  // const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // const [showAnswer, setShowAnswer] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateCardModal, setShowCreateCardModal] = useState(false);
-  const [showCreateCardForm, setShowCreateCardForm] = useState(false);
+  // unused UI toggles removed for build
+  // const [showCreateCardForm, setShowCreateCardForm] = useState(false);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "my" | "public" | "borrowed">(
     "all"
   );
-  const [isEditingSet, setIsEditingSet] = useState(false);
-  const [editingSet, setEditingSet] = useState<StudySet | null>(null);
+  // const [isEditingSet, setIsEditingSet] = useState(false);
+  // const [editingSet, setEditingSet] = useState<StudySet | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
     totalStudyTime: 0,
     totalSessions: 0,
@@ -145,7 +146,7 @@ const Study = () => {
   // Public set states
   const [showMakePublicModal, setShowMakePublicModal] = useState(false);
   const [showImportPublicModal, setShowImportPublicModal] = useState(false);
-  const [selectedSetForPublic, setSelectedSetForPublic] =
+  // const [selectedSetForPublic, setSelectedSetForPublic] =
     useState<StudySet | null>(null);
   const [publicSetCredentials, setPublicSetCredentials] = useState<{
     code: string;
@@ -281,7 +282,7 @@ const Study = () => {
 
         // Single getDocs call instead of onSnapshot listener
         const snapshot = await getDocs(q);
-        const sets: StudySet[] = [];
+        // const sets: StudySet[] = [];
 
         // Batch load flashcards for all sets at once
         const flashcardPromises = snapshot.docs.map(async (doc) => {
@@ -486,7 +487,7 @@ const Study = () => {
     setCurrentCardIndex(0);
     setIsFlipped(false);
     setIsStudying(true);
-    setShowAnswer(false);
+    // setShowAnswer(false);
     setScore({ correct: 0, total: 0 });
     setTimer(0);
     setIsTimerRunning(true);
@@ -627,7 +628,7 @@ const Study = () => {
     if (currentSet && currentCardIndex < currentSet.flashcards.length - 1) {
       setCurrentCardIndex(currentCardIndex + 1);
       setIsFlipped(false);
-      setShowAnswer(false);
+      // setShowAnswer(false);
     }
   };
 
@@ -635,7 +636,7 @@ const Study = () => {
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
       setIsFlipped(false);
-      setShowAnswer(false);
+      // setShowAnswer(false);
     }
   };
 
@@ -1099,13 +1100,13 @@ const Study = () => {
     };
 
     const handleOnline = () => {
-      setIsOnline(true);
+      // setIsOnline(true);
       console.log("Back online - syncing pending updates");
       syncPendingUpdates();
     };
 
     const handleOffline = () => {
-      setIsOnline(false);
+      // setIsOnline(false);
       console.log("Gone offline - updates will be queued");
     };
 
@@ -1641,7 +1642,7 @@ const Study = () => {
                             stroke="#10b981"
                             strokeWidth="3"
                             points={sortedData
-                              .map(([date, minutes], index) => {
+                              .map(([_, minutes], index) => {
                                 const x = (index / xDenominator) * innerWidth;
                                 const y =
                                   paddingTop +
@@ -1653,7 +1654,7 @@ const Study = () => {
                           />
 
                           {/* Data points */}
-                          {sortedData.map(([date, minutes], index) => {
+                          {sortedData.map(([_, minutes], index) => {
                             const x = (index / xDenominator) * innerWidth;
                             const y =
                               paddingTop +

@@ -151,13 +151,7 @@ function suggestSpecializations(term: string): string[] {
   return ["Specialization A", "Specialization B", "Specialization C"];
 }
 
-// College Scorecard integration: fetch programs for an institution
-async function fetchScorecardPrograms(
-  institution: string
-): Promise<{ code?: string; title: string }[]> {
-  // Scorecard removed: return no programs
-  return [];
-}
+// (Scorecard integration removed)
 
 function sanitizeSteps(input: any[]): any[] {
   const seenTitles = new Set<string>();
@@ -342,6 +336,8 @@ function computeSequenceIndexMap(stepsArr: any[]): Record<string, number> {
 }
 
 // Helper: recursively render the flowchart for any steps array
+// FlowNodeGeneric kept for reference, currently unused
+/*
 function FlowNodeGeneric({
   id,
   stepMap,
@@ -418,6 +414,7 @@ function FlowNodeGeneric({
     </div>
   );
 }
+*/
 
 const Courses = () => {
   const { user } = useAuth();

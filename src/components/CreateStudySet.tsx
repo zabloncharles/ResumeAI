@@ -14,13 +14,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-import {
-  ArrowLeftIcon,
-  PlusIcon,
-  TrashIcon,
-  EyeIcon,
-  EyeSlashIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, TrashIcon } from "@heroicons/react/24/outline";
 import Cookies from "js-cookie";
 
 interface Flashcard {
@@ -352,15 +346,9 @@ export default function CreateStudySet() {
         });
 
         // Get existing flashcards to compare
-        const existingFlashcardsSnapshot = await getDocs(
+        await getDocs(
           collection(db, "studySets", setId, "flashcards")
         );
-        const existingFlashcardIds = existingFlashcardsSnapshot.docs.map(
-          (doc) => doc.id
-        );
-        const currentFlashcardIds = studySet.flashcards
-          .map((card) => card.id)
-          .filter((id) => id && !id.startsWith("temp_"));
 
         // Add new flashcards (those without Firebase IDs)
         const newFlashcards = studySet.flashcards.filter(

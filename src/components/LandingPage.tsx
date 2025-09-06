@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   DocumentTextIcon,
   SparklesIcon,
@@ -203,7 +203,7 @@ const LandingPage = () => {
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20">
-          {stats.map((stat, index) => (
+          {stats.map((stat) => (
             <div key={stat.value} className="text-center">
               <div className="text-4xl font-bold text-gray-900 mb-2">
                 {stat.value}
