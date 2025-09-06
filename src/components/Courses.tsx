@@ -769,15 +769,35 @@ const Courses = () => {
         {/* Hero Section */}
         <div className="w-full flex flex-col items-center justify-center pt-28 pb-10 mb-0">
           <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+            <div className="flex items-center justify-center space-x-2 mb-6">
+              <span>🧭</span>
+              <span>→</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">AI</span>
+              <span>→</span>
+              <span>💼</span>
+            </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-              Discover Your
+              Plan your
               <br />
-              <span className="text-[#16aeac]">Career Path</span>
+              <span className="text-[#16aeac]">Career Path</span> with Clarity
             </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl">
-              Get personalized career guidance and step-by-step roadmap to
-              achieve your professional goals
+            <p className="text-xl text-gray-600 mb-6 max-w-2xl">
+              Generate a personalized roadmap and track progress with a clean timeline and Kanban board.
             </p>
+            <div className="mt-2 mb-6 flex justify-center gap-3">
+              <a
+                href="/account"
+                className="inline-block px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all text-base font-semibold"
+              >
+                Sign in to save paths
+              </a>
+              <a
+                href="#features"
+                className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-100 transition-all text-base font-semibold"
+              >
+                Explore features
+              </a>
+            </div>
 
             <form onSubmit={handleSubmit} className="w-full max-w-md">
               <div className="flex flex-col gap-3">
@@ -907,6 +927,39 @@ const Courses = () => {
             >
               Board
             </button>
+          </div>
+        </div>
+
+        {/* Features Section (match Study style) */}
+        <div id="features" className="max-w-6xl mx-auto py-16 px-4">
+          <div className="text-center mb-10">
+            <h3 className="text-3xl font-bold text-gray-900 mb-3">Everything you need to plan smarter</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Focused, flat UI with the essentials: generate, refine, and track your path.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                <span className="text-green-600">🧠</span>
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">Personalized Paths</h4>
+              <p className="text-sm text-gray-600">AI‑generated steps tailored to your profession and specialization.</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                <span className="text-green-600">🗂️</span>
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">Specialization Picker</h4>
+              <p className="text-sm text-gray-600">For broad careers, pick a focus to get a more detailed roadmap.</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                <span className="text-green-600">📊</span>
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">Timeline & Kanban</h4>
+              <p className="text-sm text-gray-600">See the order of steps and move cards as you make progress.</p>
+            </div>
           </div>
         </div>
 
