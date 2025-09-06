@@ -904,32 +904,6 @@ const Courses = () => {
           </a>
         </div>
 
-        {/* Toggle Menu */}
-        <div className="flex justify-center mb-10 gap-4">
-          <div className="inline-flex rounded-full bg-white border border-gray-200 p-1">
-            <button
-              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
-                view === "timeline"
-                  ? "bg-black text-white"
-                  : "text-gray-900 hover:bg-gray-100"
-              }`}
-              onClick={() => setView("timeline")}
-            >
-              Timeline
-            </button>
-            <button
-              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
-                view === "board"
-                  ? "bg-black text-white"
-                  : "text-gray-900 hover:bg-gray-100"
-              }`}
-              onClick={() => setView("board")}
-            >
-              Board
-            </button>
-          </div>
-        </div>
-
         {/* Features Section (match Study style) */}
         <div id="features" className="max-w-6xl mx-auto py-16 px-4">
           <div className="text-center mb-10">
@@ -1091,6 +1065,32 @@ const Courses = () => {
         {view === "board" && (
           <div className="w-full max-w-6xl mx-auto pb-16">{renderBoard()}</div>
         )}
+
+        {/* Toggle Menu (moved down) */}
+        <div className="flex justify-center mt-10 mb-12 gap-4">
+          <div className="inline-flex rounded-full bg-white border border-gray-200 p-1">
+            <button
+              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
+                view === "timeline"
+                  ? "bg-black text-white"
+                  : "text-gray-900 hover:bg-gray-100"
+              }`}
+              onClick={() => setView("timeline")}
+            >
+              Timeline
+            </button>
+            <button
+              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
+                view === "board"
+                  ? "bg-black text-white"
+                  : "text-gray-900 hover:bg-gray-100"
+              }`}
+              onClick={() => setView("board")}
+            >
+              Board
+            </button>
+          </div>
+        </div>
 
         {/* How it works Section */}
         <div id="how-it-works" className="w-full max-w-4xl mx-auto mt-20 mb-12">
