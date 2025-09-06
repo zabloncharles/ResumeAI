@@ -8,7 +8,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  SECRETS_SCAN_OMIT_KEYS = "FIREBASE_PROJECT_ID"
+  # Allowlisting non-secret client keys that are expected in the build output
+  # Firebase Web API keys are public and safe to expose per Firebase docs
+  SECRETS_SCAN_OMIT_KEYS = "FIREBASE_PROJECT_ID,VITE_FIREBASE_API_KEY"
 
 # Environment variables will be set in Netlify's dashboard
 # Required environment variables:
