@@ -791,12 +791,14 @@ const Courses = () => {
               Kanban board.
             </p>
             <div className="mt-2 mb-6 flex justify-center gap-3">
-              <button
-                onClick={() => setShowSignInModal(true)}
-                className="inline-block px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all text-base font-semibold"
-              >
-                Sign in to save paths
-              </button>
+              {!user && (
+                <button
+                  onClick={() => setShowSignInModal(true)}
+                  className="inline-block px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all text-base font-semibold"
+                >
+                  Sign in to save paths
+                </button>
+              )}
               <a
                 href="#features"
                 className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-100 transition-all text-base font-semibold"

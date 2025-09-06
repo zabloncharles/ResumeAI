@@ -1161,12 +1161,14 @@ const Study = () => {
                   Build flashcards fast, quiz yourself, and track progress with a clean, modern UI.
                 </p>
                 <div className="mt-2 flex justify-center gap-3">
-                  <button
-                    onClick={() => setShowSignInModal(true)}
-                    className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
-                  >
-                    Sign in to get started
-                  </button>
+                  {!memoizedUser && (
+                    <button
+                      onClick={() => setShowSignInModal(true)}
+                      className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
+                    >
+                      Sign in to get started
+                    </button>
+                  )}
                   <a
                     href="#features"
                     className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
