@@ -1140,39 +1140,88 @@ const Study = () => {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-white to-blue-50 pt-28 px-4 flex flex-col">
+        <div className="min-h-screen bg-white flex flex-col">
           <div className="flex-1">
-            <div className="max-w-5xl mx-auto text-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">Study Hub</h1>
-              <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-                Create, practice, and master flashcards with quiz mode and progress tracking.
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <a
-                  href="/account"
-                  className="px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#139b99] transition-colors font-semibold"
-                >
-                  Sign in to get started
-                </a>
+            <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="pt-32 pb-16 text-center">
+                <div className="flex items-center justify-center space-x-2 mb-6">
+                  <span>🧠</span>
+                  <span>→</span>
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">AI</span>
+                  <span>→</span>
+                  <span>🎓</span>
+                </div>
+                <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+                  Study smarter with Brightfolio
+                </h1>
+                <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
+                  Build flashcards fast, quiz yourself, and track progress with a clean, modern UI.
+                </p>
+                <div className="mt-2 flex justify-center gap-3">
+                  <a
+                    href="/account"
+                    className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
+                  >
+                    Sign in to get started
+                  </a>
+                  <a
+                    href="#features"
+                    className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
+                  >
+                    Explore features
+                  </a>
+                </div>
+              </div>
+
+              {/* Promo Card (blurred green like home tab) */}
+              <div
+                className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+              >
+                <div className="flex items-center mb-3 justify-center">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
+                  <h2 className="text-2xl font-bold text-green-700">Flashcards & Quiz Mode</h2>
+                </div>
+                <p className="text-gray-700 mb-3">
+                  Switch between classic flashcards and multiple‑choice quizzes using answers from your set.
+                </p>
                 <a
                   href="#features"
-                  className="px-6 py-3 bg-white text-gray-900 rounded-lg border border-gray-300 hover:bg-gray-50"
+                  className="px-6 py-2.5 bg-white text-gray-900 rounded-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
                 >
-                  Explore features
+                  See how it works
                 </a>
               </div>
-              <div id="features" className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12 text-left">
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Flashcards</h3>
-                  <p className="text-sm text-gray-600">Build sets quickly and study anywhere.</p>
+
+              {/* Features */}
+              <div id="features" className="max-w-6xl mx-auto py-20">
+                <div className="text-center mb-10">
+                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Everything you need to learn faster</h3>
+                  <p className="text-gray-600 max-w-2xl mx-auto">
+                    A focused, flat UI with no distractions. Designed to help you retain more.
+                  </p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Quiz Mode</h3>
-                  <p className="text-sm text-gray-600">Test yourself with multiple‑choice quizzes.</p>
-                </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Progress</h3>
-                  <p className="text-sm text-gray-600">Track streaks, time studied, and mastery.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                      <span className="text-green-600">🗂️</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Fast Set Builder</h4>
+                    <p className="text-sm text-gray-600">Create sets in seconds, organize by category, and keep it tidy.</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                      <span className="text-green-600">🧩</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Quiz Mode</h4>
+                    <p className="text-sm text-gray-600">Multiple‑choice answers generated from your own set; no noise.</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                      <span className="text-green-600">📈</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Progress Tracking</h4>
+                    <p className="text-sm text-gray-600">Streaks, time studied, XP, and mastery—saved locally and synced smartly.</p>
+                  </div>
                 </div>
               </div>
             </div>
