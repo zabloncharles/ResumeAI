@@ -1265,23 +1265,11 @@ const Study = () => {
         </div>
       </div>
 
-      {/* Sign In Modal */}
-      <SignInModal
-        isOpen={showSignInModal}
-        onClose={() => {
-          console.log("Closing sign in modal");
-          setShowSignInModal(false);
-        }}
-        onSuccess={() => {
-          console.log("Sign in successful, closing modal");
-          setShowSignInModal(false);
-        }}
-      />
     </>
   );
 }
 
-    const currentCard = currentSet.flashcards[currentCardIndex];
+  const currentCard = currentSet?.flashcards?.[currentCardIndex];
 
     return (
       <>
@@ -2776,6 +2764,19 @@ const Study = () => {
       )}
 
       <Footer />
+
+      {/* Sign In Modal - available for all users */}
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => {
+          console.log("Closing sign in modal");
+          setShowSignInModal(false);
+        }}
+        onSuccess={() => {
+          console.log("Sign in successful, closing modal");
+          setShowSignInModal(false);
+        }}
+      />
     </>
   );
 };
