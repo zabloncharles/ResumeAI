@@ -21,57 +21,57 @@ import SignInModal from "./SignInModal";
 import React from "react";
 
 // MOCKED STEPS DATA FOR DEMO (replace with real API data structure as needed)
-const mockSteps = [
-  {
-    id: "you",
-    title: "You",
-    description: "",
-    prerequisiteIds: [],
-    childrenIds: ["bachelor"],
-  },
-  {
-    id: "bachelor",
-    title: "Bachelor's Degree",
-    description: "Complete a relevant degree",
-    prerequisiteIds: ["you"],
-    childrenIds: ["creative", "brand", "digital"],
-  },
-  {
-    id: "creative",
-    title: "Creative Director",
-    description: "Lead creative teams",
-    prerequisiteIds: ["bachelor"],
-    childrenIds: [],
-  },
-  {
-    id: "brand",
-    title: "Brand Manager",
-    description: "Manage brand strategy",
-    prerequisiteIds: ["bachelor"],
-    childrenIds: [],
-  },
-  {
-    id: "digital",
-    title: "Digital Marketing Director",
-    description: "Oversee digital marketing",
-    prerequisiteIds: ["bachelor"],
-    childrenIds: ["ux", "editor"],
-  },
-  {
-    id: "ux",
-    title: "UX Writer",
-    description: "Write for user experience",
-    prerequisiteIds: ["digital"],
-    childrenIds: [],
-  },
-  {
-    id: "editor",
-    title: "Senior Editor",
-    description: "Edit and manage content",
-    prerequisiteIds: ["digital"],
-    childrenIds: [],
-  },
-];
+// const mockSteps = [
+//   {
+//     id: "you",
+//     title: "You",
+//     description: "",
+//     prerequisiteIds: [],
+//     childrenIds: ["bachelor"],
+//   },
+//   {
+//     id: "bachelor",
+//     title: "Bachelor's Degree",
+//     description: "Complete a relevant degree",
+//     prerequisiteIds: ["you"],
+//     childrenIds: ["creative", "brand", "digital"],
+//   },
+//   {
+//     id: "creative",
+//     title: "Creative Director",
+//     description: "Lead creative teams",
+//     prerequisiteIds: ["bachelor"],
+//     childrenIds: [],
+//   },
+//   {
+//     id: "brand",
+//     title: "Brand Manager",
+//     description: "Manage brand strategy",
+//     prerequisiteIds: ["bachelor"],
+//     childrenIds: [],
+//   },
+//   {
+//     id: "digital",
+//     title: "Digital Marketing Director",
+//     description: "Oversee digital marketing",
+//     prerequisiteIds: ["bachelor"],
+//     childrenIds: ["ux", "editor"],
+//   },
+//   {
+//     id: "ux",
+//     title: "UX Writer",
+//     description: "Write for user experience",
+//     prerequisiteIds: ["digital"],
+//     childrenIds: [],
+//   },
+//   {
+//     id: "editor",
+//     title: "Senior Editor",
+//     description: "Edit and manage content",
+//     prerequisiteIds: ["digital"],
+//     childrenIds: [],
+//   },
+// ];
 
 // Helper: build a map for quick lookup (for any steps array)
 function buildStepMap(stepsArr: any[]) {
@@ -292,49 +292,6 @@ function computeDistances(stepsArr: any[]) {
   return distance;
 }
 
-// Compute a topological sequence index per node (1..N)
-function computeSequenceIndexMap(stepsArr: any[]): Record<string, number> {
-  const idSet = new Set((stepsArr || []).map((s) => s.id));
-  const inDegree: Record<string, number> = {};
-  const adj: Record<string, string[]> = {};
-  (stepsArr || []).forEach((s) => {
-    inDegree[s.id] = 0;
-    adj[s.id] = [];
-  });
-  (stepsArr || []).forEach((s) => {
-    (s.prerequisiteIds || []).forEach((pid: string) => {
-      if (pid === "you") return; // treat root prerequisite as satisfied
-      if (idSet.has(pid)) {
-        inDegree[s.id] += 1;
-        adj[pid] = adj[pid] || [];
-        adj[pid].push(s.id);
-      }
-    });
-  });
-  const queue: string[] = [];
-  Object.keys(inDegree)
-    .sort()
-    .forEach((id) => {
-      if (inDegree[id] === 0) queue.push(id);
-    });
-  const order: string[] = [];
-  while (queue.length) {
-    const id = queue.shift() as string;
-    order.push(id);
-    for (const nxt of adj[id] || []) {
-      inDegree[nxt] -= 1;
-      if (inDegree[nxt] === 0) queue.push(nxt);
-    }
-  }
-  // Fallback: if disconnected nodes remain
-  (stepsArr || []).forEach((s) => {
-    if (!order.includes(s.id)) order.push(s.id);
-  });
-  const map: Record<string, number> = {};
-  order.forEach((id, idx) => (map[id] = idx + 1));
-  return map;
-}
-
 // Helper: recursively render the flowchart for any steps array
 // FlowNodeGeneric kept for reference, currently unused
 /*
@@ -425,7 +382,7 @@ const Courses = () => {
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"timeline" | "board">("timeline");
+  // Removed timeline view; board appears after generation only
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [currentPathId, setCurrentPathId] = useState<string | null>(null);
 
@@ -475,15 +432,7 @@ const Courses = () => {
     })();
   }, [user]);
 
-  // Initialize board with mock statuses if entering board view with no steps
-  useEffect(() => {
-    if (view === "board" && steps.length === 0) {
-      const initialized = mockSteps
-        .filter((s) => s.id !== "you")
-        .map((s) => ({ ...s, status: "planned" }));
-      setSteps(initialized);
-    }
-  }, [view, steps.length]);
+  // Do not initialize board until after generation
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -704,7 +653,7 @@ const Courses = () => {
     const stepsArr = steps;
     const dist = computeDistances([
       { id: "you", prerequisiteIds: [], childrenIds: [] },
-      ...mockSteps,
+      ...stepsArr,
     ]);
     const byStatus = (status: string) =>
       stepsArr
@@ -782,7 +731,7 @@ const Courses = () => {
               <span className="text-[#16aeac]">Career Path</span> with Clarity
             </h1>
             <p className="text-xl text-gray-600 mb-6 max-w-2xl">
-              Generate a personalized roadmap and track progress with a clean timeline and Kanban board.
+              Generate a personalized roadmap and track progress with a clean Kanban board.
             </p>
             <div className="mt-2 mb-6 flex justify-center gap-3">
               <a
@@ -882,6 +831,11 @@ const Courses = () => {
                 )}
               </div>
             </form>
+            {steps && steps.length > 0 && (
+              <div className="w-full max-w-6xl mx-auto mt-8 pb-4">
+                {renderBoard()}
+              </div>
+            )}
           </div>
         </div>
 
@@ -891,7 +845,7 @@ const Courses = () => {
         >
           <div className="flex items-center mb-3 justify-center">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
-            <h2 className="text-2xl font-bold text-green-700">Timeline & Kanban Board</h2>
+            <h2 className="text-2xl font-bold text-green-700">Kanban Board</h2>
           </div>
           <p className="text-gray-700 mb-3">
             Generate a detailed path, then track progress with an interactive board.
@@ -931,164 +885,9 @@ const Courses = () => {
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                 <span className="text-green-600">📊</span>
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-1">Timeline & Kanban</h4>
-              <p className="text-sm text-gray-600">See the order of steps and move cards as you make progress.</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">Kanban Board</h4>
+              <p className="text-sm text-gray-600">Move cards as you make progress through your path.</p>
             </div>
-          </div>
-        </div>
-
-        {/* Roadmap Section */}
-        {view === "timeline" && (
-          <div className="w-full max-w-6xl mx-auto pb-16">
-            <div className="flex flex-col items-center">
-              {steps && steps.length > 0
-                ? (() => {
-                    const seq = computeSequenceIndexMap(steps);
-                    const orderedAll = steps
-                      .slice()
-                      .sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
-                    const ordered = orderedAll.filter(
-                      (s) => s.id !== "you" && (s.title || "").toLowerCase() !== "you"
-                    );
-                    const idToTitle: Record<string, string> =
-                      Object.fromEntries(orderedAll.map((s) => [s.id, s.title]));
-                    const fmtPrereqs = (ids?: string[]) =>
-                      (ids || [])
-                        .filter((id) => id && id !== "you")
-                        .map((id) => idToTitle[id] || id)
-                        .filter(Boolean);
-                    return (
-                      <div className="w-full max-w-3xl relative pl-6">
-                        <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-200"></div>
-                        <div className="space-y-4">
-                          {ordered.map((s, idx) => (
-                            <div key={s.id} className="relative">
-                              <span className="absolute -left-2.5 top-3 h-3 w-3 rounded-full bg-[#16aeac] border-2 border-white shadow"></span>
-                              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <span className="inline-flex items-center justify-center h-6 min-w-[24px] text-[12px] px-1.5 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                                    {idx + 1}
-                                  </span>
-                                  <div className="font-semibold text-gray-900">
-                                    {s.title}
-                                  </div>
-                                </div>
-                                {s.description && (
-                                  <div className="text-sm text-gray-600">
-                                    {s.description}
-                                  </div>
-                                )}
-                                {Array.isArray(s.details) && s.details.length > 0 && (
-                                  <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
-                                    {s.details.map((d: string, i: number) => (
-                                      <li key={i}>{d}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                                {(() => {
-                                  const pr = fmtPrereqs(s.prerequisiteIds);
-                                  return pr.length > 0 ? (
-                                    <div className="text-[11px] text-gray-500 mt-2">
-                                      Prerequisite: {pr.join(", ")}
-                                    </div>
-                                  ) : null;
-                                })()}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()
-                : (() => {
-                    const seq = computeSequenceIndexMap(mockSteps);
-                    const orderedAll = mockSteps
-                      .slice()
-                      .sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
-                    const ordered = orderedAll.filter(
-                      (s) => s.id !== "you" && (s.title || "").toLowerCase() !== "you"
-                    );
-                    const idToTitle: Record<string, string> =
-                      Object.fromEntries(orderedAll.map((s) => [s.id, s.title]));
-                    const fmtPrereqs = (ids?: string[]) =>
-                      (ids || [])
-                        .filter((id) => id && id !== "you")
-                        .map((id) => idToTitle[id] || id)
-                        .filter(Boolean);
-                    return (
-                      <div className="w-full max-w-3xl relative pl-6">
-                        <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-200"></div>
-                        <div className="space-y-4">
-                          {ordered.map((s, idx) => (
-                            <div key={s.id} className="relative">
-                              <span className="absolute -left-2.5 top-3 h-3 w-3 rounded-full bg-[#16aeac] border-2 border-white shadow"></span>
-                              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <span className="inline-flex items-center justify-center h-6 min-w-[24px] text-[12px] px-1.5 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                                    {idx + 1}
-                                  </span>
-                                  <div className="font-semibold text-gray-900">
-                                    {s.title}
-                                  </div>
-                                </div>
-                                {s.description && (
-                                  <div className="text-sm text-gray-600">
-                                    {s.description}
-                                  </div>
-                                )}
-                                {Array.isArray((s as any).details) && (s as any).details.length > 0 && (
-                                  <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
-                                    {(s as any).details.map((d: string, i: number) => (
-                                      <li key={i}>{d}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                                {(() => {
-                                  const pr = fmtPrereqs(s.prerequisiteIds);
-                                  return pr.length > 0 ? (
-                                    <div className="text-[11px] text-gray-500 mt-2">
-                                      Prerequisite: {pr.join(", ")}
-                                    </div>
-                                  ) : null;
-                                })()}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-            </div>
-          </div>
-        )}
-
-        {view === "board" && (
-          <div className="w-full max-w-6xl mx-auto pb-16">{renderBoard()}</div>
-        )}
-
-        {/* Toggle Menu (moved down) */}
-        <div className="flex justify-center mt-10 mb-12 gap-4">
-          <div className="inline-flex rounded-full bg-white border border-gray-200 p-1">
-            <button
-              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
-                view === "timeline"
-                  ? "bg-black text-white"
-                  : "text-gray-900 hover:bg-gray-100"
-              }`}
-              onClick={() => setView("timeline")}
-            >
-              Timeline
-            </button>
-            <button
-              className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
-                view === "board"
-                  ? "bg-black text-white"
-                  : "text-gray-900 hover:bg-gray-100"
-              }`}
-              onClick={() => setView("board")}
-            >
-              Board
-            </button>
           </div>
         </div>
 
