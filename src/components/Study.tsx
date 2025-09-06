@@ -268,14 +268,25 @@ const Study = () => {
             where("createdBy", "==", memoizedUser.uid)
           );
         } else if (memoizedFilter === "public") {
-          q = query(collection(db, "studySets"), where("isPublic", "==", true));
-        } else if (memoizedFilter === "borrowed") {
+          // Show user's own public sets
           q = query(
             collection(db, "studySets"),
+            where("createdBy", "==", memoizedUser.uid),
+            where("isPublic", "==", true)
+          );
+        } else if (memoizedFilter === "borrowed") {
+          // Show sets borrowed by this user
+          q = query(
+            collection(db, "studySets"),
+            where("createdBy", "==", memoizedUser.uid),
             where("isBorrowed", "==", true)
           );
         } else {
-          q = query(collection(db, "studySets"));
+          // For "all" filter, only show user's own sets
+          q = query(
+            collection(db, "studySets"),
+            where("createdBy", "==", memoizedUser.uid)
+          );
         }
 
         // Single getDocs call instead of onSnapshot listener
