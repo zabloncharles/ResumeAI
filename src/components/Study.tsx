@@ -1144,6 +1144,7 @@ const Study = () => {
 
   // Public landing when not signed in
   if (!memoizedUser) {
+    console.log("Rendering public landing page for non-signed-in user");
     return (
       <>
         <Navbar />
@@ -1277,25 +1278,14 @@ const Study = () => {
         </div>
       </div>
 
-      {/* TEST: Simple modal with higher z-index - INSIDE public landing page */}
-      {console.log("Reached the modal rendering section in public landing")}
-      {(() => {
-        console.log("About to render test modal in public landing");
-        return (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center h-screen bg-red-500/50">
-            <div className="relative w-full max-w-md mx-auto p-6 bg-white rounded-2xl shadow-xl">
-              <h2 className="text-2xl font-bold text-center mb-4 text-black">TEST MODAL</h2>
-              <p className="text-center text-black">If you can see this, modal rendering works!</p>
-              <button 
-                onClick={() => setShowSignInModal(false)}
-                className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded-lg"
-              >
-                Close Test Modal
-              </button>
-            </div>
-          </div>
-        );
-      })()}
+      {/* Original SignInModal - restored */}
+      {showSignInModal && (
+        <SignInModal
+          isOpen={showSignInModal}
+          onClose={() => setShowSignInModal(false)}
+          onSuccess={() => setShowSignInModal(false)}
+        />
+      )}
     </>
   );
 }
