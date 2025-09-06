@@ -209,6 +209,11 @@ const Study = () => {
     return () => unsubscribe();
   }, [navigate]);
 
+  // Debug: Track modal state changes
+  useEffect(() => {
+    console.log("showSignInModal state changed to:", showSignInModal);
+  }, [showSignInModal]);
+
   // Redirect removed: show public landing when not signed in
 
   // Load study sets with localStorage caching - NO real-time listeners
@@ -1161,7 +1166,10 @@ const Study = () => {
                 </p>
                 <div className="mt-2 flex justify-center gap-3">
                   <button
-                    onClick={() => setShowSignInModal(true)}
+                    onClick={() => {
+                      console.log("Sign in button clicked, setting modal to true");
+                      setShowSignInModal(true);
+                    }}
                     className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
                   >
                     Sign in to get started
@@ -1260,8 +1268,12 @@ const Study = () => {
       {/* Sign In Modal */}
       <SignInModal
         isOpen={showSignInModal}
-        onClose={() => setShowSignInModal(false)}
+        onClose={() => {
+          console.log("Closing sign in modal");
+          setShowSignInModal(false);
+        }}
         onSuccess={() => {
+          console.log("Sign in successful, closing modal");
           setShowSignInModal(false);
         }}
       />
