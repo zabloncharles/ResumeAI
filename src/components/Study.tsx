@@ -1161,6 +1161,9 @@ const Study = () => {
                 <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
                   Study smarter with Brightfolio
                 </h1>
+                <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
+                  DEBUG: showSignInModal = {showSignInModal.toString()}
+                </div>
                 <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
                   Build flashcards fast, quiz yourself, and track progress with a clean, modern UI.
                 </p>
@@ -1173,6 +1176,15 @@ const Study = () => {
                     className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
                   >
                     Sign in to get started
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log("Test button clicked, forcing modal to true");
+                      setShowSignInModal(true);
+                    }}
+                    className="inline-block px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all text-base font-semibold"
+                  >
+                    TEST MODAL
                   </button>
                   <a
                     href="#features"
