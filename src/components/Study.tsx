@@ -21,10 +21,10 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import {
-  AcademicCapIcon,
-  BookOpenIcon,
-  ClockIcon,
+import { 
+  AcademicCapIcon, 
+  BookOpenIcon, 
+  ClockIcon, 
   CheckCircleIcon,
   XCircleIcon,
   ArrowLeftIcon,
@@ -673,7 +673,7 @@ const Study = () => {
         type: "card",
         setId: currentSet.id,
         cardId: currentCard.id,
-        mastery: newMastery,
+                mastery: newMastery,
         lastReviewed: new Date(),
       });
 
@@ -1282,7 +1282,7 @@ const Study = () => {
 }
 
   const currentCard = currentSet?.flashcards?.[currentCardIndex];
-
+    
     return (
       <>
         <Navbar />
@@ -1312,7 +1312,7 @@ const Study = () => {
                 </button>
               </div>
             </div>
-
+            
             {/* Progress Bar */}
             <div className="mt-4 bg-white rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
@@ -1324,7 +1324,7 @@ const Study = () => {
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
+                <div 
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${getProgressPercentage()}%` }}
                 ></div>
@@ -1335,44 +1335,44 @@ const Study = () => {
           {/* Study Interface - Conditional Rendering for Flashcards vs Quiz */}
           {studyMode === "flashcards" ? (
             /* Flashcard Mode */
-            <div className="max-w-4xl mx-auto mb-8">
+          <div className="max-w-4xl mx-auto mb-8">
               <div className="bg-white rounded-2xl overflow-hidden">
-                <div className="p-8">
-                  <div className="text-center mb-6">
-                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              <div className="p-8">
+                <div className="text-center mb-6">
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                       {currentCard?.category || "General"}
-                    </span>
-                  </div>
-
-                  <div
-                    className="min-h-[300px] flex items-center justify-center cursor-pointer"
-                    onClick={flipCard}
-                  >
-                    <div className="text-center">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  </span>
+                </div>
+                
+                <div 
+                  className="min-h-[300px] flex items-center justify-center cursor-pointer"
+                  onClick={flipCard}
+                >
+                  <div className="text-center">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
                         {isFlipped ? currentCard?.back : currentCard?.front}
-                      </h2>
-                      <p className="text-gray-500 text-sm">
+                    </h2>
+                    <p className="text-gray-500 text-sm">
                         Click to {isFlipped ? "show question" : "show answer"}
-                      </p>
-                    </div>
+                    </p>
                   </div>
+                </div>
 
-                  {/* Mastery Level */}
-                  <div className="mt-6 text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                      <span className="text-sm text-gray-600">Mastery:</span>
+                {/* Mastery Level */}
+                <div className="mt-6 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-sm text-gray-600">Mastery:</span>
                       <span
                         className={`text-sm font-medium ${getMasteryColor(
                           currentCard?.mastery || 0
                         )}`}
                       >
                         {currentCard?.mastery || 0}%
-                      </span>
-                    </div>
+                    </span>
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           ) : (
             /* Quiz Mode */
@@ -1383,7 +1383,7 @@ const Study = () => {
                     <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
                       Quiz Mode
                     </span>
-                  </div>
+          </div>
 
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -1440,53 +1440,53 @@ const Study = () => {
 
           {/* Navigation and Difficulty Buttons - Only for Flashcard Mode */}
           {studyMode === "flashcards" && (
-            <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between bg-white rounded-xl p-6">
-                <button
-                  onClick={previousCard}
-                  disabled={currentCardIndex === 0}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span>Previous</span>
-                </button>
+              <button
+                onClick={previousCard}
+                disabled={currentCardIndex === 0}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+                <span>Previous</span>
+              </button>
 
-                <div className="flex space-x-3">
-                  <button
+              <div className="flex space-x-3">
+                <button
                     onClick={() => markCard("hard")}
-                    className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                  >
-                    <XCircleIcon className="h-5 w-5" />
-                    <span>Hard</span>
-                  </button>
-                  <button
-                    onClick={() => markCard("medium")}
-                    className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
-                  >
-                    <span>Medium</span>
-                  </button>
-                  <button
-                    onClick={() => markCard("easy")}
-                    className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                  >
-                    <CheckCircleIcon className="h-5 w-5" />
-                    <span>Easy</span>
-                  </button>
-                </div>
-
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                >
+                  <XCircleIcon className="h-5 w-5" />
+                  <span>Hard</span>
+                </button>
                 <button
-                  onClick={nextCard}
+                    onClick={() => markCard("medium")}
+                  className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
+                >
+                  <span>Medium</span>
+                </button>
+                <button
+                    onClick={() => markCard("easy")}
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                >
+                  <CheckCircleIcon className="h-5 w-5" />
+                  <span>Easy</span>
+                </button>
+              </div>
+
+              <button
+                onClick={nextCard}
                   disabled={
                     currentCardIndex ===
                     (currentSet?.flashcards?.length || 0) - 1
                   }
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <span>Next</span>
-                  <ArrowRightIcon className="h-5 w-5" />
-                </button>
-              </div>
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <span>Next</span>
+                <ArrowRightIcon className="h-5 w-5" />
+              </button>
             </div>
+          </div>
           )}
         </div>
         <Footer />
@@ -2104,9 +2104,9 @@ const Study = () => {
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
-                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                        {set.category}
-                      </span>
+                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                      {set.category}
+                    </span>
                       {set.isBorrowed && (
                         <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
                           Borrowed
@@ -2125,18 +2125,18 @@ const Study = () => {
                           title="Private"
                         />
                       )}
-                      <div className="flex items-center space-x-2 text-gray-500">
-                        <BookOpenIcon className="h-4 w-4" />
-                        <span className="text-sm">{set.cardCount} cards</span>
+                    <div className="flex items-center space-x-2 text-gray-500">
+                      <BookOpenIcon className="h-4 w-4" />
+                      <span className="text-sm">{set.cardCount} cards</span>
                       </div>
                     </div>
                   </div>
-
+                  
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
                     {set.title}
                   </h3>
                   <p className="text-gray-600 mb-4">{set.description}</p>
-
+                  
                   {/* Progress Overview */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
@@ -2154,9 +2154,9 @@ const Study = () => {
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
+                      <div 
                         className="bg-blue-600 h-2 rounded-full"
-                        style={{
+                        style={{ 
                           width: `${
                             set.flashcards.length > 0
                               ? set.flashcards.reduce(
@@ -2194,18 +2194,18 @@ const Study = () => {
                       >
                         ❓ Quiz
                       </button>
-                    </div>
+                  </div>
 
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => startStudySession(set)}
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => startStudySession(set)}
                         disabled={set.flashcards.length === 0}
                         className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <PlayIcon className="h-5 w-5" />
-                        <span>Start Studying</span>
-                      </button>
-
+                    >
+                      <PlayIcon className="h-5 w-5" />
+                      <span>Start Studying</span>
+                    </button>
+                    
                       <div className="flex items-center space-x-2">
                         {set.createdBy === memoizedUser?.uid && (
                           <>
@@ -2260,11 +2260,11 @@ const Study = () => {
                     </div>
                   </div>
 
-                  {set.lastStudied && (
+                      {set.lastStudied && (
                     <p className="text-xs text-gray-500 mt-2">
-                      Last studied: {set.lastStudied.toLocaleDateString()}
-                    </p>
-                  )}
+                          Last studied: {set.lastStudied.toLocaleDateString()}
+                        </p>
+                      )}
                 </div>
               </div>
             ))}
@@ -2292,9 +2292,9 @@ const Study = () => {
                 >
                   <PlusIcon className="h-5 w-5" />
                   <span>Create Your First Set</span>
-                </button>
+            </button>
               )}
-            </div>
+          </div>
           )}
         </section>
       </div>
@@ -2777,11 +2777,11 @@ const Study = () => {
 
       <Footer />
 
-      {/* TEST: Simple modal to see if modal rendering works at all */}
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center h-screen bg-black/30 backdrop-blur-sm">
-        <div className="relative w-full max-w-md mx-auto p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl">
-          <h2 className="text-2xl font-bold text-center mb-4">TEST MODAL</h2>
-          <p className="text-center">If you can see this, modal rendering works!</p>
+      {/* TEST: Simple modal with higher z-index */}
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center h-screen bg-red-500/50">
+        <div className="relative w-full max-w-md mx-auto p-6 bg-white rounded-2xl shadow-xl">
+          <h2 className="text-2xl font-bold text-center mb-4 text-black">TEST MODAL</h2>
+          <p className="text-center text-black">If you can see this, modal rendering works!</p>
           <button 
             onClick={() => setShowSignInModal(false)}
             className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded-lg"
@@ -2792,6 +2792,6 @@ const Study = () => {
       </div>
     </>
   );
-};
+}
 
 export default Study;
