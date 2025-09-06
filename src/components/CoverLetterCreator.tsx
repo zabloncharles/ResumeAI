@@ -164,20 +164,59 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   return (
     <>
       <Navbar />
-      {/* Minimal Generator */}
-      <section className="w-full bg-white pt-28 pb-10 px-4">
-        <div className="max-w-3xl w-full mx-auto">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
-              Cover Letter Generator
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Generate a clean, tailored cover letter from your resume or a job
-              description.
-            </p>
-          </div>
+      <section className="w-full bg-white pt-32 pb-16 px-4">
+            <div className="pt-32 pb-16 text-center">
+              <div className="flex items-center justify-center space-x-2 mb-6">
+                <span>📝</span>
+                <span>→</span>
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">AI</span>
+                <span>→</span>
+                <span>💼</span>
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+                Craft Perfect Cover Letters
+              </h1>
+              <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
+                Generate professional, tailored cover letters from your resume or any job description.
+              </p>
+              <div className="mt-2 flex justify-center gap-3 mb-16">
+                <a
+                  href="#generator"
+                  className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
+                >
+                  Start Creating
+                </a>
+                <a
+                  href="#features"
+                  className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
+                >
+                  Explore features
+                </a>
+              </div>
+            </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            {/* Promo Card */}
+            <div
+              className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+            >
+              <div className="flex items-center mb-3 justify-center">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
+                <h2 className="text-2xl font-bold text-green-700">AI-Powered Generation</h2>
+              </div>
+              <p className="text-gray-700 mb-3">
+                Create personalized cover letters that highlight your skills and match job requirements perfectly.
+              </p>
+              <a
+                href="#generator"
+                className="px-6 py-2.5 bg-white text-gray-900 rounded-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
+              >
+                Try it now
+              </a>
+            </div>
+
+            {/* Generator Section */}
+            <div id="generator" className="max-w-3xl mx-auto mt-20">
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <SparklesIcon className="h-5 w-5 text-[#16aeac]" />
               <h2 className="text-lg font-semibold text-gray-900">Start</h2>
@@ -187,15 +226,15 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               <button
                 className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                   mode === "resume"
-                    ? "border-[#16aeac] bg-[#16aeac] text-white"
-                    : "border-gray-300 bg-white text-gray-900 hover:border-[#16aeac]"
+                    ? "border-green-600 bg-green-600 text-white"
+                    : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
                 }`}
                 onClick={() => setMode("resume")}
               >
                 <div className="flex items-center gap-2">
                   <DocumentTextIcon
                     className={`h-5 w-5 ${
-                      mode === "resume" ? "text-white" : "text-[#16aeac]"
+                      mode === "resume" ? "text-white" : "text-green-600"
                     }`}
                   />
                   <span className="font-medium">From Resume</span>
@@ -212,15 +251,15 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               <button
                 className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                   mode === "job"
-                    ? "border-[#16aeac] bg-[#16aeac] text-white"
-                    : "border-gray-300 bg-white text-gray-900 hover:border-[#16aeac]"
+                    ? "border-green-600 bg-green-600 text-white"
+                    : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
                 }`}
                 onClick={() => setMode("job")}
               >
                 <div className="flex items-center gap-2">
                   <BriefcaseIcon
                     className={`h-5 w-5 ${
-                      mode === "job" ? "text-white" : "text-[#16aeac]"
+                      mode === "job" ? "text-white" : "text-green-600"
                     }`}
                   />
                   <span className="font-medium">For Specific Job</span>
@@ -241,7 +280,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                   Job description
                 </label>
                 <textarea
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-[#16aeac]"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
                   rows={6}
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
@@ -251,7 +290,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             )}
 
             <button
-              className="w-full px-5 py-3 rounded-lg bg-[#16aeac] text-white font-semibold hover:bg-[#139b99] transition-colors flex items-center justify-center"
+              className="w-full px-5 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors flex items-center justify-center"
               onClick={generateCoverLetter}
               disabled={isLoading || (mode === "job" && !jobDescription.trim())}
             >
@@ -295,7 +334,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                   Generated cover letter
                 </label>
                 <textarea
-                  className="w-full p-4 border border-gray-200 rounded-lg bg-white focus:outline-none text-gray-900 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-[#16aeac]"
+                  className="w-full p-4 border border-gray-200 rounded-lg bg-white focus:outline-none text-gray-900 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-green-600"
                   rows={12}
                   value={coverLetter}
                   readOnly
@@ -303,7 +342,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                 />
                 <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-end">
                   <button
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-[#16aeac] border-[#16aeac] hover:bg-[#16aeac]/10 ${
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-green-600 border-green-600 hover:bg-green-50 ${
                       copied ? "opacity-70" : ""
                     }`}
                     onClick={handleCopy}
@@ -312,7 +351,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     {copied ? "Copied!" : "Copy"}
                   </button>
                   <button
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#16aeac] text-white hover:bg-[#139b99]"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
                     onClick={handleDownload}
                   >
                     <ArrowDownTrayIcon className="h-5 w-5" /> Download .txt
@@ -320,8 +359,8 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                 </div>
               </div>
             )}
+            </div>
           </div>
-        </div>
       </section>
 
       {/* How it Works - Minimal */}
@@ -375,7 +414,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             </p>
             <a
               href="/resume"
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#16aeac] text-white font-semibold hover:bg-[#139b99]"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700"
             >
               Open Resume Builder
             </a>
