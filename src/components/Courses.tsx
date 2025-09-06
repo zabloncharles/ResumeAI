@@ -765,7 +765,7 @@ const Courses = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gradient-to-br from-white to-blue-50 flex flex-col items-center py-0 px-4">
+      <div className="min-h-screen bg-white flex flex-col items-center py-0 px-4">
         {/* Hero Section */}
         <div className="w-full flex flex-col items-center justify-center pt-28 pb-10 mb-0">
           <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
@@ -865,14 +865,33 @@ const Courses = () => {
           </div>
         </div>
 
+        {/* Promo Card (blurred green like Study/Home) */}
+        <div
+          className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+        >
+          <div className="flex items-center mb-3 justify-center">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
+            <h2 className="text-2xl font-bold text-green-700">Timeline & Kanban Board</h2>
+          </div>
+          <p className="text-gray-700 mb-3">
+            Generate a detailed path, then track progress with an interactive board.
+          </p>
+          <a
+            href="#how-it-works"
+            className="px-6 py-2.5 bg-white text-gray-900 rounded-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
+          >
+            See how it works
+          </a>
+        </div>
+
         {/* Toggle Menu */}
         <div className="flex justify-center mb-10 gap-4">
           <div className="inline-flex rounded-full bg-white border border-gray-200 p-1">
             <button
               className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
                 view === "timeline"
-                  ? "bg-blue-500 text-white"
-                  : "text-blue-600 hover:bg-blue-50"
+                  ? "bg-black text-white"
+                  : "text-gray-900 hover:bg-gray-100"
               }`}
               onClick={() => setView("timeline")}
             >
@@ -881,8 +900,8 @@ const Courses = () => {
             <button
               className={`px-6 py-2 rounded-full font-semibold text-lg transition-all ${
                 view === "board"
-                  ? "bg-blue-500 text-white"
-                  : "text-blue-600 hover:bg-blue-50"
+                  ? "bg-black text-white"
+                  : "text-gray-900 hover:bg-gray-100"
               }`}
               onClick={() => setView("board")}
             >
@@ -1009,7 +1028,7 @@ const Courses = () => {
         )}
 
         {/* How it works Section */}
-        <div className="w-full max-w-4xl mx-auto mt-20 mb-12">
+        <div id="how-it-works" className="w-full max-w-4xl mx-auto mt-20 mb-12">
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
             How it works
           </h2>
