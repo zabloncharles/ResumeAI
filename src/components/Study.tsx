@@ -2777,18 +2777,19 @@ const Study = () => {
 
       <Footer />
 
-      {/* Sign In Modal - TEST: always show */}
-      <SignInModal
-        isOpen={true}
-        onClose={() => {
-          console.log("Closing sign in modal");
-          setShowSignInModal(false);
-        }}
-        onSuccess={() => {
-          console.log("Sign in successful, closing modal");
-          setShowSignInModal(false);
-        }}
-      />
+      {/* TEST: Simple modal to see if modal rendering works at all */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center h-screen bg-black/30 backdrop-blur-sm">
+        <div className="relative w-full max-w-md mx-auto p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl">
+          <h2 className="text-2xl font-bold text-center mb-4">TEST MODAL</h2>
+          <p className="text-center">If you can see this, modal rendering works!</p>
+          <button 
+            onClick={() => setShowSignInModal(false)}
+            className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded-lg"
+          >
+            Close Test Modal
+          </button>
+        </div>
+      </div>
     </>
   );
 };
