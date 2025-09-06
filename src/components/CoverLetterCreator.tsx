@@ -10,6 +10,7 @@ import { auth } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import SignInModal from "./SignInModal";
 
 interface CoverLetterCreatorProps {
   resumeData?: any;
@@ -24,6 +25,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [effectiveResume, setEffectiveResume] = useState<any>(resumeData || {});
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -111,16 +113,19 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   };
 
   const generateCoverLetter = async () => {
+    // Check if user is authenticated
+    if (!user) {
+      setShowSignInModal(true);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setCoverLetter("");
     setCopied(false);
     const prompt = getPrompt();
     try {
-      let token = "";
-      if (user) {
-        token = await user.getIdToken();
-      }
+      const token = await user.getIdToken();
       const response = await fetch("/.netlify/functions/generateResume", {
         method: "POST",
         headers: {
@@ -427,6 +432,13 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
       </section>
 
       <Footer />
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSuccess={() => setShowSignInModal(false)}
+      />
     </>
   );
 };
