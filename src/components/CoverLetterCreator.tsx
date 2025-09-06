@@ -172,7 +172,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
       <div className="min-h-screen bg-white flex flex-col">
         <div className="flex-1">
           <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="pt-32 pb-16 text-center">
+            <div className="pt-24 pb-12 text-center">
               <div className="flex items-center justify-center space-x-2 mb-6">
                 <span>📝</span>
                 <span>→</span>
@@ -186,7 +186,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
                 Generate professional, tailored cover letters from your resume or any job description.
               </p>
-              <div className="mt-2 flex justify-center gap-3 mb-16">
+              <div className="mt-2 flex justify-center gap-3 mb-8">
                 <a
                   href="#generator"
                   className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
@@ -204,7 +204,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
 
             {/* Promo Card */}
             <div
-              className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+              className="mt-2 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
             >
               <div className="flex items-center mb-3 justify-center">
                 <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
@@ -222,7 +222,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             </div>
 
             {/* Generator Section */}
-            <div id="generator" className="max-w-3xl mx-auto mt-20">
+            <div id="generator" className="max-w-3xl mx-auto mt-12">
               <div className="bg-white border border-gray-200 rounded-xl p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <SparklesIcon className="h-5 w-5 text-green-600" />
@@ -373,7 +373,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
       </div>
 
       {/* How it Works - Minimal */}
-      <section className="w-full bg-white px-4 pb-14">
+      <section className="w-full bg-white px-4 pb-8">
         <div className="max-w-4xl w-full mx-auto grid grid-cols-1 sm:grid-cols-4 gap-4">
           {[
             {
@@ -412,7 +412,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
       </section>
 
       {/* CTA - Minimal */}
-      <section className="w-full bg-white px-4 pb-16">
+      <section className="w-full bg-white px-4 pb-12">
         <div className="max-w-3xl w-full mx-auto text-center">
           <div className="bg-white border border-gray-200 rounded-xl p-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
