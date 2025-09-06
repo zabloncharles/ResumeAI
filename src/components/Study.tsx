@@ -2777,20 +2777,18 @@ const Study = () => {
 
       <Footer />
 
-      {/* Sign In Modal - conditionally rendered */}
-      {showSignInModal && (
-        <SignInModal
-          isOpen={showSignInModal}
-          onClose={() => {
-            console.log("Closing sign in modal");
-            setShowSignInModal(false);
-          }}
-          onSuccess={() => {
-            console.log("Sign in successful, closing modal");
-            setShowSignInModal(false);
-          }}
-        />
-      )}
+      {/* Sign In Modal - TEST: always show */}
+      <SignInModal
+        isOpen={true}
+        onClose={() => {
+          console.log("Closing sign in modal");
+          setShowSignInModal(false);
+        }}
+        onSuccess={() => {
+          console.log("Sign in successful, closing modal");
+          setShowSignInModal(false);
+        }}
+      />
     </>
   );
 };
