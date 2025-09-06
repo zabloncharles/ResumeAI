@@ -361,6 +361,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     </div>
                   </div>
                 )}
+              </div>
             </div>
           </div>
         </div>
