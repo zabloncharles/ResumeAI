@@ -20,6 +20,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import SignInModal from "./SignInModal";
 import Navbar from "./Navbar";
+import Footer from "./Footer";
 import bunny1 from "../bunny1.png";
 import ResumePreview from "./ResumePreview";
 // import TemplatesPage from "./TemplatesPage";
@@ -1359,6 +1360,8 @@ const ResumeBuilder = () => {
             </div>
           </div>
         </div>
+
+        <Footer />
 
         {/* Sign In Modal */}
         <SignInModal
