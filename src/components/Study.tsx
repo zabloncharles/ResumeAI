@@ -200,7 +200,7 @@ const Study = () => {
         );
       } else {
         localStorage.removeItem("user");
-        navigate("/");
+        // Stay on Study to show public landing when not signed in
       }
       setIsLoading(false);
     });
