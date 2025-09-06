@@ -164,7 +164,9 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   return (
     <>
       <Navbar />
-      <section className="w-full bg-white pt-32 pb-16 px-4">
+      <div className="min-h-screen bg-white flex flex-col">
+        <div className="flex-1">
+          <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="pt-32 pb-16 text-center">
               <div className="flex items-center justify-center space-x-2 mb-6">
                 <span>📝</span>
@@ -217,151 +219,152 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             {/* Generator Section */}
             <div id="generator" className="max-w-3xl mx-auto mt-20">
               <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <SparklesIcon className="h-5 w-5 text-[#16aeac]" />
-              <h2 className="text-lg font-semibold text-gray-900">Start</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-              <button
-                className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
-                  mode === "resume"
-                    ? "border-green-600 bg-green-600 text-white"
-                    : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
-                }`}
-                onClick={() => setMode("resume")}
-              >
-                <div className="flex items-center gap-2">
-                  <DocumentTextIcon
-                    className={`h-5 w-5 ${
-                      mode === "resume" ? "text-white" : "text-green-600"
-                    }`}
-                  />
-                  <span className="font-medium">From Resume</span>
+                <div className="flex items-center gap-2 mb-4">
+                  <SparklesIcon className="h-5 w-5 text-green-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Start</h2>
                 </div>
-                <div
-                  className={`text-xs mt-1 ${
-                    mode === "resume" ? "text-white/80" : "text-gray-500"
-                  }`}
-                >
-                  Uses your saved resume details.
-                </div>
-              </button>
 
-              <button
-                className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
-                  mode === "job"
-                    ? "border-green-600 bg-green-600 text-white"
-                    : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
-                }`}
-                onClick={() => setMode("job")}
-              >
-                <div className="flex items-center gap-2">
-                  <BriefcaseIcon
-                    className={`h-5 w-5 ${
-                      mode === "job" ? "text-white" : "text-green-600"
-                    }`}
-                  />
-                  <span className="font-medium">For Specific Job</span>
-                </div>
-                <div
-                  className={`text-xs mt-1 ${
-                    mode === "job" ? "text-white/80" : "text-gray-500"
-                  }`}
-                >
-                  Paste a job description to tailor the letter.
-                </div>
-              </button>
-            </div>
-
-            {mode === "job" && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Job description
-                </label>
-                <textarea
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
-                  rows={6}
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  placeholder="Paste the job description here..."
-                />
-              </div>
-            )}
-
-            <button
-              className="w-full px-5 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors flex items-center justify-center"
-              onClick={generateCoverLetter}
-              disabled={isLoading || (mode === "job" && !jobDescription.trim())}
-            >
-              {isLoading ? (
-                <>
-                  <svg
-                    className="animate-spin h-5 w-5 mr-2 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8z"
-                    ></path>
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <SparklesIcon className="h-5 w-5 mr-2 text-white" /> Generate
-                  Cover Letter
-                </>
-              )}
-            </button>
-
-            {error && <div className="text-red-600 mt-4 text-sm">{error}</div>}
-
-            {coverLetter && (
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Generated cover letter
-                </label>
-                <textarea
-                  className="w-full p-4 border border-gray-200 rounded-lg bg-white focus:outline-none text-gray-900 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-green-600"
-                  rows={12}
-                  value={coverLetter}
-                  readOnly
-                  style={{ minHeight: 220 }}
-                />
-                <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-end">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                   <button
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-green-600 border-green-600 hover:bg-green-50 ${
-                      copied ? "opacity-70" : ""
+                    className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                      mode === "resume"
+                        ? "border-green-600 bg-green-600 text-white"
+                        : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
                     }`}
-                    onClick={handleCopy}
+                    onClick={() => setMode("resume")}
                   >
-                    <ClipboardIcon className="h-5 w-5" />
-                    {copied ? "Copied!" : "Copy"}
+                    <div className="flex items-center gap-2">
+                      <DocumentTextIcon
+                        className={`h-5 w-5 ${
+                          mode === "resume" ? "text-white" : "text-green-600"
+                        }`}
+                      />
+                      <span className="font-medium">From Resume</span>
+                    </div>
+                    <div
+                      className={`text-xs mt-1 ${
+                        mode === "resume" ? "text-white/80" : "text-gray-500"
+                      }`}
+                    >
+                      Uses your saved resume details.
+                    </div>
                   </button>
+
                   <button
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-                    onClick={handleDownload}
+                    className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                      mode === "job"
+                        ? "border-green-600 bg-green-600 text-white"
+                        : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
+                    }`}
+                    onClick={() => setMode("job")}
                   >
-                    <ArrowDownTrayIcon className="h-5 w-5" /> Download .txt
+                    <div className="flex items-center gap-2">
+                      <BriefcaseIcon
+                        className={`h-5 w-5 ${
+                          mode === "job" ? "text-white" : "text-green-600"
+                        }`}
+                      />
+                      <span className="font-medium">For Specific Job</span>
+                    </div>
+                    <div
+                      className={`text-xs mt-1 ${
+                        mode === "job" ? "text-white/80" : "text-gray-500"
+                      }`}
+                    >
+                      Paste a job description to tailor the letter.
+                    </div>
                   </button>
                 </div>
-              </div>
-            )}
+
+                {mode === "job" && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Job description
+                    </label>
+                    <textarea
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                      rows={6}
+                      value={jobDescription}
+                      onChange={(e) => setJobDescription(e.target.value)}
+                      placeholder="Paste the job description here..."
+                    />
+                  </div>
+                )}
+
+                <button
+                  className="w-full px-5 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors flex items-center justify-center"
+                  onClick={generateCoverLetter}
+                  disabled={isLoading || (mode === "job" && !jobDescription.trim())}
+                >
+                  {isLoading ? (
+                    <>
+                      <svg
+                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v8z"
+                        ></path>
+                      </svg>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="h-5 w-5 mr-2 text-white" /> Generate
+                      Cover Letter
+                    </>
+                  )}
+                </button>
+
+                {error && <div className="text-red-600 mt-4 text-sm">{error}</div>}
+
+                {coverLetter && (
+                  <div className="mt-6">
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Generated cover letter
+                    </label>
+                    <textarea
+                      className="w-full p-4 border border-gray-200 rounded-lg bg-white focus:outline-none text-gray-900 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-green-600"
+                      rows={12}
+                      value={coverLetter}
+                      readOnly
+                      style={{ minHeight: 220 }}
+                    />
+                    <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-end">
+                      <button
+                        className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-green-600 border-green-600 hover:bg-green-50 ${
+                          copied ? "opacity-70" : ""
+                        }`}
+                        onClick={handleCopy}
+                      >
+                        <ClipboardIcon className="h-5 w-5" />
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                      <button
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                        onClick={handleDownload}
+                      >
+                        <ArrowDownTrayIcon className="h-5 w-5" /> Download .txt
+                      </button>
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
-      </section>
+        </div>
+      </div>
 
       {/* How it Works - Minimal */}
       <section className="w-full bg-white px-4 pb-14">
