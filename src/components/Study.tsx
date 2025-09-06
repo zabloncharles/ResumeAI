@@ -1254,11 +1254,20 @@ const Study = () => {
               >
                 Back to Study Hub
               </button>
-            </div>
-          </div>
-        </>
-      );
-    }
+        </div>
+      </div>
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSuccess={() => {
+          setShowSignInModal(false);
+        }}
+      />
+    </>
+  );
+}
 
     const currentCard = currentSet.flashcards[currentCardIndex];
 
@@ -2755,15 +2764,6 @@ const Study = () => {
       )}
 
       <Footer />
-
-      {/* Sign In Modal */}
-      <SignInModal
-        isOpen={showSignInModal}
-        onClose={() => setShowSignInModal(false)}
-        onSuccess={() => {
-          setShowSignInModal(false);
-        }}
-      />
     </>
   );
 };
