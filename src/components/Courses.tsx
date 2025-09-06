@@ -205,7 +205,10 @@ function adjustInstitutionPrereqs(
   });
 }
 
-function getDetailBulletsForStep(title: string, specialization: string): string[] {
+function getDetailBulletsForStep(
+  title: string,
+  specialization: string
+): string[] {
   const t = (title || "").toLowerCase();
   const spec = (specialization || "").toLowerCase();
   // High school details
@@ -402,7 +405,10 @@ const Courses = () => {
       const currentUser = user || auth.currentUser;
       if (!currentUser) return;
       try {
-        const q = query(collection(db, "paths"), where("userId", "==", currentUser.uid));
+        const q = query(
+          collection(db, "paths"),
+          where("userId", "==", currentUser.uid)
+        );
         const snap = await getDocs(q);
         if (snap.empty) return;
         let latestDoc: any = null;
@@ -721,7 +727,9 @@ const Courses = () => {
             <div className="flex items-center justify-center space-x-2 mb-6">
               <span>🧭</span>
               <span>→</span>
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">AI</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">
+                AI
+              </span>
               <span>→</span>
               <span>💼</span>
             </div>
@@ -731,7 +739,8 @@ const Courses = () => {
               <span className="text-[#16aeac]">Career Path</span> with Clarity
             </h1>
             <p className="text-xl text-gray-600 mb-6 max-w-2xl">
-              Generate a personalized roadmap and track progress with a clean Kanban board.
+              Generate a personalized roadmap and track progress with a clean
+              Kanban board.
             </p>
             <div className="mt-2 mb-6 flex justify-center gap-3">
               <button
@@ -840,15 +849,16 @@ const Courses = () => {
         </div>
 
         {/* Promo Card (blurred green like Study/Home) */}
-        <div
-          className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
-        >
+        <div className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg">
           <div className="flex items-center mb-3 justify-center">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">
+              ✓
+            </span>
             <h2 className="text-2xl font-bold text-green-700">Kanban Board</h2>
           </div>
           <p className="text-gray-700 mb-3">
-            Generate a detailed path, then track progress with an interactive board.
+            Generate a detailed path, then track progress with an interactive
+            board.
           </p>
           <a
             href="#how-it-works"
@@ -861,9 +871,12 @@ const Courses = () => {
         {/* Features Section (match Study style) */}
         <div id="features" className="max-w-6xl mx-auto py-16 px-4">
           <div className="text-center mb-10">
-            <h3 className="text-3xl font-bold text-gray-900 mb-3">Everything you need to plan smarter</h3>
+            <h3 className="text-3xl font-bold text-gray-900 mb-3">
+              Everything you need to plan smarter
+            </h3>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Focused, flat UI with the essentials: generate, refine, and track your path.
+              Focused, flat UI with the essentials: generate, refine, and track
+              your path.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
@@ -871,22 +884,35 @@ const Courses = () => {
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                 <span className="text-green-600">🧠</span>
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-1">Personalized Paths</h4>
-              <p className="text-sm text-gray-600">AI‑generated steps tailored to your profession and specialization.</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                Personalized Paths
+              </h4>
+              <p className="text-sm text-gray-600">
+                AI‑generated steps tailored to your profession and
+                specialization.
+              </p>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                 <span className="text-green-600">🗂️</span>
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-1">Specialization Picker</h4>
-              <p className="text-sm text-gray-600">For broad careers, pick a focus to get a more detailed roadmap.</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                Specialization Picker
+              </h4>
+              <p className="text-sm text-gray-600">
+                For broad careers, pick a focus to get a more detailed roadmap.
+              </p>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                 <span className="text-green-600">📊</span>
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-1">Kanban Board</h4>
-              <p className="text-sm text-gray-600">Move cards as you make progress through your path.</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                Kanban Board
+              </h4>
+              <p className="text-sm text-gray-600">
+                Move cards as you make progress through your path.
+              </p>
             </div>
           </div>
         </div>
