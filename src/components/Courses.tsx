@@ -970,105 +970,117 @@ const Courses = () => {
               {steps && steps.length > 0
                 ? (() => {
                     const seq = computeSequenceIndexMap(steps);
-                    const ordered = steps
+                    const orderedAll = steps
                       .slice()
                       .sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                    const ordered = orderedAll.filter(
+                      (s) => s.id !== "you" && (s.title || "").toLowerCase() !== "you"
+                    );
                     const idToTitle: Record<string, string> =
-                      Object.fromEntries(ordered.map((s) => [s.id, s.title]));
+                      Object.fromEntries(orderedAll.map((s) => [s.id, s.title]));
                     const fmtPrereqs = (ids?: string[]) =>
                       (ids || [])
                         .filter((id) => id && id !== "you")
                         .map((id) => idToTitle[id] || id)
                         .filter(Boolean);
                     return (
-                      <div className="w-full max-w-3xl space-y-3">
-                        {ordered.map((s, idx) => (
-                          <div
-                            key={s.id}
-                            className="bg-white rounded-lg border border-gray-200 p-4"
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                                {idx + 1}
-                              </span>
-                              <div className="font-medium text-gray-900">
-                                {s.title}
+                      <div className="w-full max-w-3xl relative pl-6">
+                        <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-200"></div>
+                        <div className="space-y-4">
+                          {ordered.map((s, idx) => (
+                            <div key={s.id} className="relative">
+                              <span className="absolute -left-2.5 top-3 h-3 w-3 rounded-full bg-[#16aeac] border-2 border-white shadow"></span>
+                              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className="inline-flex items-center justify-center h-6 min-w-[24px] text-[12px] px-1.5 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                                    {idx + 1}
+                                  </span>
+                                  <div className="font-semibold text-gray-900">
+                                    {s.title}
+                                  </div>
+                                </div>
+                                {s.description && (
+                                  <div className="text-sm text-gray-600">
+                                    {s.description}
+                                  </div>
+                                )}
+                                {Array.isArray(s.details) && s.details.length > 0 && (
+                                  <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
+                                    {s.details.map((d: string, i: number) => (
+                                      <li key={i}>{d}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {(() => {
+                                  const pr = fmtPrereqs(s.prerequisiteIds);
+                                  return pr.length > 0 ? (
+                                    <div className="text-[11px] text-gray-500 mt-2">
+                                      Prerequisite: {pr.join(", ")}
+                                    </div>
+                                  ) : null;
+                                })()}
                               </div>
                             </div>
-                            {s.description && (
-                              <div className="text-sm text-gray-600">
-                                {s.description}
-                              </div>
-                            )}
-                            {Array.isArray(s.details) && s.details.length > 0 && (
-                              <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
-                                {s.details.map((d: string, i: number) => (
-                                  <li key={i}>{d}</li>
-                                ))}
-                              </ul>
-                            )}
-                            {(() => {
-                              const pr = fmtPrereqs(s.prerequisiteIds);
-                              return pr.length > 0 ? (
-                                <div className="text-[11px] text-gray-500 mt-1">
-                                  Prerequisite: {pr.join(", ")}
-                                </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     );
                   })()
                 : (() => {
                     const seq = computeSequenceIndexMap(mockSteps);
-                    const ordered = mockSteps
+                    const orderedAll = mockSteps
                       .slice()
                       .sort((a, b) => (seq[a.id] || 999) - (seq[b.id] || 999));
+                    const ordered = orderedAll.filter(
+                      (s) => s.id !== "you" && (s.title || "").toLowerCase() !== "you"
+                    );
                     const idToTitle: Record<string, string> =
-                      Object.fromEntries(ordered.map((s) => [s.id, s.title]));
+                      Object.fromEntries(orderedAll.map((s) => [s.id, s.title]));
                     const fmtPrereqs = (ids?: string[]) =>
                       (ids || [])
                         .filter((id) => id && id !== "you")
                         .map((id) => idToTitle[id] || id)
                         .filter(Boolean);
                     return (
-                      <div className="w-full max-w-3xl space-y-3">
-                        {ordered.map((s, idx) => (
-                          <div
-                            key={s.id}
-                            className="bg-white rounded-lg border border-gray-200 p-4"
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-flex items-center justify-center h-5 min-w-[20px] text-[11px] px-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                                {idx + 1}
-                              </span>
-                              <div className="font-medium text-gray-900">
-                                {s.title}
+                      <div className="w-full max-w-3xl relative pl-6">
+                        <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-200"></div>
+                        <div className="space-y-4">
+                          {ordered.map((s, idx) => (
+                            <div key={s.id} className="relative">
+                              <span className="absolute -left-2.5 top-3 h-3 w-3 rounded-full bg-[#16aeac] border-2 border-white shadow"></span>
+                              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className="inline-flex items-center justify-center h-6 min-w-[24px] text-[12px] px-1.5 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                                    {idx + 1}
+                                  </span>
+                                  <div className="font-semibold text-gray-900">
+                                    {s.title}
+                                  </div>
+                                </div>
+                                {s.description && (
+                                  <div className="text-sm text-gray-600">
+                                    {s.description}
+                                  </div>
+                                )}
+                                {Array.isArray((s as any).details) && (s as any).details.length > 0 && (
+                                  <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
+                                    {(s as any).details.map((d: string, i: number) => (
+                                      <li key={i}>{d}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {(() => {
+                                  const pr = fmtPrereqs(s.prerequisiteIds);
+                                  return pr.length > 0 ? (
+                                    <div className="text-[11px] text-gray-500 mt-2">
+                                      Prerequisite: {pr.join(", ")}
+                                    </div>
+                                  ) : null;
+                                })()}
                               </div>
                             </div>
-                            {s.description && (
-                              <div className="text-sm text-gray-600">
-                                {s.description}
-                              </div>
-                            )}
-                            {Array.isArray((s as any).details) && (s as any).details.length > 0 && (
-                              <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
-                                {(s as any).details.map((d: string, i: number) => (
-                                  <li key={i}>{d}</li>
-                                ))}
-                              </ul>
-                            )}
-                            {(() => {
-                              const pr = fmtPrereqs(s.prerequisiteIds);
-                              return pr.length > 0 ? (
-                                <div className="text-[11px] text-gray-500 mt-1">
-                                  Prerequisite: {pr.join(", ")}
-                                </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}
