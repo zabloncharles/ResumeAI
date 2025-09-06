@@ -207,12 +207,7 @@ const Study = () => {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Redirect if user is not authenticated
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/");
-    }
-  }, [user, isLoading, navigate]);
+  // Redirect removed: show public landing when not signed in
 
   // Load study sets with localStorage caching - NO real-time listeners
   useEffect(() => {
@@ -1140,9 +1135,52 @@ const Study = () => {
     );
   }
 
-  // Don't render anything if user is not authenticated (will redirect)
+  // Public landing when not signed in
   if (!memoizedUser) {
-    return null;
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-gradient-to-br from-white to-blue-50 pt-28 px-4 flex flex-col">
+          <div className="flex-1">
+            <div className="max-w-5xl mx-auto text-center">
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">Study Hub</h1>
+              <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
+                Create, practice, and master flashcards with quiz mode and progress tracking.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <a
+                  href="/account"
+                  className="px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#139b99] transition-colors font-semibold"
+                >
+                  Sign in to get started
+                </a>
+                <a
+                  href="#features"
+                  className="px-6 py-3 bg-white text-gray-900 rounded-lg border border-gray-300 hover:bg-gray-50"
+                >
+                  Explore features
+                </a>
+              </div>
+              <div id="features" className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12 text-left">
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Flashcards</h3>
+                  <p className="text-sm text-gray-600">Build sets quickly and study anywhere.</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Quiz Mode</h3>
+                  <p className="text-sm text-gray-600">Test yourself with multiple‑choice quizzes.</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Progress</h3>
+                  <p className="text-sm text-gray-600">Track streaks, time studied, and mastery.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <Footer />
+        </div>
+      </>
+    );
   }
 
   if (isStudying && currentSet) {
