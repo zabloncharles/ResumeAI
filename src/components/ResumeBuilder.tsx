@@ -1197,6 +1197,177 @@ const ResumeBuilder = () => {
       </div>
     );
 
+  // Landing page for non-authenticated users
+  if (!user) {
+    return (
+      <>
+        <div className="min-h-screen bg-white flex flex-col">
+          <div className="flex-1">
+            <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="pt-32 pb-16 text-center">
+                <div className="flex items-center justify-center space-x-2 mb-6">
+                  <span>📄</span>
+                  <span>→</span>
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">AI</span>
+                  <span>→</span>
+                  <span>🚀</span>
+                </div>
+                <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+                  Build Professional Resumes
+                </h1>
+                <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
+                  Create stunning resumes with AI assistance. Choose from professional templates and get expert suggestions.
+                </p>
+                <div className="mt-2 flex justify-center gap-3 mb-16">
+                  <button
+                    onClick={() => setUiState((prev) => ({ ...prev, showSignInModal: true }))}
+                    className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
+                  >
+                    Start Building
+                  </button>
+                  <a
+                    href="#preview"
+                    className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
+                  >
+                    See Preview
+                  </a>
+                </div>
+              </div>
+
+              {/* Resume Preview Demo */}
+              <div id="preview" className="max-w-4xl mx-auto mb-16">
+                <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg">
+                  <div className="flex items-center gap-2 mb-6">
+                    <DocumentTextIcon className="h-5 w-5 text-green-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Resume Preview</h2>
+                  </div>
+
+                  {/* Sample Resume Display */}
+                  <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300">
+                    <div className="max-w-2xl mx-auto">
+                      {/* Header */}
+                      <div className="text-center mb-6">
+                        <h3 className="text-2xl font-bold text-gray-900">David St. Peter</h3>
+                        <p className="text-lg text-green-600 font-medium">UX Designer</p>
+                        <div className="text-sm text-gray-600 mt-2">
+                          david@example.com • +000 123 456 789 • New York, USA
+                        </div>
+                      </div>
+
+                      {/* Profile */}
+                      <div className="mb-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Profile</h4>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          For more Sales, Leads, Customer Engagement. Become an Author, Create Information Products.
+                          All done quickly and easily. No Design or Technical skills necessary.
+                        </p>
+                      </div>
+
+                      {/* Experience */}
+                      <div className="mb-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Experience</h4>
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="font-medium text-gray-900">Senior UX Designer</h5>
+                                <p className="text-green-600 text-sm">Company Name</p>
+                              </div>
+                              <span className="text-sm text-gray-500">2020 - Present</span>
+                            </div>
+                            <ul className="text-sm text-gray-700 mt-2 space-y-1">
+                              <li>• Led the redesign of the company's flagship product, resulting in a 40% increase in user engagement</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CTA Overlay */}
+                      <div className="relative mt-8">
+                        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent rounded-lg"></div>
+                        <div className="relative bg-white border-2 border-green-200 rounded-lg p-6 text-center">
+                          <div className="flex items-center justify-center mb-3">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✨</span>
+                            <h3 className="text-lg font-bold text-green-700">Unlock Full Features</h3>
+                          </div>
+                          <p className="text-gray-700 mb-4">
+                            Sign up to create unlimited resumes, access premium templates, and get AI-powered suggestions.
+                          </p>
+                          <button
+                            onClick={() => setUiState((prev) => ({ ...prev, showSignInModal: true }))}
+                            className="inline-block px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                          >
+                            Get Started Free
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features Section */}
+              <div className="max-w-6xl mx-auto mt-16 mb-16">
+                <div className="text-center mb-12">
+                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Why Choose Brightfolio?</h3>
+                  <p className="text-gray-600 max-w-2xl mx-auto">
+                    Everything you need to create professional resumes that get results.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                      <span className="text-green-600">🎨</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Professional Templates</h4>
+                    <p className="text-sm text-gray-600">Choose from carefully designed templates that impress employers.</p>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                      <span className="text-green-600">🤖</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">AI-Powered Suggestions</h4>
+                    <p className="text-sm text-gray-600">Get intelligent recommendations to improve your resume content.</p>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-200 to-green-100 border border-green-200 flex items-center justify-center mb-4">
+                      <span className="text-green-600">📄</span>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">PDF Export</h4>
+                    <p className="text-sm text-gray-600">Download your resume as a professional PDF ready for applications.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final CTA */}
+              <div className="max-w-3xl mx-auto mt-12 mb-16">
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-8 text-center">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Build Your Resume?</h3>
+                  <p className="text-gray-700 mb-6">
+                    Join thousands of professionals who have created stunning resumes with Brightfolio.
+                  </p>
+                  <button
+                    onClick={() => setUiState((prev) => ({ ...prev, showSignInModal: true }))}
+                    className="inline-block px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
+                  >
+                    Create Your Resume Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sign In Modal */}
+        <SignInModal
+          isOpen={uiState.showSignInModal}
+          onClose={() => setUiState((prev) => ({ ...prev, showSignInModal: false }))}
+          onSuccess={() => setUiState((prev) => ({ ...prev, showSignInModal: false }))}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen sticky z-[1000] backdrop-blur">
       {/* Navigation Bar */}
