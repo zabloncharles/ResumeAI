@@ -438,7 +438,49 @@ const Courses = () => {
     })();
   }, [user]);
 
-  // Do not initialize board until after generation
+  // Fake demo data for non-authenticated users
+  const demoSteps = [
+    {
+      id: "bachelor",
+      title: "Bachelor's Degree",
+      description: "Complete undergraduate education",
+      prerequisiteIds: ["you"],
+      childrenIds: ["masters"],
+      status: "planned",
+    },
+    {
+      id: "masters",
+      title: "Master's Degree",
+      description: "Advanced studies in your field",
+      prerequisiteIds: ["bachelor"],
+      childrenIds: ["internship"],
+      status: "planned",
+    },
+    {
+      id: "internship",
+      title: "Professional Internship",
+      description: "Gain real-world experience",
+      prerequisiteIds: ["masters"],
+      childrenIds: ["certification"],
+      status: "inprogress",
+    },
+    {
+      id: "certification",
+      title: "Industry Certification",
+      description: "Obtain relevant certifications",
+      prerequisiteIds: ["internship"],
+      childrenIds: ["job"],
+      status: "planned",
+    },
+    {
+      id: "job",
+      title: "Entry-Level Position",
+      description: "Start your career journey",
+      prerequisiteIds: ["certification"],
+      childrenIds: [],
+      status: "released",
+    },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -636,6 +678,12 @@ const Courses = () => {
   };
 
   const advanceStep = (id: string) => {
+    if (!user) {
+      // For demo mode, show sign-in modal instead of advancing
+      setShowSignInModal(true);
+      return;
+    }
+
     setSteps((prev) => {
       const next = prev.map((s) =>
         s.id === id
@@ -656,7 +704,7 @@ const Courses = () => {
   };
 
   const renderBoard = () => {
-    const stepsArr = steps;
+    const stepsArr = !user ? demoSteps : steps;
     const dist = computeDistances([
       { id: "you", prerequisiteIds: [], childrenIds: [] },
       ...stepsArr,
@@ -757,94 +805,110 @@ const Courses = () => {
               </a>
             </div>
 
-            <form onSubmit={handleSubmit} className="w-full max-w-md">
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  value={profession}
-                  onChange={(e) => setProfession(e.target.value)}
-                  placeholder="Career (e.g., Doctor, Software Engineer)"
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
-                  required
-                />
+            {user ? (
+              <form onSubmit={handleSubmit} className="w-full max-w-md">
+                <div className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    value={profession}
+                    onChange={(e) => setProfession(e.target.value)}
+                    placeholder="Career (e.g., Doctor, Software Engineer)"
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                    required
+                  />
 
-                {suggestedSpecs.length > 0 && !specialization && (
-                  <div className="text-left">
-                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-                      Choose a specialization
+                  {suggestedSpecs.length > 0 && !specialization && (
+                    <div className="text-left">
+                      <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                        Choose a specialization
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedSpecs.map((s) => (
+                          <button
+                            type="button"
+                            key={s}
+                            onClick={() => setSpecialization(s)}
+                            className="px-3 py-1 rounded-full border border-gray-300 text-sm hover:bg-gray-50"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {suggestedSpecs.map((s) => (
-                        <button
-                          type="button"
-                          key={s}
-                          onClick={() => setSpecialization(s)}
-                          className="px-3 py-1 rounded-full border border-gray-300 text-sm hover:bg-gray-50"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <input
-                  type="text"
-                  value={specialization}
-                  onChange={(e) => setSpecialization(e.target.value)}
-                  placeholder="Specialization (optional unless career is broad)"
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
-                />
-
-                <button
-                  type="submit"
-                  disabled={loading || !profession.trim()}
-                  className="mt-1 px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#16aeac]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Generating...
-                    </div>
-                  ) : (
-                    <>
-                      Generate Path
-                      <ArrowRightIcon className="ml-2 h-4 w-4" />
-                    </>
                   )}
-                </button>
 
-                {error && (
-                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600">{error}</p>
+                  <input
+                    type="text"
+                    value={specialization}
+                    onChange={(e) => setSpecialization(e.target.value)}
+                    placeholder="Specialization (optional unless career is broad)"
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#16aeac] focus:border-transparent"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={loading || !profession.trim()}
+                    className="mt-1 px-6 py-3 bg-[#16aeac] text-white rounded-lg hover:bg-[#16aeac]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Generating...
+                      </div>
+                    ) : (
+                      <>
+                        Generate Path
+                        <ArrowRightIcon className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+
+                  {error && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-600">{error}</p>
+                    </div>
+                  )}
+                </div>
+              </form>
+            ) : (
+              <div className="w-full max-w-md text-center">
+                <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="text-sm text-gray-600 mb-2">
+                    👀 Demo Career Path
                   </div>
-                )}
+                  <div className="text-lg font-semibold text-gray-900">
+                    Software Engineer
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Sign in to generate personalized career paths tailored to your goals.
+                </p>
               </div>
-            </form>
-            {steps && steps.length > 0 && (
+            )}
+            {(steps && steps.length > 0) || (!user && demoSteps.length > 0) ? (
               <div className="w-full max-w-6xl mx-auto mt-8 pb-4">
                 {renderBoard()}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -857,8 +921,8 @@ const Courses = () => {
             <h2 className="text-2xl font-bold text-green-700">Kanban Board</h2>
           </div>
           <p className="text-gray-700 mb-3">
-            Generate a detailed path, then track progress with an interactive
-            board.
+            Generate personalized career paths and track progress with an interactive
+            Kanban board.
           </p>
           <a
             href="#how-it-works"
