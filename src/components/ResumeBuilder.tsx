@@ -19,6 +19,7 @@ import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import SignInModal from "./SignInModal";
+import Navbar from "./Navbar";
 import bunny1 from "../bunny1.png";
 import ResumePreview from "./ResumePreview";
 // import TemplatesPage from "./TemplatesPage";
@@ -1198,18 +1199,14 @@ const ResumeBuilder = () => {
     );
 
   // Landing page for non-authenticated users
-  console.log("ResumeBuilder - User state:", user, "IsAuthenticated:", isAuthenticated);
   if (!user) {
     return (
       <>
+        <Navbar />
         <div className="min-h-screen bg-white flex flex-col">
           <div className="flex-1">
             <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="pt-32 pb-16 text-center">
-                {/* DEBUG: Show current user state */}
-                <div className="mb-4 p-2 bg-red-100 border border-red-300 rounded text-sm">
-                  DEBUG: User = {user ? 'SIGNED IN' : 'NOT SIGNED IN'}
-                </div>
                 <div className="flex items-center justify-center space-x-2 mb-6">
                   <span>📄</span>
                   <span>→</span>
