@@ -369,12 +369,10 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* How it Works - Minimal */}
-      <section className="w-full bg-white px-4 pb-8">
-        <div className="max-w-4xl w-full mx-auto grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {/* How it Works - Minimal */}
+          <div className="max-w-4xl mx-auto mt-16 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           {[
             {
               icon: <DocumentTextIcon className="h-6 w-6 text-gray-700" />,
@@ -408,13 +406,12 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
               <div className="text-gray-600 text-sm">{step.desc}</div>
             </div>
           ))}
-        </div>
-      </section>
+            </div>
+          </div>
 
-      {/* CTA - Minimal */}
-      <section className="w-full bg-white px-4 pb-12">
-        <div className="max-w-3xl w-full mx-auto text-center">
-          <div className="bg-white border border-gray-200 rounded-xl p-8">
+          {/* CTA - Minimal */}
+          <div className="max-w-3xl mx-auto mt-12 mb-8">
+            <div className="bg-white border border-gray-200 rounded-xl p-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               Want a matching resume?
             </h2>
@@ -427,9 +424,10 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             >
               Open Resume Builder
             </a>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
       <Footer />
 
