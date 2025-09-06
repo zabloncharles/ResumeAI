@@ -26,6 +26,9 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   const [zip, setZip] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
+  // Debug: Log when modal props change
+  console.log("SignInModal render - isOpen:", isOpen);
+
   const capitalizeFirstLetter = (str: string) => {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   };
@@ -190,8 +193,12 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log("SignInModal: not rendering because isOpen is false");
+    return null;
+  }
 
+  console.log("SignInModal: rendering modal with isOpen:", isOpen);
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center h-screen bg-black/30 backdrop-blur-sm"
