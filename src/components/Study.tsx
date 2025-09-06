@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import SignInModal from "./SignInModal";
 import { auth, db } from "../firebase";
 import {
   collection,
@@ -122,7 +121,6 @@ const Study = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateCardModal, setShowCreateCardModal] = useState(false);
-  const [showSignInModal, setShowSignInModal] = useState(false);
   // unused UI toggles removed for build
   // const [showCreateCardForm, setShowCreateCardForm] = useState(false);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
@@ -209,10 +207,6 @@ const Study = () => {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Debug: Track modal state changes
-  useEffect(() => {
-    console.log("showSignInModal state changed to:", showSignInModal);
-  }, [showSignInModal]);
 
   // Redirect removed: show public landing when not signed in
 
@@ -1144,7 +1138,6 @@ const Study = () => {
 
   // Public landing when not signed in
   if (!memoizedUser) {
-    console.log("Rendering public landing page for non-signed-in user");
     return (
       <>
         <Navbar />
@@ -1162,31 +1155,16 @@ const Study = () => {
                 <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
                   Study smarter with Brightfolio
                 </h1>
-                <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
-                  DEBUG: showSignInModal = {showSignInModal.toString()}
-                </div>
                 <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
                   Build flashcards fast, quiz yourself, and track progress with a clean, modern UI.
                 </p>
                 <div className="mt-2 flex justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      console.log("Sign in button clicked, setting modal to true");
-                      setShowSignInModal(true);
-                    }}
+                  <a
+                    href="/account"
                     className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
                   >
                     Sign in to get started
-                  </button>
-                  <button
-                    onClick={() => {
-                      console.log("Test button clicked, forcing modal to true");
-                      setShowSignInModal(true);
-                    }}
-                    className="inline-block px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all text-base font-semibold"
-                  >
-                    TEST MODAL
-                  </button>
+                  </a>
                   <a
                     href="#features"
                     className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
@@ -1278,14 +1256,6 @@ const Study = () => {
         </div>
       </div>
 
-      {/* Original SignInModal - restored */}
-      {showSignInModal && (
-        <SignInModal
-          isOpen={showSignInModal}
-          onClose={() => setShowSignInModal(false)}
-          onSuccess={() => setShowSignInModal(false)}
-        />
-      )}
     </>
   );
 }
