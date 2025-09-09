@@ -7,6 +7,9 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { InputValidator, CommonValidations } from "../utils/validation";
+import { sanitize } from "../utils/sanitize";
+import { createRateLimitedActions } from "../utils/rateLimit";
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -25,6 +28,10 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   const [stateField, setStateField] = useState("");
   const [zip, setZip] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const rateLimitActions = createRateLimitedActions();
 
   // Debug: Log when modal props change
   console.log("SignInModal render - isOpen:", isOpen);
@@ -32,6 +39,92 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   const capitalizeFirstLetter = (str: string) => {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   };
+
+  // Validation functions
+  const validateForm = () => {
+    const errors: Record<string, string[]> = {};
+    
+    // Email validation
+    const emailResult = InputValidator.validateField(email, CommonValidations.email);
+    if (!emailResult.isValid) {
+      errors.email = emailResult.errors;
+    }
+    
+    // Password validation
+    const passwordResult = InputValidator.validateField(password, CommonValidations.password);
+    if (!passwordResult.isValid) {
+      errors.password = passwordResult.errors;
+    }
+    
+    // Registration-specific validations
+    if (isRegistering) {
+      const firstNameResult = InputValidator.validateField(firstName, CommonValidations.name);
+      if (!firstNameResult.isValid) {
+        errors.firstName = firstNameResult.errors;
+      }
+      
+      const lastNameResult = InputValidator.validateField(lastName, CommonValidations.name);
+      if (!lastNameResult.isValid) {
+        errors.lastName = lastNameResult.errors;
+      }
+      
+      // ZIP code validation
+      if (zip) {
+        const zipResult = InputValidator.validateField(zip, {
+          pattern: /^\d{5}(-\d{4})?$/,
+          custom: (value) => {
+            const cleaned = value.replace(/\D/g, '');
+            if (cleaned.length !== 5 && cleaned.length !== 9) {
+              return 'ZIP code must be 5 or 9 digits';
+            }
+            return null;
+          }
+        });
+        if (!zipResult.isValid) {
+          errors.zip = zipResult.errors;
+        }
+      }
+      
+      // Privacy acceptance validation
+      if (!privacyAccepted) {
+        errors.privacy = ['You must accept the privacy policy to register'];
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  // Sanitize input handlers
+  const handleEmailChange = (value: string) => {
+    setEmail(sanitize.email(value));
+    // Clear email validation errors when user types
+    if (validationErrors.email) {
+      setValidationErrors(prev => ({ ...prev, email: [] }));
+    }
+  };
+  
+  const handlePasswordChange = (value: string) => {
+    setPassword(sanitize.text(value));
+    // Clear password validation errors when user types
+    if (validationErrors.password) {
+      setValidationErrors(prev => ({ ...prev, password: [] }));
+    }
+  };
+  
+  const handleNameChange = (field: 'firstName' | 'lastName', value: string) => {
+    const sanitized = sanitize.text(value);
+    if (field === 'firstName') {
+      setFirstName(sanitized);
+    } else {
+      setLastName(sanitized);
+    }
+    // Clear validation errors when user types
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({ ...prev, [field]: [] }));
+    }
+  };
+
 
   useEffect(() => {
     if (isOpen) {
@@ -103,12 +196,26 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setValidationErrors({});
+    
+    // Rate limiting check
+    if (!rateLimitActions.checkSignInLimit()) {
+      const resetTime = rateLimitActions.getSignInResetTime();
+      const minutes = Math.ceil(resetTime / (60 * 1000));
+      setError(`Too many sign-in attempts. Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before trying again.`);
+      return;
+    }
+    
+    // Validate form
+    if (!validateForm()) {
+      setError("Please fix the validation errors below.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
       if (isRegistering) {
-        if (!privacyAccepted) {
-          setError("Please accept the privacy policy to continue");
-          return;
-        }
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
@@ -123,17 +230,22 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
           console.log("Location fetch failed, continuing without location");
         }
         
-        await setDoc(doc(db, "users", userCredential.user.uid), {
-          email: userCredential.user.email,
+        // Sanitize user data before saving
+        const sanitizedUserData = sanitize.object({
+          email: userCredential.user.email || '',
           firstName,
           lastName,
+          state: stateField,
+          zip,
+          phone: "",
+        }, ['firstName', 'lastName', 'state'], ['email'], [], []);
+        
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          ...sanitizedUserData,
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString(),
           location,
-          phone: "",
           resumeIds: [],
-          state: stateField,
-          zip,
           totalTokens: 0,
           totalApiCalls: 0,
           type: "free",
@@ -146,6 +258,8 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
       }
     } catch (err: any) {
       setError(getFriendlyError(err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -293,7 +407,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                       id="firstName"
                       value={firstName}
                       onChange={(e) =>
-                        setFirstName(capitalizeFirstLetter(e.target.value))
+                        handleNameChange('firstName', capitalizeFirstLetter(e.target.value))
                       }
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
                       required
@@ -311,7 +425,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                       id="lastName"
                       value={lastName}
                       onChange={(e) =>
-                        setLastName(capitalizeFirstLetter(e.target.value))
+                        handleNameChange('lastName', capitalizeFirstLetter(e.target.value))
                       }
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
                       required
@@ -413,7 +527,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     id="signin-email"
                     autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
                     required
                   />
@@ -430,7 +544,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     id="signin-password"
                     autoComplete="current-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => handlePasswordChange(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
                     required
                   />
@@ -469,7 +583,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     id="signin-email"
                     autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
                     required
                   />
@@ -486,7 +600,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     id="signin-password"
                     autoComplete="current-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => handlePasswordChange(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
                     required
                   />
@@ -509,9 +623,20 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
             <div className="mt-5 sm:mt-6">
               <button
                 type="submit"
-                className="inline-flex w-full justify-center rounded-md border border-transparent bg-gradient-to-r from-green-500 to-yellow-500 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-green-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm"
+                disabled={isSubmitting}
+                className="inline-flex w-full justify-center rounded-md border border-transparent bg-gradient-to-r from-green-500 to-yellow-500 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-green-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isRegistering ? "Register" : "Sign In"}
+                {isSubmitting ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {isRegistering ? "Creating Account..." : "Signing In..."}
+                  </div>
+                ) : (
+                  isRegistering ? "Register" : "Sign In"
+                )}
               </button>
             </div>
 

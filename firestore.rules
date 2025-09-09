@@ -27,13 +27,27 @@ service cloud.firestore {
       allow write: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
     
-    // Study sets rules - temporarily more permissive for testing
+    // Study sets rules - strict user-based access control
     match /studySets/{setId} {
-      allow read, write: if request.auth != null;
+      // Users can only read their own sets or public sets
+      allow read: if request.auth != null && 
+        (resource.data.createdBy == request.auth.uid || resource.data.isPublic == true);
       
-      // Flashcards subcollection
+      // Users can only create/update their own sets
+      allow create: if request.auth != null && 
+        request.resource.data.createdBy == request.auth.uid;
+      
+      allow update: if request.auth != null && 
+        resource.data.createdBy == request.auth.uid;
+      
+      // Users can only delete their own sets
+      allow delete: if request.auth != null && 
+        resource.data.createdBy == request.auth.uid;
+      
+      // Flashcards subcollection - inherit parent permissions
       match /flashcards/{cardId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if request.auth != null && 
+          get(/databases/$(database)/documents/studySets/$(setId)).data.createdBy == request.auth.uid;
       }
     }
     
