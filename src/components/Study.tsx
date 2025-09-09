@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import SignInModal from "./SignInModal";
-import { auth, db } from "../firebase";
+import { db } from "../firebase";
 import {
   collection,
   doc,
@@ -19,8 +19,8 @@ import {
   arrayUnion,
   writeBatch,
 } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { 
   AcademicCapIcon, 
   BookOpenIcon, 
@@ -97,7 +97,7 @@ interface StudySet {
 
 const Study = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuth(); // Use centralized auth context
   const [studySets, setStudySets] = useState<StudySet[]>([]);
   const [currentSet, setCurrentSet] = useState<StudySet | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -179,37 +179,13 @@ const Study = () => {
   const memoizedUser = useMemo(() => user, [user?.uid]);
   const memoizedFilter = useMemo(() => filter, [filter]);
 
-  // Authentication effect
+  // Use centralized auth context - no duplicate listener needed
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (import.meta.env.DEV) {
-        console.log(
-          "Auth state changed:",
-          firebaseUser ? "User logged in" : "No user"
-        );
-        if (firebaseUser) {
-          console.log("User UID:", firebaseUser.uid);
-          console.log("User email:", firebaseUser.email);
-        }
-      }
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-          })
-        );
-      } else {
-        localStorage.removeItem("user");
-        // Stay on Study to show public landing when not signed in
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [navigate]);
+    if (import.meta.env.DEV && user) {
+      console.log("Study: User authenticated:", user.uid);
+    }
+    setIsLoading(false);
+  }, [user]);
 
 
   // Redirect removed: show public landing when not signed in

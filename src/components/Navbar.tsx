@@ -8,69 +8,62 @@ import {
 } from "@heroicons/react/24/outline";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from "../contexts/AuthContext";
 import bunny1 from "../bunny1.png";
 import SignInModal from "./SignInModal";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuth(); // Use centralized auth context
   const [firstName, setFirstName] = useState("");
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Use centralized auth context instead of duplicate listener
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      const storedUserData = localStorage.getItem("userData");
-      if (storedUserData) {
-        const userData = JSON.parse(storedUserData);
-        setFirstName(
-          userData.firstName || parsedUser.displayName?.split(" ")[0] || ""
-        );
-        setIsAdmin(userData.role === "admin");
-      }
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-          })
-        );
+    if (user) {
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+        })
+      );
+      
+      // Fetch user data only when user changes
+      const fetchUserData = async () => {
         try {
-          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setFirstName(
-              userData.firstName || firebaseUser.displayName?.split(" ")[0] || ""
+              userData.firstName || user.displayName?.split(" ")[0] || ""
             );
             setIsAdmin(userData.role === "admin");
             localStorage.setItem("userData", JSON.stringify(userData));
           }
         } catch (err) {
           // Avoid breaking navbar if permissions fail; fall back to defaults
-          const fallbackName = firebaseUser.displayName?.split(" ")[0] || "";
+          const fallbackName = user.displayName?.split(" ")[0] || "";
           setFirstName(fallbackName);
           setIsAdmin(false);
         }
-      } else {
-        setIsAdmin(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+      };
+      
+      fetchUserData();
+    } else {
+      localStorage.removeItem("user");
+      localStorage.removeItem("userData");
+      setFirstName("");
+      setIsAdmin(false);
+    }
+  }, [user]); // Only run when user from context changes
 
   const handleSignOut = async () => {
     try {
