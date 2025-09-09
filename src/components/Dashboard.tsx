@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { db } from "../firebase";
+import { useAuth } from "../contexts/AuthContext";
 import { doc, getDoc, updateDoc, collection, getDocs, increment } from "firebase/firestore";
 import Navbar from "./Navbar";
 import {
@@ -33,7 +33,7 @@ interface UserData {
 
 const Dashboard = () => {
   if (import.meta.env.DEV) console.log("Dashboard component rendered");
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuth(); // Use centralized auth context
   const [userData, setUserData] = useState<UserData | null>(null);
   const [recentUsers, setRecentUsers] = useState<UserData[]>([]);
   const [userLocations, setUserLocations] = useState<any[]>([]);
@@ -77,26 +77,10 @@ const Dashboard = () => {
     { month: "Dec", apiCalls: 0, tokens: 0 },
   ]);
 
+  // Use centralized auth context - no duplicate listener needed
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setIsLoading(false);
-    } else {
-      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-        setUser(firebaseUser);
-        if (firebaseUser) {
-          localStorage.setItem("user", JSON.stringify(firebaseUser));
-        } else {
-          // Redirect to landing page if not authenticated
-          navigate("/");
-        }
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
-    }
-  }, [navigate]);
+    setIsLoading(false);
+  }, [user]);
 
   // Redirect if user is not authenticated
   useEffect(() => {

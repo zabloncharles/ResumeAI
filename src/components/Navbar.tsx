@@ -24,7 +24,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use centralized auth context instead of duplicate listener
+  // Use centralized auth context with localStorage caching
   useEffect(() => {
     if (user) {
       localStorage.setItem(
@@ -36,7 +36,22 @@ const Navbar = () => {
         })
       );
       
-      // Fetch user data only when user changes
+      // Check localStorage first to avoid unnecessary Firebase calls
+      const cachedUserData = localStorage.getItem("userData");
+      if (cachedUserData) {
+        try {
+          const userData = JSON.parse(cachedUserData);
+          setFirstName(
+            userData.firstName || user.displayName?.split(" ")[0] || ""
+          );
+          setIsAdmin(userData.role === "admin");
+          return; // Use cached data, no Firebase call needed
+        } catch (err) {
+          // Invalid cached data, fall through to fetch fresh data
+        }
+      }
+      
+      // Only fetch from Firebase if no valid cached data
       const fetchUserData = async () => {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
