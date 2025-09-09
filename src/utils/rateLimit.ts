@@ -145,10 +145,10 @@ export const createRateLimitedActions = () => {
   const rateLimiter = RateLimiter.getInstance();
   
   return {
-    checkAILimit: () => rateLimiter.isAllowed('ai-suggestions', ...Object.values(RateLimitConfigs.AI_SUGGESTIONS)),
-    checkSaveLimit: () => rateLimiter.isAllowed('resume-save', ...Object.values(RateLimitConfigs.RESUME_SAVE)),
-    checkSignInLimit: () => rateLimiter.isAllowed('sign-in', ...Object.values(RateLimitConfigs.SIGN_IN_ATTEMPTS)),
-    checkCareerPathLimit: () => rateLimiter.isAllowed('career-path', ...Object.values(RateLimitConfigs.CAREER_PATH_GENERATE)),
+    checkAILimit: () => rateLimiter.isAllowed('ai-suggestions', RateLimitConfigs.AI_SUGGESTIONS.maxRequests, RateLimitConfigs.AI_SUGGESTIONS.windowMs),
+    checkSaveLimit: () => rateLimiter.isAllowed('resume-save', RateLimitConfigs.RESUME_SAVE.maxRequests, RateLimitConfigs.RESUME_SAVE.windowMs),
+    checkSignInLimit: () => rateLimiter.isAllowed('sign-in', RateLimitConfigs.SIGN_IN_ATTEMPTS.maxRequests, RateLimitConfigs.SIGN_IN_ATTEMPTS.windowMs),
+    checkCareerPathLimit: () => rateLimiter.isAllowed('career-path', RateLimitConfigs.CAREER_PATH_GENERATE.maxRequests, RateLimitConfigs.CAREER_PATH_GENERATE.windowMs),
     
     getRemainingAIRequests: () => rateLimiter.getRemainingRequests('ai-suggestions', RateLimitConfigs.AI_SUGGESTIONS.maxRequests),
     getRemainingSignInAttempts: () => rateLimiter.getRemainingRequests('sign-in', RateLimitConfigs.SIGN_IN_ATTEMPTS.maxRequests),

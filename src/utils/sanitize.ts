@@ -111,17 +111,17 @@ export class InputSanitizer {
     urlFields: (keyof T)[] = [],
     phoneFields: (keyof T)[] = []
   ): T {
-    const sanitized = { ...obj };
+    const sanitized: Record<string, any> = { ...obj };
     
     for (const [key, value] of Object.entries(sanitized)) {
       if (typeof value === 'string') {
-        if (emailFields.includes(key)) {
+        if (emailFields.includes(key as keyof T)) {
           sanitized[key] = this.sanitizeEmail(value);
-        } else if (urlFields.includes(key)) {
+        } else if (urlFields.includes(key as keyof T)) {
           sanitized[key] = this.sanitizeUrl(value);
-        } else if (phoneFields.includes(key)) {
+        } else if (phoneFields.includes(key as keyof T)) {
           sanitized[key] = this.sanitizePhone(value);
-        } else if (textFields.includes(key)) {
+        } else if (textFields.includes(key as keyof T)) {
           sanitized[key] = this.sanitizeText(value);
         } else {
           // Default to text sanitization for string fields
@@ -134,7 +134,7 @@ export class InputSanitizer {
       }
     }
     
-    return sanitized;
+    return sanitized as T;
   }
 }
 
