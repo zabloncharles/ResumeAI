@@ -2,8 +2,10 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Debug: Check if environment variable is loaded
-console.log("Firebase API Key from env:", import.meta.env.VITE_FIREBASE_API_KEY ? "Loaded" : "Not loaded");
+// Firebase API key validation for development
+if (import.meta.env.DEV && !import.meta.env.VITE_FIREBASE_API_KEY) {
+  console.warn("Firebase API Key not found in environment variables");
+}
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_NEW_API_KEY_HERE", // Replace with your new API key

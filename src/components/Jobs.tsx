@@ -329,13 +329,13 @@ const Jobs = () => {
           (parseSalary(b.salary || "") || 0)
       );
     }
-    console.log("jobs:", jobs);
-    console.log("filteredJobs:", filtered);
-    console.log("selectedTypes:", selectedTypes);
-    console.log("selectedCategories:", selectedCategories);
-    console.log("salaryRange:", salaryRange);
-    console.log("hideNoSalary:", hideNoSalary);
-    console.log("entryLevelOnly:", entryLevelOnly);
+    if (import.meta.env.DEV) console.log("jobs:", jobs);
+    if (import.meta.env.DEV) console.log("filteredJobs:", filtered);
+    if (import.meta.env.DEV) console.log("selectedTypes:", selectedTypes);
+    if (import.meta.env.DEV) console.log("selectedCategories:", selectedCategories);
+    if (import.meta.env.DEV) console.log("salaryRange:", salaryRange);
+    if (import.meta.env.DEV) console.log("hideNoSalary:", hideNoSalary);
+    if (import.meta.env.DEV) console.log("entryLevelOnly:", entryLevelOnly);
     return filtered;
   }, [
     jobs,

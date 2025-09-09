@@ -33,8 +33,6 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   
   const rateLimitActions = createRateLimitedActions();
 
-  // Debug: Log when modal props change
-  console.log("SignInModal render - isOpen:", isOpen);
 
   const capitalizeFirstLetter = (str: string) => {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -143,7 +141,8 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
     if (!error || typeof error !== "object")
       return "An unexpected error occurred. Please try again.";
     
-    console.log("Auth error:", error);
+    // Auth error logged for development debugging only
+    if (import.meta.env.DEV) console.error("Auth error:", error);
     
     const code =
       error.code ||
@@ -188,7 +187,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
       const randLng = lng + (Math.random() - 0.5) * 0.02;
       return `${randLat},${randLng}`;
     } catch (error) {
-      console.log("Location API error (non-critical):", error);
+      if (import.meta.env.DEV) console.warn("Location API error (non-critical):", error);
       return "";
     }
   };
@@ -227,7 +226,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
         try {
           location = await getRandomCoordForZip(zip);
         } catch (locationError) {
-          console.log("Location fetch failed, continuing without location");
+          if (import.meta.env.DEV) console.warn("Location fetch failed, continuing without location");
         }
         
         // Sanitize user data before saving
@@ -308,11 +307,8 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   };
 
   if (!isOpen) {
-    console.log("SignInModal: not rendering because isOpen is false");
     return null;
   }
-
-  console.log("SignInModal: rendering modal with isOpen:", isOpen);
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center h-screen bg-black/30 backdrop-blur-sm"

@@ -289,7 +289,7 @@ const ResumeBuilder = () => {
   };
 
   const handleSuggestionSelect = (suggestion: string) => {
-    console.log("Active Section:", uiState.activeSection);
+    if (import.meta.env.DEV) console.log("Active Section:", uiState.activeSection);
     switch (uiState.activeSection) {
       case "personal":
         // Handle personal section suggestions
@@ -609,13 +609,15 @@ const ResumeBuilder = () => {
   const renderEditSection = useCallback(() => {
     switch (uiState.activeSection) {
       case "personal":
-        // Debug log for job title and active section
-        console.log(
-          "Job Title:",
-          resumeData.personalInfo.title,
-          "Active Section:",
-          uiState.activeSection
-        );
+        // Debug log for job title and active section (development only)
+        if (import.meta.env.DEV) {
+          console.log(
+            "Job Title:",
+            resumeData.personalInfo.title,
+            "Active Section:",
+            uiState.activeSection
+          );
+        }
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">

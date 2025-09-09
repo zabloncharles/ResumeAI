@@ -32,7 +32,7 @@ interface UserData {
 }
 
 const Dashboard = () => {
-  console.log("Dashboard component rendered");
+  if (import.meta.env.DEV) console.log("Dashboard component rendered");
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [recentUsers, setRecentUsers] = useState<UserData[]>([]);
@@ -667,7 +667,7 @@ const Dashboard = () => {
                       pointsMerge={false}
                       pointsTransitionDuration={1000}
                       onPointClick={(point) => {
-                        console.log("Clicked point:", point);
+                        if (import.meta.env.DEV) console.log("Clicked point:", point);
                       }}
                       onPointHover={(point) => {
                         if (point) {

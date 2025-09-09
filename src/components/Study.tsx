@@ -182,13 +182,15 @@ const Study = () => {
   // Authentication effect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log(
-        "Auth state changed:",
-        firebaseUser ? "User logged in" : "No user"
-      );
-      if (firebaseUser) {
-        console.log("User UID:", firebaseUser.uid);
-        console.log("User email:", firebaseUser.email);
+      if (import.meta.env.DEV) {
+        console.log(
+          "Auth state changed:",
+          firebaseUser ? "User logged in" : "No user"
+        );
+        if (firebaseUser) {
+          console.log("User UID:", firebaseUser.uid);
+          console.log("User email:", firebaseUser.email);
+        }
       }
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -229,7 +231,7 @@ const Study = () => {
           Date.now() - parseInt(cacheTimestamp) < 10 * 60 * 1000;
 
         if (cachedData && isCacheValid) {
-          console.log("Using cached study sets");
+          if (import.meta.env.DEV) console.log("Using cached study sets");
           const rawSets = JSON.parse(cachedData);
           const revivedSets: StudySet[] = (rawSets || []).map((set: any) => ({
             ...set,
@@ -260,7 +262,7 @@ const Study = () => {
         }
 
         // Load from Firebase only if cache is invalid
-        console.log("Loading study sets from Firebase (one-time load)");
+        if (import.meta.env.DEV) console.log("Loading study sets from Firebase (one-time load)");
         let q;
         if (memoizedFilter === "my") {
           q = query(
@@ -744,7 +746,7 @@ const Study = () => {
       return;
     }
 
-    console.log("Creating study set with user:", memoizedUser.uid);
+    if (import.meta.env.DEV) console.log("Creating study set with user:", memoizedUser.uid);
 
     try {
       const docRef = await addDoc(collection(db, "studySets"), {
@@ -757,7 +759,7 @@ const Study = () => {
         lastStudied: null,
       });
 
-      console.log("Study set created successfully:", docRef.id);
+      if (import.meta.env.DEV) console.log("Study set created successfully:", docRef.id);
 
       setNewSetForm({
         title: "",
@@ -1045,9 +1047,11 @@ const Study = () => {
     if (pendingUpdates.length === 0 || !memoizedUser) return;
 
     try {
-      console.log(
-        `Syncing ${pendingUpdates.length} pending updates to Firebase`
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          `Syncing ${pendingUpdates.length} pending updates to Firebase`
+        );
+      }
 
       // Group updates by type and batch them
       const cardUpdates = pendingUpdates.filter((u) => u.type === "card");
@@ -1095,7 +1099,7 @@ const Study = () => {
       localStorage.removeItem(cacheKey);
       localStorage.removeItem(`${cacheKey}_timestamp`);
 
-      console.log("Successfully synced all pending updates");
+      if (import.meta.env.DEV) console.log("Successfully synced all pending updates");
     } catch (error) {
       console.error("Error syncing pending updates:", error);
     }
@@ -1104,19 +1108,19 @@ const Study = () => {
   // Window focus/blur event handlers
   useEffect(() => {
     const handleWindowBlur = () => {
-      console.log("Window lost focus - syncing pending updates");
+      if (import.meta.env.DEV) console.log("Window lost focus - syncing pending updates");
       syncPendingUpdates();
     };
 
     const handleOnline = () => {
       // setIsOnline(true);
-      console.log("Back online - syncing pending updates");
+      if (import.meta.env.DEV) console.log("Back online - syncing pending updates");
       syncPendingUpdates();
     };
 
     const handleOffline = () => {
       // setIsOnline(false);
-      console.log("Gone offline - updates will be queued");
+      if (import.meta.env.DEV) console.log("Gone offline - updates will be queued");
     };
 
     window.addEventListener("blur", handleWindowBlur);
@@ -1134,7 +1138,7 @@ const Study = () => {
   useEffect(() => {
     return () => {
       if (pendingUpdates.length > 0) {
-        console.log("Component unmounting - syncing pending updates");
+        if (import.meta.env.DEV) console.log("Component unmounting - syncing pending updates");
         syncPendingUpdates();
       }
     };
