@@ -3,7 +3,6 @@ import {
   HomeIcon,
   DocumentIcon,
   DocumentTextIcon,
-  BriefcaseIcon,
   AcademicCapIcon,
 } from "@heroicons/react/24/outline";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -156,15 +155,6 @@ const Navbar = () => {
             >
               <DocumentTextIcon className="h-5 w-5" />
               <span>Career Path</span>
-            </Link>
-            <Link
-              to="/jobs"
-              className={`text-gray-600 hover:text-gray-900 flex items-center space-x-2 ${
-                isActive("/jobs") ? "font-bold border-b-2 border-blue-500" : ""
-              }`}
-            >
-              <BriefcaseIcon className="h-5 w-5" />
-              <span>Jobs</span>
             </Link>
             <Link
               to="/study"
@@ -346,17 +336,6 @@ const Navbar = () => {
               <div className="flex items-center space-x-2">
                 <DocumentTextIcon className="h-5 w-5" />
                 <span>Career Path</span>
-              </div>
-            </Link>
-            <Link
-              to="/jobs"
-              className={`block px-3 py-2 text-gray-600 hover:text-gray-900 ${
-                isActive("/jobs") ? "font-bold border-l-2 border-blue-500" : ""
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <BriefcaseIcon className="h-5 w-5" />
-                <span>Jobs</span>
               </div>
             </Link>
             <Link
