@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import SignInModal from "./SignInModal";
+import OfflineIndicator from "./OfflineIndicator";
 import { db } from "../firebase";
+import { useOfflineSupport } from "../hooks/useOfflineSupport";
+import { StudySet, Flashcard, StudySession, UserStats } from "../types/study";
 import {
   collection,
   doc,
@@ -38,66 +41,18 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-interface Flashcard {
-  id: string;
-  front: string;
-  back: string;
-  category: string;
-  difficulty: "easy" | "medium" | "hard";
-  lastReviewed?: Date;
-  mastery: number; // 0-100
-  createdBy: string;
-  isPublic: boolean;
-  createdAt: Date;
-}
-
-interface StudySession {
-  id: string;
-  studySetId: string;
-  startTime: Date;
-  endTime?: Date;
-  duration: number; // in seconds
-  cardsReviewed: number;
-  correctAnswers: number;
-  xpEarned: number;
-}
-
-interface UserStats {
-  totalStudyTime: number; // in seconds
-  totalSessions: number;
-  currentStreak: number;
-  longestStreak: number;
-  lastStudyDate?: Date;
-  totalXP: number;
-  level: number;
-  studyHistory: StudySession[];
-}
-
-interface StudySet {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  cardCount: number;
-  flashcards: Flashcard[];
-  createdAt: Date;
-  lastStudied?: Date;
-  createdBy: string;
-  isPublic: boolean;
-  publicCode?: string; // Generated when made public
-  publicPassword?: string; // Generated when made public
-  borrowedFrom?: string; // UID of original creator
-  isBorrowed?: boolean; // True if borrowed from another user
-  originalSetId?: string; // Reference to original set
-  progress?: "not_started" | "started" | "completed";
-  totalStudyTime: number; // in seconds
-  totalSessions: number;
-  averageScore: number; // percentage
-}
 
 const Study = () => {
   const navigate = useNavigate();
   const { user } = useAuth(); // Use centralized auth context
+  const { isOnline, isOfflineMode } = useOfflineSupport();
+  
+  // Log offline status for debugging
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('Study: Online status changed:', { isOnline, isOfflineMode });
+    }
+  }, [isOnline, isOfflineMode]);
   const [studySets, setStudySets] = useState<StudySet[]>([]);
   const [currentSet, setCurrentSet] = useState<StudySet | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -1134,6 +1089,7 @@ const Study = () => {
     return (
       <>
         <Navbar />
+        <OfflineIndicator />
         <div className="min-h-screen bg-white flex flex-col">
           <div className="flex-1">
             <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1241,6 +1197,7 @@ const Study = () => {
       return (
         <>
           <Navbar />
+          <OfflineIndicator />
           <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -1267,6 +1224,7 @@ const Study = () => {
     return (
       <>
         <Navbar />
+        <OfflineIndicator />
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
           {/* Study Header */}
           <div className="max-w-4xl mx-auto mb-8">
@@ -1478,6 +1436,7 @@ const Study = () => {
   return (
     <>
       <Navbar />
+      <OfflineIndicator />
       <style>{`
         @keyframes fly {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
