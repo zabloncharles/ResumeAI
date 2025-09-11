@@ -99,16 +99,35 @@ const steps = [
 ];
 
 const faq = [
-  "How do I create an ATS-friendly resume?",
-  "What should I include in my resume?",
-  "How do I highlight my achievements?",
-  "Should I use a different resume for each job?",
-  "How long should my resume be?",
-  "Can I import my LinkedIn profile?",
+  {
+    question: "How do I create an ATS-friendly resume?",
+    answer: "Use standard fonts like Arial or Times New Roman, include relevant keywords from the job description, use clear section headers, and avoid graphics or complex formatting that might confuse ATS systems."
+  },
+  {
+    question: "What should I include in my resume?",
+    answer: "Include your contact information, professional summary, work experience, education, skills, and relevant certifications. Tailor each section to highlight achievements and quantify your impact where possible."
+  },
+  {
+    question: "How do I highlight my achievements?",
+    answer: "Use action verbs, quantify your accomplishments with numbers and percentages, focus on results rather than duties, and use the STAR method (Situation, Task, Action, Result) to structure your achievements."
+  },
+  {
+    question: "Should I use a different resume for each job?",
+    answer: "Yes! Customize your resume for each position by incorporating keywords from the job description, emphasizing relevant experience, and adjusting your professional summary to match the role requirements."
+  },
+  {
+    question: "How long should my resume be?",
+    answer: "For most professionals, 1-2 pages is ideal. Recent graduates can use 1 page, while experienced professionals with 10+ years can use 2 pages. Focus on quality over quantity and ensure every word adds value."
+  },
+  {
+    question: "Can I import my LinkedIn profile?",
+    answer: "Yes! Our platform allows you to import your LinkedIn profile data to quickly populate your resume. This saves time and ensures consistency between your LinkedIn and resume information."
+  },
 ];
 
 const LandingPage = () => {
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   return (
     <div className="min-h-screen bg-white">
@@ -359,7 +378,9 @@ const LandingPage = () => {
               <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full border-2 border-gray-500" />
               <div>
                 <div className="font-medium">Sarah Chen</div>
-                <div className="text-gray-400">Software Engineer at Google</div>
+                <div className="text-gray-400">
+                  Computer Science at Stanford University
+                </div>
               </div>
             </div>
           </div>
@@ -375,27 +396,41 @@ const LandingPage = () => {
           Common resume questions answered
         </h2>
         <div className="mt-12 space-y-6">
-          {faq.map((question, index) => (
+          {faq.map((item, index) => (
             <div
-              key={question}
-              className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 transition-all cursor-pointer border-2 border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md"
+              key={index}
+              className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all"
               data-aos="fade-left"
               data-aos-delay={index * 100}
             >
-              <span className="text-gray-900">{question}</span>
-              <svg
-                className="w-5 h-5 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              <div
+                className="flex items-center justify-between p-6 cursor-pointer hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 transition-all"
+                onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+                <span className="text-gray-900 font-medium">{item.question}</span>
+                <svg
+                  className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
+                    expandedFAQ === index ? 'rotate-90' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </div>
+              {expandedFAQ === index && (
+                <div className="px-6 pb-6">
+                  <div className="pt-4 border-t border-gray-200">
+                    <p className="text-gray-700 leading-relaxed">{item.answer}</p>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
