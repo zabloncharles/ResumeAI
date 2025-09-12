@@ -24,10 +24,10 @@ import {
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { 
-  AcademicCapIcon, 
-  BookOpenIcon, 
-  ClockIcon, 
+import {
+  AcademicCapIcon,
+  BookOpenIcon,
+  ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
   ArrowLeftIcon,
@@ -41,16 +41,15 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 
-
 const Study = () => {
   const navigate = useNavigate();
   const { user } = useAuth(); // Use centralized auth context
   const { isOnline, isOfflineMode } = useOfflineSupport();
-  
+
   // Log offline status for debugging
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log('Study: Online status changed:', { isOnline, isOfflineMode });
+      console.log("Study: Online status changed:", { isOnline, isOfflineMode });
     }
   }, [isOnline, isOfflineMode]);
   const [studySets, setStudySets] = useState<StudySet[]>([]);
@@ -104,7 +103,7 @@ const Study = () => {
   const [showMakePublicModal, setShowMakePublicModal] = useState(false);
   const [showImportPublicModal, setShowImportPublicModal] = useState(false);
   // const [selectedSetForPublic, setSelectedSetForPublic] =
-    useState<StudySet | null>(null);
+  useState<StudySet | null>(null);
   const [publicSetCredentials, setPublicSetCredentials] = useState<{
     code: string;
     password: string;
@@ -141,7 +140,6 @@ const Study = () => {
     }
     setIsLoading(false);
   }, [user]);
-
 
   // Redirect removed: show public landing when not signed in
 
@@ -193,7 +191,8 @@ const Study = () => {
         }
 
         // Load from Firebase only if cache is invalid
-        if (import.meta.env.DEV) console.log("Loading study sets from Firebase (one-time load)");
+        if (import.meta.env.DEV)
+          console.log("Loading study sets from Firebase (one-time load)");
         let q;
         if (memoizedFilter === "my") {
           q = query(
@@ -613,7 +612,7 @@ const Study = () => {
         type: "card",
         setId: currentSet.id,
         cardId: currentCard.id,
-                mastery: newMastery,
+        mastery: newMastery,
         lastReviewed: new Date(),
       });
 
@@ -677,7 +676,8 @@ const Study = () => {
       return;
     }
 
-    if (import.meta.env.DEV) console.log("Creating study set with user:", memoizedUser.uid);
+    if (import.meta.env.DEV)
+      console.log("Creating study set with user:", memoizedUser.uid);
 
     try {
       const docRef = await addDoc(collection(db, "studySets"), {
@@ -690,7 +690,8 @@ const Study = () => {
         lastStudied: null,
       });
 
-      if (import.meta.env.DEV) console.log("Study set created successfully:", docRef.id);
+      if (import.meta.env.DEV)
+        console.log("Study set created successfully:", docRef.id);
 
       setNewSetForm({
         title: "",
@@ -1030,7 +1031,8 @@ const Study = () => {
       localStorage.removeItem(cacheKey);
       localStorage.removeItem(`${cacheKey}_timestamp`);
 
-      if (import.meta.env.DEV) console.log("Successfully synced all pending updates");
+      if (import.meta.env.DEV)
+        console.log("Successfully synced all pending updates");
     } catch (error) {
       console.error("Error syncing pending updates:", error);
     }
@@ -1039,19 +1041,22 @@ const Study = () => {
   // Window focus/blur event handlers
   useEffect(() => {
     const handleWindowBlur = () => {
-      if (import.meta.env.DEV) console.log("Window lost focus - syncing pending updates");
+      if (import.meta.env.DEV)
+        console.log("Window lost focus - syncing pending updates");
       syncPendingUpdates();
     };
 
     const handleOnline = () => {
       // setIsOnline(true);
-      if (import.meta.env.DEV) console.log("Back online - syncing pending updates");
+      if (import.meta.env.DEV)
+        console.log("Back online - syncing pending updates");
       syncPendingUpdates();
     };
 
     const handleOffline = () => {
       // setIsOnline(false);
-      if (import.meta.env.DEV) console.log("Gone offline - updates will be queued");
+      if (import.meta.env.DEV)
+        console.log("Gone offline - updates will be queued");
     };
 
     window.addEventListener("blur", handleWindowBlur);
@@ -1069,7 +1074,8 @@ const Study = () => {
   useEffect(() => {
     return () => {
       if (pendingUpdates.length > 0) {
-        if (import.meta.env.DEV) console.log("Component unmounting - syncing pending updates");
+        if (import.meta.env.DEV)
+          console.log("Component unmounting - syncing pending updates");
         syncPendingUpdates();
       }
     };
@@ -1097,7 +1103,9 @@ const Study = () => {
                 <div className="flex items-center justify-center space-x-2 mb-6">
                   <span>🧠</span>
                   <span>→</span>
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">AI</span>
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-semibold">
+                    AI
+                  </span>
                   <span>→</span>
                   <span>🎓</span>
                 </div>
@@ -1105,7 +1113,8 @@ const Study = () => {
                   Study smarter with Brightfolio
                 </h1>
                 <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
-                  Build flashcards fast, quiz yourself, and track progress with a clean, modern UI.
+                  Build flashcards fast, quiz yourself, and track progress with
+                  a clean, modern UI.
                 </p>
                 <div className="mt-2 flex justify-center gap-3">
                   {!memoizedUser && (
@@ -1126,15 +1135,18 @@ const Study = () => {
               </div>
 
               {/* Promo Card (blurred green like home tab) */}
-              <div
-                className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
-              >
+              <div className="mt-4 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg">
                 <div className="flex items-center mb-3 justify-center">
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
-                  <h2 className="text-2xl font-bold text-green-700">Flashcards & Quiz Mode</h2>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">
+                    ✓
+                  </span>
+                  <h2 className="text-2xl font-bold text-green-700">
+                    Flashcards & Quiz Mode
+                  </h2>
                 </div>
                 <p className="text-gray-700 mb-3">
-                  Switch between classic flashcards and multiple‑choice quizzes using answers from your set.
+                  Switch between classic flashcards and multiple‑choice quizzes
+                  using answers from your set.
                 </p>
                 <a
                   href="#features"
@@ -1147,9 +1159,12 @@ const Study = () => {
               {/* Features */}
               <div id="features" className="max-w-6xl mx-auto py-20">
                 <div className="text-center mb-10">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Everything you need to learn faster</h3>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-3">
+                    Everything you need to learn faster
+                  </h3>
                   <p className="text-gray-600 max-w-2xl mx-auto">
-                    A focused, flat UI with no distractions. Designed to help you retain more.
+                    A focused, flat UI with no distractions. Designed to help
+                    you retain more.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
@@ -1157,22 +1172,37 @@ const Study = () => {
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                       <span className="text-green-600">🗂️</span>
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Fast Set Builder</h4>
-                    <p className="text-sm text-gray-600">Create sets in seconds, organize by category, and keep it tidy.</p>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Fast Set Builder
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      Create sets in seconds, organize by category, and keep it
+                      tidy.
+                    </p>
                   </div>
                   <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                       <span className="text-green-600">🧩</span>
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Quiz Mode</h4>
-                    <p className="text-sm text-gray-600">Multiple‑choice answers generated from your own set; no noise.</p>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Quiz Mode
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      Multiple‑choice answers generated from your own set; no
+                      noise.
+                    </p>
                   </div>
                   <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
                       <span className="text-green-600">📈</span>
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Progress Tracking</h4>
-                    <p className="text-sm text-gray-600">Streaks, time studied, XP, and mastery—saved locally and synced smartly.</p>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Progress Tracking
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      Streaks, time studied, XP, and mastery—saved locally and
+                      synced smartly.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1198,7 +1228,7 @@ const Study = () => {
         <>
           <Navbar />
           <OfflineIndicator />
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
+          <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4 pb-20">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 {currentSet.title}
@@ -1212,20 +1242,19 @@ const Study = () => {
               >
                 Back to Study Hub
               </button>
-        </div>
-      </div>
+            </div>
+          </div>
+        </>
+      );
+    }
 
-    </>
-  );
-}
+    const currentCard = currentSet?.flashcards?.[currentCardIndex];
 
-  const currentCard = currentSet?.flashcards?.[currentCardIndex];
-    
     return (
       <>
         <Navbar />
         <OfflineIndicator />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-20 px-4 pb-20">
           {/* Study Header */}
           <div className="max-w-4xl mx-auto mb-8">
             <div className="flex items-center justify-between bg-white rounded-xl p-6">
@@ -1251,7 +1280,7 @@ const Study = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Progress Bar */}
             <div className="mt-4 bg-white rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
@@ -1263,7 +1292,7 @@ const Study = () => {
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${getProgressPercentage()}%` }}
                 ></div>
@@ -1274,44 +1303,44 @@ const Study = () => {
           {/* Study Interface - Conditional Rendering for Flashcards vs Quiz */}
           {studyMode === "flashcards" ? (
             /* Flashcard Mode */
-          <div className="max-w-4xl mx-auto mb-8">
+            <div className="max-w-4xl mx-auto mb-8">
               <div className="bg-white rounded-2xl overflow-hidden">
-              <div className="p-8">
-                <div className="text-center mb-6">
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                <div className="p-8">
+                  <div className="text-center mb-6">
+                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                       {currentCard?.category || "General"}
-                  </span>
-                </div>
-                
-                <div 
-                  className="min-h-[300px] flex items-center justify-center cursor-pointer"
-                  onClick={flipCard}
-                >
-                  <div className="text-center">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                        {isFlipped ? currentCard?.back : currentCard?.front}
-                    </h2>
-                    <p className="text-gray-500 text-sm">
-                        Click to {isFlipped ? "show question" : "show answer"}
-                    </p>
+                    </span>
                   </div>
-                </div>
 
-                {/* Mastery Level */}
-                <div className="mt-6 text-center">
-                  <div className="flex items-center justify-center space-x-2">
-                    <span className="text-sm text-gray-600">Mastery:</span>
+                  <div
+                    className="min-h-[300px] flex items-center justify-center cursor-pointer"
+                    onClick={flipCard}
+                  >
+                    <div className="text-center">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                        {isFlipped ? currentCard?.back : currentCard?.front}
+                      </h2>
+                      <p className="text-gray-500 text-sm">
+                        Click to {isFlipped ? "show question" : "show answer"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mastery Level */}
+                  <div className="mt-6 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <span className="text-sm text-gray-600">Mastery:</span>
                       <span
                         className={`text-sm font-medium ${getMasteryColor(
                           currentCard?.mastery || 0
                         )}`}
                       >
                         {currentCard?.mastery || 0}%
-                    </span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
             </div>
           ) : (
             /* Quiz Mode */
@@ -1322,7 +1351,7 @@ const Study = () => {
                     <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
                       Quiz Mode
                     </span>
-          </div>
+                  </div>
 
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -1379,54 +1408,53 @@ const Study = () => {
 
           {/* Navigation and Difficulty Buttons - Only for Flashcard Mode */}
           {studyMode === "flashcards" && (
-          <div className="max-w-4xl mx-auto">
+            <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between bg-white rounded-xl p-6">
-              <button
-                onClick={previousCard}
-                disabled={currentCardIndex === 0}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span>Previous</span>
-              </button>
-
-              <div className="flex space-x-3">
                 <button
+                  onClick={previousCard}
+                  disabled={currentCardIndex === 0}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ArrowLeftIcon className="h-5 w-5" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex space-x-3">
+                  <button
                     onClick={() => markCard("hard")}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                >
-                  <XCircleIcon className="h-5 w-5" />
-                  <span>Hard</span>
-                </button>
-                <button
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    <XCircleIcon className="h-5 w-5" />
+                    <span>Hard</span>
+                  </button>
+                  <button
                     onClick={() => markCard("medium")}
-                  className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
-                >
-                  <span>Medium</span>
-                </button>
-                <button
+                    className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
+                  >
+                    <span>Medium</span>
+                  </button>
+                  <button
                     onClick={() => markCard("easy")}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                >
-                  <CheckCircleIcon className="h-5 w-5" />
-                  <span>Easy</span>
-                </button>
-              </div>
+                    className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                  >
+                    <CheckCircleIcon className="h-5 w-5" />
+                    <span>Easy</span>
+                  </button>
+                </div>
 
-              <button
-                onClick={nextCard}
+                <button
+                  onClick={nextCard}
                   disabled={
                     currentCardIndex ===
                     (currentSet?.flashcards?.length || 0) - 1
                   }
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <span>Next</span>
-                <ArrowRightIcon className="h-5 w-5" />
-              </button>
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span>Next</span>
+                  <ArrowRightIcon className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-          </div>
-
           )}
 
           {/* Quizlet-style Question/Answer List */}
@@ -1441,8 +1469,8 @@ const Study = () => {
                     key={card.id}
                     className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       index === currentCardIndex
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
                     }`}
                     onClick={() => {
                       setCurrentCardIndex(index);
@@ -1457,11 +1485,15 @@ const Study = () => {
                           <span className="text-sm font-medium text-gray-500">
                             {index + 1}
                           </span>
-                          <div className={`w-2 h-2 rounded-full ${
-                            card.mastery >= 80 ? 'bg-green-500' :
-                            card.mastery >= 60 ? 'bg-yellow-500' :
-                            'bg-red-500'
-                          }`} />
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              card.mastery >= 80
+                                ? "bg-green-500"
+                                : card.mastery >= 60
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                            }`}
+                          />
                         </div>
                         <div className="space-y-2">
                           <div>
@@ -1476,18 +1508,20 @@ const Study = () => {
                             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                               Answer
                             </span>
-                            <p className="text-gray-700">
-                              {card.back}
-                            </p>
+                            <p className="text-gray-700">{card.back}</p>
                           </div>
                         </div>
                       </div>
                       <div className="ml-4 flex flex-col items-end space-y-1">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          card.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                          card.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            card.difficulty === "easy"
+                              ? "bg-green-100 text-green-700"
+                              : card.difficulty === "medium"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
                           {card.difficulty}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -2117,9 +2151,9 @@ const Study = () => {
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
-                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      {set.category}
-                    </span>
+                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        {set.category}
+                      </span>
                       {set.isBorrowed && (
                         <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
                           Borrowed
@@ -2138,18 +2172,18 @@ const Study = () => {
                           title="Private"
                         />
                       )}
-                    <div className="flex items-center space-x-2 text-gray-500">
-                      <BookOpenIcon className="h-4 w-4" />
-                      <span className="text-sm">{set.cardCount} cards</span>
+                      <div className="flex items-center space-x-2 text-gray-500">
+                        <BookOpenIcon className="h-4 w-4" />
+                        <span className="text-sm">{set.cardCount} cards</span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
                     {set.title}
                   </h3>
                   <p className="text-gray-600 mb-4">{set.description}</p>
-                  
+
                   {/* Progress Overview */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
@@ -2167,9 +2201,9 @@ const Study = () => {
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-blue-600 h-2 rounded-full"
-                        style={{ 
+                        style={{
                           width: `${
                             set.flashcards.length > 0
                               ? set.flashcards.reduce(
@@ -2207,18 +2241,18 @@ const Study = () => {
                       >
                         ❓ Quiz
                       </button>
-                  </div>
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => startStudySession(set)}
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => startStudySession(set)}
                         disabled={set.flashcards.length === 0}
                         className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <PlayIcon className="h-5 w-5" />
-                      <span>Start Studying</span>
-                    </button>
-                    
+                      >
+                        <PlayIcon className="h-5 w-5" />
+                        <span>Start Studying</span>
+                      </button>
+
                       <div className="flex items-center space-x-2">
                         {set.createdBy === memoizedUser?.uid && (
                           <>
@@ -2273,11 +2307,11 @@ const Study = () => {
                     </div>
                   </div>
 
-                      {set.lastStudied && (
+                  {set.lastStudied && (
                     <p className="text-xs text-gray-500 mt-2">
-                          Last studied: {set.lastStudied.toLocaleDateString()}
-                        </p>
-                      )}
+                      Last studied: {set.lastStudied.toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -2305,9 +2339,9 @@ const Study = () => {
                 >
                   <PlusIcon className="h-5 w-5" />
                   <span>Create Your First Set</span>
-            </button>
+                </button>
               )}
-          </div>
+            </div>
           )}
         </section>
       </div>
@@ -2791,6 +2825,6 @@ const Study = () => {
       <Footer />
     </>
   );
-}
+};
 
 export default Study;

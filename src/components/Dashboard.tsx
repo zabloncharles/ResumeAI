@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
-import { doc, getDoc, updateDoc, collection, getDocs, increment } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  increment,
+} from "firebase/firestore";
 import Navbar from "./Navbar";
 import {
   BarChart,
@@ -156,12 +163,21 @@ const Dashboard = () => {
         // Build locations from "lat,lng" in location string if present
         const locs: any[] = [];
         for (const u of allUsers) {
-          if (u.location && typeof u.location === "string" && u.location.includes(",")) {
+          if (
+            u.location &&
+            typeof u.location === "string" &&
+            u.location.includes(",")
+          ) {
             const [latStr, lngStr] = u.location.split(",");
             const lat = parseFloat(latStr);
             const lng = parseFloat(lngStr);
             if (!isNaN(lat) && !isNaN(lng)) {
-              locs.push({ lat, lng, name: `${u.firstName} ${u.lastName}`.trim() || u.email || "User" });
+              locs.push({
+                lat,
+                lng,
+                name:
+                  `${u.firstName} ${u.lastName}`.trim() || u.email || "User",
+              });
             }
           }
         }
@@ -177,15 +193,40 @@ const Dashboard = () => {
         const top = Object.entries(stateCounts)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 3)
-          .map(([state, count]) => ({ state, count, percent: Math.round((count / totalUsers) * 100) }));
+          .map(([state, count]) => ({
+            state,
+            count,
+            percent: Math.round((count / totalUsers) * 100),
+          }));
         setTopStates(top);
 
         // Aggregate API calls & tokens by month from user totals keyed by createdAt month
         const months = [
-          "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
         ];
-        const apiChart = months.map((m) => ({ month: m, apiCalls: 0, tokens: 0 }));
-        const profileChart = months.map((m) => ({ month: m, coverLetter: 0, resume: 0, careerPath: 0, users: 0 }));
+        const apiChart = months.map((m) => ({
+          month: m,
+          apiCalls: 0,
+          tokens: 0,
+        }));
+        const profileChart = months.map((m) => ({
+          month: m,
+          coverLetter: 0,
+          resume: 0,
+          careerPath: 0,
+          users: 0,
+        }));
 
         for (const u of allUsers) {
           let createdAtDate: Date | null = null;
@@ -208,7 +249,8 @@ const Dashboard = () => {
             let date: Date | null = null;
             const tryDate = (val: any) => {
               if (!val) return null;
-              if (typeof val === "object" && typeof val.toDate === "function") return val.toDate();
+              if (typeof val === "object" && typeof val.toDate === "function")
+                return val.toDate();
               const d = new Date(val as string);
               return isNaN(d.getTime()) ? null : d;
             };
@@ -223,12 +265,32 @@ const Dashboard = () => {
 
         setApiTokenChartData(apiChart);
         // Update users and resume series on profile impression chart
-        setProfileImpressionData((prev: { month: string; coverLetter: number; resume: number; careerPath: number; users: number; }[]) =>
-          prev.map((row: { month: string; coverLetter: number; resume: number; careerPath: number; users: number; }, idx: number) => ({
-            ...row,
-            users: profileChart[idx].users,
-            resume: profileChart[idx].resume,
-          }))
+        setProfileImpressionData(
+          (
+            prev: {
+              month: string;
+              coverLetter: number;
+              resume: number;
+              careerPath: number;
+              users: number;
+            }[]
+          ) =>
+            prev.map(
+              (
+                row: {
+                  month: string;
+                  coverLetter: number;
+                  resume: number;
+                  careerPath: number;
+                  users: number;
+                },
+                idx: number
+              ) => ({
+                ...row,
+                users: profileChart[idx].users,
+                resume: profileChart[idx].resume,
+              })
+            )
         );
       } catch (e) {
         // Non-fatal; leave defaults
@@ -651,7 +713,8 @@ const Dashboard = () => {
                       pointsMerge={false}
                       pointsTransitionDuration={1000}
                       onPointClick={(point) => {
-                        if (import.meta.env.DEV) console.log("Clicked point:", point);
+                        if (import.meta.env.DEV)
+                          console.log("Clicked point:", point);
                       }}
                       onPointHover={(point) => {
                         if (point) {
