@@ -1426,7 +1426,80 @@ const Study = () => {
               </button>
             </div>
           </div>
+
           )}
+
+          {/* Quizlet-style Question/Answer List */}
+          <div className="max-w-4xl mx-auto mt-8">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Study Set: {currentSet.title}
+              </h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {currentSet.flashcards.map((card, index) => (
+                  <div
+                    key={card.id}
+                    className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                      index === currentCardIndex
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      setCurrentCardIndex(index);
+                      setIsFlipped(false);
+                      setSelectedAnswer(null);
+                      setIsAnswerCorrect(null);
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-sm font-medium text-gray-500">
+                            {index + 1}
+                          </span>
+                          <div className={`w-2 h-2 rounded-full ${
+                            card.mastery >= 80 ? 'bg-green-500' :
+                            card.mastery >= 60 ? 'bg-yellow-500' :
+                            'bg-red-500'
+                          }`} />
+                        </div>
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Question
+                            </span>
+                            <p className="text-gray-900 font-medium">
+                              {card.front}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Answer
+                            </span>
+                            <p className="text-gray-700">
+                              {card.back}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ml-4 flex flex-col items-end space-y-1">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          card.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                          card.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {card.difficulty}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {card.mastery}% mastery
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
         <Footer />
       </>
