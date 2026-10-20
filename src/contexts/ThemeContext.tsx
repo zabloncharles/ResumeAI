@@ -22,11 +22,6 @@ function readStoredTheme(): Theme | null {
   return null;
 }
 
-function systemPrefersDark(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
 function applyThemeClass(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
 }
@@ -41,7 +36,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    return readStoredTheme() ?? (systemPrefersDark() ? "dark" : "light");
+    return readStoredTheme() ?? "light";
   });
 
   useEffect(() => {
