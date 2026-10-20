@@ -230,4 +230,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Proprietary. All rights reserved. See the [LICENSE](LICENSE) file.
+
+This software may not be copied, used, modified, or distributed without
+prior written permission from the copyright holder.
