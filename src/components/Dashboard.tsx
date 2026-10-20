@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  collection,
-  getDocs,
-  increment,
-} from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import Navbar from "./Navbar";
 import {
   BarChart,
@@ -99,13 +92,6 @@ const Dashboard = () => {
   useEffect(() => {
     (async () => {
       if (!user) return;
-      // Increment API call count for the user
-      try {
-        const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, { totalApiCalls: increment(1) });
-      } catch (error) {
-        console.error("[Dashboard] Error incrementing API call count:", error);
-      }
 
       const fetchUserData = async () => {
         try {

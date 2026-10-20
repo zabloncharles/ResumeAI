@@ -7,6 +7,7 @@ import {
   normalizeParsedResume,
   resumeDataJsonSchemaDescription,
 } from "../../shared/normalizeParsedResume.js";
+import { recordUserAiUsage } from "../../shared/recordUserAiUsage.js";
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -160,17 +161,7 @@ export const handler = async function (event) {
     const aiResponse = data.choices?.[0]?.message?.content || "";
     const total_tokens = data.usage?.total_tokens || 0;
 
-    try {
-      await admin
-        .firestore()
-        .collection("users")
-        .doc(uid)
-        .update({
-          totalTokens: admin.firestore.FieldValue.increment(total_tokens),
-        });
-    } catch (e) {
-      console.error("Failed to increment totalTokens", e);
-    }
+    await recordUserAiUsage(admin, uid, total_tokens);
 
     const parsed = extractJsonObject(aiResponse);
     if (!parsed) {

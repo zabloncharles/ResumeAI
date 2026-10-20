@@ -225,6 +225,8 @@ const SignInModal = ({
         return "Sign-in was cancelled.";
       case "auth/popup-blocked":
         return "Pop-up was blocked. Please allow pop-ups for this site and try again.";
+      case "auth/unauthorized-domain":
+        return "Sign-in is not available on this site address yet. Try the main Brightfolio URL or contact support if this continues.";
       default:
         return `Authentication error: ${error.message || "Please try again."}`;
     }

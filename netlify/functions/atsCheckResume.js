@@ -3,6 +3,7 @@ import {
   buildAtsCheckSystemMessage,
   buildAtsCheckUserMessage,
 } from "../../shared/atsCheckPrompt.js";
+import { recordUserAiUsage } from "../../shared/recordUserAiUsage.js";
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -182,17 +183,7 @@ export const handler = async function (event) {
     }
 
     const total_tokens = data.usage?.total_tokens || 0;
-    try {
-      await admin
-        .firestore()
-        .collection("users")
-        .doc(uid)
-        .update({
-          totalTokens: admin.firestore.FieldValue.increment(total_tokens),
-        });
-    } catch (e) {
-      console.error("Failed to increment totalTokens", e);
-    }
+    await recordUserAiUsage(admin, uid, total_tokens);
 
     return {
       statusCode: 200,

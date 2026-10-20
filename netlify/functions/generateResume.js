@@ -3,6 +3,7 @@ import {
   buildIvyAiSystemMessage,
   buildIvySectionPrompt,
 } from "../../shared/ivyAiGuidelines.js";
+import { recordUserAiUsage } from "../../shared/recordUserAiUsage.js";
 
 // Initialize Firebase Admin with environment variables
 if (!admin.apps.length) {
@@ -216,19 +217,7 @@ export const handler = async function (event, context) {
     const content = data.choices?.[0]?.message?.content || "";
     const total_tokens = data.usage?.total_tokens || 0;
 
-    // Increment user's totalTokens in Firestore
-    try {
-      await admin
-        .firestore()
-        .collection("users")
-        .doc(uid)
-        .update({
-          totalTokens: admin.firestore.FieldValue.increment(total_tokens),
-        });
-    } catch (e) {
-      // Log but do not block response
-      console.error("Failed to increment totalTokens", e);
-    }
+    await recordUserAiUsage(admin, uid, total_tokens);
 
     return {
       statusCode: 200,
