@@ -369,27 +369,59 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* Testimonial */}
-      <div className="max-w-7xl mx-auto px-4 py-20">
+      {/* Testimonials */}
+      <div className="max-w-7xl mx-auto px-4 py-20 space-y-6">
         <div
-          className="bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-2xl p-12 relative overflow-hidden border border-gray-700 shadow-2xl"
+          className="bg-gradient-to-br from-black via-zinc-950 to-zinc-900 text-white rounded-2xl p-12 relative overflow-hidden border border-zinc-800 shadow-2xl"
           data-aos="fade-up"
           data-aos-duration="1200"
         >
           <div className="max-w-3xl relative z-10">
             <p className="text-xl mb-8">
-              "Using ResumeAI was a game-changer in my job search. The AI
+              "Using Brightfolio was a game-changer in my job search. The AI
               suggestions helped me highlight my achievements better, and I
               landed interviews at my dream companies within weeks."
             </p>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full border border-gray-500" />
+              <img
+                src="https://avatars.githubusercontent.com/u/74889517?s=128&v=4"
+                alt="Zablon Charles"
+                className="w-12 h-12 rounded-full border border-gray-500 object-cover"
+              />
               <div>
-                <div className="font-medium">Sarah Chen</div>
+                <div className="font-medium">Zablon Charles</div>
                 <div className="text-gray-400">
-                  Computer Science at Stanford University
+                  Computer Science at Saint Peter's University
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="bg-gradient-to-bl from-black via-zinc-950 to-zinc-900 text-white rounded-2xl p-12 relative overflow-hidden border border-zinc-800 shadow-2xl"
+          data-aos="fade-up"
+          data-aos-duration="1200"
+          data-aos-delay="100"
+        >
+          <div className="max-w-3xl ml-auto relative z-10 text-right">
+            <p className="text-xl mb-8">
+              "The ATS check caught gaps I would have missed, and building my
+              cover letter in the same place saved me hours. I finally feel like
+              my applications look as sharp as my coursework."
+            </p>
+            <div className="flex items-center justify-end gap-4">
+              <div>
+                <div className="font-medium">Maya Okoro</div>
+                <div className="text-gray-400">
+                  Biology & Pre-Med at Rutgers University
+                </div>
+              </div>
+              <img
+                src="/images/test2.jpeg"
+                alt="Maya Okoro"
+                className="w-12 h-12 rounded-full border border-gray-500 object-cover"
+              />
             </div>
           </div>
         </div>
