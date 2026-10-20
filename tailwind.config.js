@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -25,6 +26,12 @@ export default {
           500: '#22c55e',
           600: '#16a34a',
         },
+        study: {
+          accent: 'rgb(235 13 112)',
+        },
+      },
+      borderRadius: {
+        study: '1.5rem',
       },
       maxWidth: {
         '8xl': '88rem',

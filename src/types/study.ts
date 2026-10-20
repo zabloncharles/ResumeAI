@@ -22,19 +22,35 @@ export interface StudySession {
   xpEarned: number;
 }
 
+export interface StudyFolder {
+  id: string;
+  title: string;
+  description?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  color?: string;
+}
+
+export const UNCATEGORIZED_FOLDER_ID = "__uncategorized__";
+
 export interface StudySet {
   id: string;
   title: string;
   description: string;
+  categoryId?: string;
   category: string;
+  folderId?: string | null;
   cardCount: number;
   flashcards: Flashcard[];
   createdAt: Date;
   lastStudied?: Date;
   createdBy: string;
   isPublic: boolean;
-  publicCode?: string; // Generated when made public
-  publicPassword?: string; // Generated when made public
+  shareCode?: string;
+  sharePassword?: string;
+  publicCode?: string;
+  publicPassword?: string;
   borrowedFrom?: string; // UID of original creator
   isBorrowed?: boolean; // True if borrowed from another user
   originalSetId?: string; // Reference to original set
@@ -52,6 +68,7 @@ export interface UserStats {
   currentStreak: number;
   longestStreak: number;
   lastStudyDate?: Date;
+  bestContinuousStudySeconds: number;
   totalXP: number;
   level: number;
   studyHistory: StudySession[];

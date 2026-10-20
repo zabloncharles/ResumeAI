@@ -2,18 +2,18 @@ import { Link } from "react-router-dom";
 import bunny1 from "../bunny1.png";
 
 const Footer = () => (
-  <footer className="bg-gray-50 border-t border-gray-100">
+  <footer className="bg-gray-50 dark:bg-zinc-950 border-t border-gray-100 dark:border-zinc-800">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Logo and Description */}
         <div className="col-span-1">
           <Link to="/" className="flex items-center space-x-2 mb-4">
             <img src={bunny1} alt="Brightfolio Logo" className="h-8 w-8" />
-            <span className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent">
               Brightfolio
             </span>
           </Link>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 dark:text-zinc-400 mb-4">
             Transform your career journey with AI-powered resume creation. We
             specialize in crafting professional resumes that stand out and get
             you noticed.
@@ -21,7 +21,7 @@ const Footer = () => (
           <div className="flex space-x-4">
             <a
               href="#"
-              className="text-gray-400 hover:text-gray-500"
+              className="text-gray-400 hover:text-gray-500 dark:text-zinc-500 dark:hover:text-zinc-300"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -32,7 +32,7 @@ const Footer = () => (
             </a>
             <a
               href="#"
-              className="text-gray-400 hover:text-gray-500"
+              className="text-gray-400 hover:text-gray-500 dark:text-zinc-500 dark:hover:text-zinc-300"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -50,14 +50,14 @@ const Footer = () => (
             {/* Left Column */}
             <ul className="space-y-4">
               <li>
-                <Link to="/" className="hover:text-gray-300 transition-colors">
+                <Link to="/" className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   Home
                 </Link>
               </li>
               <li>
                 <Link
                   to="/services"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Services
                 </Link>
@@ -65,7 +65,7 @@ const Footer = () => (
               <li>
                 <Link
                   to="/resume"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Resume Builder
                 </Link>
@@ -73,7 +73,7 @@ const Footer = () => (
               <li>
                 <Link
                   to="/templates"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Templates
                 </Link>
@@ -85,7 +85,7 @@ const Footer = () => (
               <li>
                 <Link
                   to="/about"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   About
                 </Link>
@@ -93,7 +93,7 @@ const Footer = () => (
               <li>
                 <Link
                   to="/contact"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Contact
                 </Link>
@@ -101,7 +101,7 @@ const Footer = () => (
               <li>
                 <Link
                   to="/privacy"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Privacy Policy
                 </Link>
@@ -109,7 +109,7 @@ const Footer = () => (
               <li>
                 <Link
                   to="/terms"
-                  className="hover:text-gray-300 transition-colors"
+                  className="text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Terms & Conditions
                 </Link>
@@ -120,7 +120,7 @@ const Footer = () => (
       </div>
 
       {/* Copyright */}
-      <div className="text-center text-gray-400 text-sm">
+      <div className="text-center text-gray-400 dark:text-zinc-500 text-sm">
         All Rights Reserved 2024 | Brightfolio
       </div>
     </div>

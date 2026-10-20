@@ -1,4 +1,9 @@
 import type { ResumeData } from "../types/ResumeData";
+import {
+  isIvyChooserTemplate,
+  ivyPdfLayoutKind,
+  normalizeTemplateId,
+} from "../constants/resumeTemplates";
 
 interface ResumePreviewProps {
   resumeData: ResumeData;
@@ -19,6 +24,184 @@ const ResumePreview = ({
   resumeData,
   template = "modern",
 }: ResumePreviewProps) => {
+  const layout = normalizeTemplateId(template);
+
+  if (isIvyChooserTemplate(layout)) {
+    const pdfKind = ivyPdfLayoutKind(layout);
+    const princetonJobs = pdfKind === "princeton";
+    const omitSummary = pdfKind === "brown-no-summary";
+    const experienceTitle =
+      pdfKind === "brown-no-summary"
+        ? "Professional Experience"
+        : pdfKind === "princeton" ||
+            pdfKind === "yale-summary-first" ||
+            pdfKind === "yale-technical"
+          ? "Work Experience"
+          : "Experience";
+    const skillsTitle =
+      pdfKind === "yale-technical" ? "Technical Skills" : "Skills";
+    const bulletSkills =
+      pdfKind === "princeton" || pdfKind === "yale-technical";
+
+    const contactLine = [
+      resumeData.personalInfo.location,
+      resumeData.personalInfo.phone,
+      resumeData.personalInfo.email,
+      resumeData.websites?.[0]?.url,
+    ]
+      .filter(Boolean)
+      .join(" • ");
+
+    const summaryBlock =
+      !omitSummary && resumeData.profile?.trim() ? (
+        <>
+          <div className="text-[11pt] font-bold uppercase mb-2 mt-3">
+            Summary
+          </div>
+          <p className="text-[11pt]">{resumeData.profile}</p>
+        </>
+      ) : null;
+
+    const educationBlock = (
+      <>
+        <div className="text-[11pt] font-bold uppercase mb-2 mt-3">
+          Education
+        </div>
+        {resumeData.education.map((edu, idx) => (
+          <div key={idx} className="mb-2 text-[11pt]">
+            <div className="font-bold">{edu.school}</div>
+            <div>
+              {edu.degree}
+              {"    "}
+              {edu.startDate ? formatMonthYear(edu.startDate) : ""}
+              {edu.endDate ? ` - ${formatMonthYear(edu.endDate)}` : ""}
+            </div>
+          </div>
+        ))}
+      </>
+    );
+
+    const experienceBlock = (
+      <>
+        <div className="text-[11pt] font-bold uppercase mb-2 mt-3">
+          {experienceTitle}
+        </div>
+        {resumeData.experience.map((exp, idx) => (
+          <div key={idx} className="mb-3 text-[11pt]">
+            {princetonJobs ? (
+              <div className="font-bold">
+                {exp.company} – {exp.title}{" "}
+                <span className="font-normal text-gray-700">
+                  {exp.startDate ? formatMonthYear(exp.startDate) : ""}
+                  {exp.endDate ? ` - ${formatMonthYear(exp.endDate)}` : ""}
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="font-bold">{exp.company}</div>
+                <div>{exp.title}</div>
+                <div className="text-gray-700">
+                  {exp.startDate ? formatMonthYear(exp.startDate) : ""}
+                  {exp.endDate ? ` - ${formatMonthYear(exp.endDate)}` : ""}
+                </div>
+              </>
+            )}
+              {exp.description.length > 0 && (
+                <ul className="mt-1 space-y-1 text-[11pt] list-disc list-outside pl-5 marker:text-zinc-800">
+                  {exp.description.map((bullet, bidx) => (
+                    <li key={bidx} className="pl-1 leading-snug">
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </div>
+        ))}
+      </>
+    );
+
+    const skillsBlock =
+      resumeData.skills && resumeData.skills.length > 0 ? (
+        <>
+          <div className="text-[11pt] font-bold uppercase mb-2 mt-3">
+            {skillsTitle}
+          </div>
+          {bulletSkills ? (
+            <ul className="text-[11pt] space-y-1 list-disc list-outside pl-5 marker:text-zinc-800">
+              {resumeData.skills.map((skill, idx) => (
+                <li key={idx} className="pl-1 leading-snug">
+                  {skill}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[11pt]">{resumeData.skills.join(" • ")}</p>
+          )}
+        </>
+      ) : null;
+
+    return (
+      <div className="resume-preview-paper rounded-xl border border-gray-300 overflow-hidden">
+        <div
+          className="mx-auto p-[0.75in]"
+          style={{
+            fontFamily: "Times New Roman, Times, serif",
+            color: "#111",
+            maxWidth: "8.5in",
+            width: "100%",
+            minHeight: "10.5in",
+            boxSizing: "border-box",
+            margin: "0 auto",
+            background: "#fff",
+            fontSize: "11pt",
+            lineHeight: 1.4,
+          }}
+        >
+          <h1 className="text-base font-bold mb-1">
+            {resumeData.personalInfo.fullName}
+          </h1>
+          {resumeData.personalInfo.title ? (
+            <p className="mb-1">{resumeData.personalInfo.title}</p>
+          ) : null}
+          {contactLine ? (
+            <p className="mb-4 text-[11pt]">{contactLine}</p>
+          ) : null}
+
+          {(
+            {
+              "harvard-mcs": ["education", "experience", "skills", "summary"],
+              "harvard-industry": [
+                "experience",
+                "education",
+                "skills",
+                "summary",
+              ],
+              princeton: ["education", "experience", "skills", "summary"],
+              "yale-summary-first": [
+                "summary",
+                "education",
+                "experience",
+                "skills",
+              ],
+              "yale-technical": [
+                "summary",
+                "education",
+                "skills",
+                "experience",
+              ],
+              "brown-no-summary": ["education", "experience", "skills"],
+            } as const
+          )[pdfKind].map((key) => {
+            if (key === "summary") return summaryBlock;
+            if (key === "education") return educationBlock;
+            if (key === "experience") return experienceBlock;
+            return skillsBlock;
+          })}
+        </div>
+      </div>
+    );
+  }
+
   if (template === "minimal") {
     return (
       <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">

@@ -54,18 +54,18 @@ const Dashboard = () => {
 
   // Dynamic data for the chart
   const [profileImpressionData, setProfileImpressionData] = useState([
-    { month: "Jan", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Feb", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Mar", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Apr", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "May", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Jun", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Jul", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Aug", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Sep", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Oct", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Nov", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
-    { month: "Dec", coverLetter: 0, resume: 0, careerPath: 0, users: 0 },
+    { month: "Jan", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Feb", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Mar", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Apr", coverLetter: 0, resume: 0, users: 0 },
+    { month: "May", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Jun", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Jul", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Aug", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Sep", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Oct", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Nov", coverLetter: 0, resume: 0, users: 0 },
+    { month: "Dec", coverLetter: 0, resume: 0, users: 0 },
   ]);
 
   // State for API calls and tokens per month
@@ -224,7 +224,6 @@ const Dashboard = () => {
           month: m,
           coverLetter: 0,
           resume: 0,
-          careerPath: 0,
           users: 0,
         }));
 
@@ -271,7 +270,6 @@ const Dashboard = () => {
               month: string;
               coverLetter: number;
               resume: number;
-              careerPath: number;
               users: number;
             }[]
           ) =>
@@ -281,7 +279,6 @@ const Dashboard = () => {
                   month: string;
                   coverLetter: number;
                   resume: number;
-                  careerPath: number;
                   users: number;
                 },
                 idx: number
@@ -1020,16 +1017,6 @@ const Dashboard = () => {
                         <stop offset="0%" stopColor="#6ee7b7" />
                         <stop offset="100%" stopColor="#22c55e" />
                       </linearGradient>
-                      <linearGradient
-                        id="careerPathGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop offset="0%" stopColor="#7dd3fc" />
-                        <stop offset="100%" stopColor="#38bdf8" />
-                      </linearGradient>
                     </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -1095,15 +1082,6 @@ const Dashboard = () => {
                       stackId="a"
                       name="Resume"
                       fill="url(#resumeGradient)"
-                      isAnimationActive={true}
-                      animationDuration={1200}
-                      yAxisId="left"
-                    />
-                    <Bar
-                      dataKey="careerPath"
-                      stackId="a"
-                      name="Career Path"
-                      fill="url(#careerPathGradient)"
                       isAnimationActive={true}
                       animationDuration={1200}
                       yAxisId="left"
@@ -1598,70 +1576,6 @@ const Dashboard = () => {
                     ).toFixed(1)}
                   </span>
                 </div>
-              </div>
-            </div>
-            {/* Path Activity Stats */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-6 mt-4">
-              <h2 className="text-lg font-bold text-gray-900 mb-1 border-b border-gray-100 pb-2 flex items-center gap-2">
-                <svg
-                  className="w-5 h-5 text-blue-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2z"
-                  />
-                </svg>
-                Path Activity Stats
-              </h2>
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-blue-700">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2z"
-                      />
-                    </svg>
-                    Paths Created
-                  </span>
-                  <span className="text-xl font-bold text-blue-700">
-                    {profileImpressionData.reduce(
-                      (sum, month) => sum + month.careerPath,
-                      0
-                    )}
-                  </span>
-                </div>
-                {profileImpressionData.reduce(
-                  (sum, month) => sum + month.careerPath,
-                  0
-                ) > 0 && (
-                  <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 px-4 py-3 mt-2">
-                    <div className="text-xs text-gray-500 mb-1 font-semibold">
-                      Last 3 Professions
-                    </div>
-                    <ul className="list-disc list-inside text-sm text-gray-700">
-                      {profileImpressionData
-                        .filter((month) => month.careerPath > 0)
-                        .map((month, idx) => (
-                          <li key={idx}>
-                            {month.careerPath} users in {month.month}
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             </div>
           </div>

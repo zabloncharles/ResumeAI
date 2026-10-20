@@ -3,6 +3,12 @@ import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 import Orb from "./Orb";
 import SignInModal from "./SignInModal";
+import { postGenerateResume } from "../utils/aiApi";
+import { parseAiBulletLines } from "../utils/parseAiBullets";
+import {
+  buildIvySectionPrompt,
+  ivyAiGuidanceLabel,
+} from "@shared/ivyAiGuidelines.js";
 
 interface AIResumeAssistantProps {
   profession: string;
@@ -10,6 +16,7 @@ interface AIResumeAssistantProps {
   disabled?: boolean;
   section: string | null;
   onSuggestionsChange?: (suggestions: string[]) => void;
+  templateId?: string;
 }
 
 const AIResumeAssistant = ({
@@ -18,6 +25,7 @@ const AIResumeAssistant = ({
   disabled = false,
   section,
   onSuggestionsChange,
+  templateId = "harvard-mcs",
 }: AIResumeAssistantProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -41,16 +49,10 @@ const AIResumeAssistant = ({
   }, [suggestions, onSuggestionsChange]);
 
   function buildPrompt(profession: string, section: string | null) {
-    if (!profession) return "";
-    if (section === "profile") {
-      return `Generate 5 professional summary statements tailored for a ${profession}. Each summary should be concise, compelling, and highlight the candidate's strengths for this role. Focus on their overall professional identity, key skills, and career goals. Return as bullet points.`;
-    }
-    if (section === "employment") {
-      return `Given the job title: ${profession}, generate 5 impactful resume bullet points describing achievements, responsibilities, or results that would impress a recruiter. Use action verbs, quantify results where possible, and keep each point concise. Return as bullet points.`;
-    }
-    // Add more cases as needed
-    return "";
+    return buildIvySectionPrompt(templateId, section, profession);
   }
+
+  const guidanceLabel = ivyAiGuidanceLabel(templateId);
 
   const generateSuggestions = async () => {
     const currentUser = auth.currentUser || user;
@@ -61,37 +63,35 @@ const AIResumeAssistant = ({
       return;
     }
 
+    const prompt = buildPrompt(profession, section);
+    if (!prompt.trim()) {
+      setError("Add a job title first, then try again.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setSuggestions([]);
 
     try {
       const token = await currentUser.getIdToken();
-      const prompt = buildPrompt(profession, section);
-      const response = await fetch("/.netlify/functions/generateResume", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          prompt,
-          profession,
-          section,
-        }),
+      const data = await postGenerateResume(token, {
+        prompt,
+        profession,
+        section,
+        templateId,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate suggestions");
-      }
-
-      const data = await response.json();
       const content = data.content || "";
-      const newSuggestions = content
-        .split("\n")
-        .filter((line: string) => line.trim().startsWith("-"))
-        .map((line: string) => line.trim().substring(1).trim());
+      const newSuggestions = parseAiBulletLines(content);
+
+      if (newSuggestions.length === 0) {
+        setError(
+          content.trim()
+            ? "Could not read suggestions from the response. Try again."
+            : "No suggestions returned. Try again."
+        );
+        return;
+      }
 
       setSuggestions(newSuggestions);
     } catch (err: any) {
@@ -107,11 +107,12 @@ const AIResumeAssistant = ({
         <div className="flex-1 space-y-4">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
                 AI Suggestions
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get AI-powered resume suggestions tailored to your profession.
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Suggestions follow {guidanceLabel} resume guidelines for your
+                selected template.
               </p>
             </div>
             <div className="w-24 h-24 ml-4">
@@ -124,12 +125,14 @@ const AIResumeAssistant = ({
               {suggestions.map((suggestion, index) => (
                 <div
                   key={index}
-                  className="group relative bg-white rounded-lg border border-gray-200 hover:border-[#16aeac] transition-colors duration-200"
+                  className="group relative bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-[#16aeac] transition-colors duration-200"
                 >
                   <div className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="text-sm text-gray-900">{suggestion}</p>
+                        <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                          {suggestion}
+                        </p>
                       </div>
                       <button
                         onClick={() => onSuggestionSelect(suggestion)}
@@ -157,8 +160,8 @@ const AIResumeAssistant = ({
           )}
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             </div>
           )}
 

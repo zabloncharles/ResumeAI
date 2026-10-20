@@ -1,6 +1,6 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./components/LandingPage";
-import ResumeBuilder from "./components/ResumeBuilder";
+import ResumeWorkspace from "./components/ResumeWorkspace";
 import CoverLetterCreator from "./components/CoverLetterCreator";
 import LoadingPage from "./components/LoadingPage";
 import TemplatesPage from "./components/TemplatesPage";
@@ -14,7 +14,6 @@ import About from "./components/Pages/About";
 import Contact from "./components/Pages/Contact.tsx";
 import Privacy from "./components/Pages/Privacy";
 import Terms from "./components/Pages/Terms";
-import Courses from "./components/Courses";
 import Jobs from "./components/Pages/Jobs";
 
 function App() {
@@ -31,7 +30,7 @@ function App() {
               </>
             }
           />
-          <Route path="/resume" element={<ResumeBuilder />} />
+          <Route path="/resume/*" element={<ResumeWorkspace />} />
           <Route
             path="/cover-letter"
             element={
@@ -51,6 +50,9 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/account" element={<AccountSettings />} />
           <Route path="/study" element={<Study />} />
+          <Route path="/study/library" element={<Study />} />
+          <Route path="/study/performance" element={<Study />} />
+          <Route path="/study/folder/:folderId" element={<Study />} />
           <Route path="/create" element={<CreateStudySet />} />
           <Route path="/edit/:studySetId" element={<CreateStudySet />} />
           <Route path="/services" element={<Services />} />
@@ -58,7 +60,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
-          <Route path="/courses" element={<Courses />} />
+          <Route path="/courses" element={<Navigate to="/" replace />} />
           <Route path="/jobs" element={<Jobs />} />
         </Routes>
       </div>

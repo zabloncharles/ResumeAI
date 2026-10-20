@@ -76,14 +76,8 @@ async function addDummyData() {
       type: "coverLetter",
       title: `${user.firstName}'s Cover Letter`,
     });
-    // Add path
-    await db.collection("paths").add({
-      createdAt: Timestamp.fromDate(new Date()),
-      userId: user.id,
-      profession: professions[i],
-    });
   }
-  console.log("Dummy users, resumes, and paths added!");
+  console.log("Dummy users and resumes added!");
 }
 
 addDummyData();

@@ -1,4 +1,8 @@
 import admin from "firebase-admin";
+import {
+  buildIvyAiSystemMessage,
+  buildIvySectionPrompt,
+} from "../../shared/ivyAiGuidelines.js";
 
 // Initialize Firebase Admin with environment variables
 if (!admin.apps.length) {
@@ -18,13 +22,24 @@ if (!admin.apps.length) {
   });
 }
 
+function getAuthorizationHeader(event) {
+  const headers = event.headers || {};
+  return (
+    headers.authorization ||
+    headers.Authorization ||
+    headers["Authorization"] ||
+    ""
+  );
+}
+
 async function verifyIdToken(authHeader) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const idToken = authHeader.split(" ")[1];
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
     return decoded.uid;
-  } catch {
+  } catch (err) {
+    console.error("verifyIdToken failed:", err?.message || err);
     return null;
   }
 }
@@ -38,11 +53,14 @@ export const handler = async function (event, context) {
   }
 
   // Verify user
-  const uid = await verifyIdToken(event.headers["authorization"]);
+  const uid = await verifyIdToken(getAuthorizationHeader(event));
   if (!uid) {
     return {
       statusCode: 401,
-      body: JSON.stringify({ error: "Unauthorized" }),
+      body: JSON.stringify({
+        error:
+          "Unauthorized. Sign in again, or check Firebase Admin credentials on the server.",
+      }),
     };
   }
 
@@ -57,24 +75,35 @@ export const handler = async function (event, context) {
   }
 
   let { prompt } = body || {};
-  if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "No prompt provided." }),
-    };
-  }
-
   let profession = "";
   let summary = "";
   let section = "";
+  let templateId = "harvard-mcs";
   try {
     profession = body.profession || "";
     summary = body.summary || "";
     section = body.section || "";
+    templateId = body.templateId || "harvard-mcs";
   } catch (e) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Invalid request body" }),
+    };
+  }
+
+  let userPrompt = typeof prompt === "string" ? prompt.trim() : "";
+  if (
+    (section === "profile" || section === "employment") &&
+    profession.trim()
+  ) {
+    const ivyPrompt = buildIvySectionPrompt(templateId, section, profession);
+    if (ivyPrompt) userPrompt = ivyPrompt;
+  }
+
+  if (!userPrompt) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "No prompt provided." }),
     };
   }
 
@@ -91,8 +120,7 @@ export const handler = async function (event, context) {
     };
   }
 
-  const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
-  console.log("Debug - API Key exists:", !!apiKey);
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return {
       statusCode: 500,
@@ -135,7 +163,17 @@ export const handler = async function (event, context) {
     return `Given the job title: ${profession}, generate 5 impactful resume bullet points describing achievements, responsibilities, or results that would impress a recruiter. Use action verbs, quantify results where possible, and keep each point concise. Return as bullet points.`;
   };
 
-  console.log("Debug - Prompt:", prompt);
+  const ivyResumeSection =
+    section === "profile" || section === "employment";
+  const systemContent = ivyResumeSection
+    ? buildIvyAiSystemMessage(templateId)
+    : [
+        "You are an expert resume writer and career coach.",
+        "Focus on professional, concise, achievement-oriented language.",
+        "Return exactly 5 items, each on its own line, each line starting with '- ' (hyphen and space). No intro text, no numbering.",
+      ].join(" ");
+
+  console.log("Debug - Template:", templateId, "Section:", section);
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -145,15 +183,15 @@ export const handler = async function (event, context) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You are an expert resume writer and career coach. Focus on:\n1. Professional, concise, and compelling language\n2. Resume-appropriate tone\n3. Action-oriented and achievement-focused statements\n4. For employment history, focus on bullet points that describe what the candidate did at the job that would help them land an interview. Use action verbs and quantify results where possible.\nReturn only the 5 best bullet points as bullet points.`,
+            content: systemContent,
           },
           {
             role: "user",
-            content: prompt,
+            content: userPrompt,
           },
         ],
         temperature: 0.7,

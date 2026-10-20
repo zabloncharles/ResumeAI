@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -15,53 +15,40 @@ import ResumePDF from "./ResumePDF";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import AIResumeAssistant from "./AIResumeAssistant";
 import type { ResumeData } from "../types/ResumeData";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { setDoc } from "firebase/firestore";
 import SignInModal from "./SignInModal";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import bunny1 from "../bunny1.png";
-import ResumePreview from "./ResumePreview";
-// import TemplatesPage from "./TemplatesPage";
-
-const initialResumeData: ResumeData = {
-  personalInfo: {
-    fullName: "David St. Peter",
-    title: "UX Designer",
-    email: "david@example.com",
-    phone: "+000 123 456 789",
-    location: "New York, USA",
-    photo: "https://ui-avatars.com/api/?name=David+St.+Peter&size=128",
-  },
-  profile:
-    "For more Sales, Leads, Customer Engagement. Become an Author, Create Information Products. All done quickly and easily. No Design or Technical skills necessary",
-  experience: [
-    {
-      title: "Senior UX Designer",
-      company: "Company Name",
-      startDate: "2020-01",
-      endDate: "",
-      description: [
-        "Led the redesign of the company's flagship product, resulting in a 40% increase in user engagement",
-      ],
-    },
-  ],
-  education: [
-    {
-      degree: "Degree Name",
-      school: "University name here",
-      startDate: "2014",
-      endDate: "2016",
-    },
-  ],
-  websites: [
-    {
-      label: "Portfolio",
-      url: "https://portfolio.com",
-    },
-  ],
-};
+import ResumePdfPreview from "./ResumePdfPreview";
+import ResumeShell from "./resume/ResumeShell";
+import AtsCheckPanel from "./resume/AtsCheckPanel";
+import {
+  isResumeTemplateId,
+  ivyForTemplate,
+  ivyLeagueOptions,
+  normalizeTemplateId,
+  templatesForIvy,
+  RESUME_TEMPLATE_STORAGE_KEY,
+  type IvyLeagueId,
+  type ResumeTemplateId,
+} from "../constants/resumeTemplates";
+import { initialResumeData } from "../constants/resumeDefaults";
+import { templateDiscouragesSummary } from "../utils/resumeHygiene";
+import { postParseResume } from "../utils/aiApi";
+import { normalizeParsedResume } from "@shared/normalizeParsedResume.js";
+import {
+  buildCloudPayload,
+  fetchUserResume,
+  isPristineNewResumeDraft,
+  resumeDocRef,
+  resumeEditorFingerprint,
+  resumeLocalEditAtKey,
+  resumeLocalStorageKey,
+  resumeTitleFromData,
+  stripResumeDocument,
+} from "../utils/resumeFirestore";
 
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr) return null;
@@ -77,28 +64,49 @@ const formatDateForState = (date: Date | null): string => {
   return `${year}-${month}`;
 };
 
-const ResumeBuilder = () => {
+const formatExperienceRangeLabel = (startDate: string, endDate: string) => {
+  const formatMonthYear = (value: string) => {
+    if (!value) return "";
+    const parsed = parseDate(value);
+    if (!parsed) return value;
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+  };
+  const start = formatMonthYear(startDate);
+  if (!start && !endDate) return "Dates not set";
+  const end = endDate ? formatMonthYear(endDate) : "Present";
+  if (!start) return end;
+  return `${start} – ${end}`;
+};
+
+type ResumeBuilderProps = {
+  guestOnly?: boolean;
+};
+
+const ResumeBuilder = ({ guestOnly = false }: ResumeBuilderProps) => {
+  const { resumeId } = useParams<{ resumeId: string }>();
   // Consolidate related state into a single object
   const [uiState, setUiState] = useState({
     activeSection: "personal" as string | null,
-    selectedTemplate: "modern",
+    selectedTemplate: "harvard-mcs",
+    selectedIvy: "harvard" as IvyLeagueId,
     showTemplates: false,
-    activeTopTab: "myResumes" as
-      | "myResumes"
-      | "templates"
-      | "settings"
-      | "help",
+    activeTopTab: "myResumes" as "myResumes" | "templates" | "settings",
     showPasteModal: false,
     showSignInModal: false,
+    sidebarOpen: false,
   });
 
   const [resumeData, setResumeData] = useState<ResumeData>(initialResumeData);
-  const [currentResumeId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [pastedResume, setPastedResume] = useState("");
+  const [parsingResume, setParsingResume] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [firestoreError, setFirestoreError] = useState<string | null>(null);
 
@@ -106,9 +114,17 @@ const ResumeBuilder = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const autoSaveTimerRef = useRef<number | null>(null);
-  const [hasPendingSync, setHasPendingSync] = useState(false);
+  const [, setHasPendingSync] = useState(false);
   const lastSyncedAtRef = useRef<number>(0);
   const lastSyncedContentRef = useRef<string | null>(null);
+  const loadedBaselineRef = useRef("");
+  const cloudDocExistsRef = useRef(false);
+  const isDirtyRef = useRef(false);
+  const resumeDataRef = useRef(resumeData);
+  const selectedTemplateRef = useRef(uiState.selectedTemplate);
+  const [expandedExperienceIndex, setExpandedExperienceIndex] = useState<
+    number | null
+  >(0);
 
   // Lock body scroll when paste modal is open
   useEffect(() => {
@@ -122,36 +138,42 @@ const ResumeBuilder = () => {
     };
   }, [uiState.showPasteModal]);
 
-  // Memoize resume templates
-  const resumeTemplates = useMemo(
-    () => [
-      {
-        id: "modern",
-        name: "Modern Professional",
-        description: "Clean and modern design with a focus on readability",
-        preview: "/templates/modern.png",
-      },
-      {
-        id: "executive",
-        name: "Executive",
-        description: "Traditional layout perfect for senior positions",
-        preview: "/templates/executive.png",
-      },
-      {
-        id: "minimal",
-        name: "Minimal",
-        description: "Simple and elegant design that lets your content shine",
-        preview: "/templates/minimal.png",
-      },
-      {
-        id: "creative",
-        name: "Creative Professional",
-        description: "Modern design with a creative touch",
-        preview: "/templates/creative.png",
-      },
-    ],
-    []
-  );
+  useEffect(() => {
+    const stored = localStorage.getItem(RESUME_TEMPLATE_STORAGE_KEY);
+    if (stored && isResumeTemplateId(stored)) {
+      const normalized = normalizeTemplateId(stored);
+      setUiState((prev) => ({
+        ...prev,
+        selectedTemplate: normalized,
+        selectedIvy: ivyForTemplate(normalized),
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      RESUME_TEMPLATE_STORAGE_KEY,
+      uiState.selectedTemplate
+    );
+  }, [uiState.selectedTemplate]);
+
+  useEffect(() => {
+    setExpandedExperienceIndex(0);
+  }, [resumeId]);
+
+  useEffect(() => {
+    resumeDataRef.current = resumeData;
+  }, [resumeData]);
+
+  useEffect(() => {
+    selectedTemplateRef.current = uiState.selectedTemplate;
+  }, [uiState.selectedTemplate]);
+
+  const toggleExperienceExpanded = useCallback((index: number) => {
+    setExpandedExperienceIndex((current) =>
+      current === index ? null : index
+    );
+  }, []);
 
   // Memoize handlers
   const handlePersonalInfoChange = useCallback(
@@ -231,19 +253,23 @@ const ResumeBuilder = () => {
   };
 
   const addExperience = () => {
-    setResumeData((prev) => ({
-      ...prev,
-      experience: [
-        ...prev.experience,
-        {
-          title: "",
-          company: "",
-          startDate: "",
-          endDate: "",
-          description: [],
-        },
-      ],
-    }));
+    setResumeData((prev) => {
+      const nextIndex = prev.experience.length;
+      setExpandedExperienceIndex(nextIndex);
+      return {
+        ...prev,
+        experience: [
+          ...prev.experience,
+          {
+            title: "",
+            company: "",
+            startDate: "",
+            endDate: "",
+            description: [],
+          },
+        ],
+      };
+    });
   };
 
   const removeExperience = (index: number) => {
@@ -251,6 +277,14 @@ const ResumeBuilder = () => {
       ...prev,
       experience: prev.experience.filter((_, i) => i !== index),
     }));
+    setExpandedExperienceIndex((current) => {
+      if (current === null) return null;
+      if (current === index) {
+        return Math.max(0, index - 1);
+      }
+      if (current > index) return current - 1;
+      return current;
+    });
   };
 
   const handleEducationChange = (
@@ -321,12 +355,76 @@ const ResumeBuilder = () => {
     }
   };
 
-  const handlePasteResume = () => {
+  const openPasteResumeModal = () => {
     if (!user) {
       setUiState((prev) => ({ ...prev, showSignInModal: true }));
       return;
     }
+    setParseError(null);
     setUiState((prev) => ({ ...prev, showPasteModal: true }));
+  };
+
+  const closePasteResumeModal = () => {
+    if (parsingResume) return;
+    setParseError(null);
+    setUiState((prev) => ({ ...prev, showPasteModal: false }));
+  };
+
+  const submitPasteParse = async () => {
+    const text = pastedResume.trim();
+    if (!text || parsingResume) return;
+
+    const currentUser = auth.currentUser ?? user;
+    if (!currentUser) {
+      setUiState((prev) => ({ ...prev, showSignInModal: true }));
+      return;
+    }
+
+    setParsingResume(true);
+    setParseError(null);
+    setFirestoreError(null);
+
+    try {
+      const token = await currentUser.getIdToken();
+      const { resume: raw } = await postParseResume(token, {
+        text,
+        templateId: uiState.selectedTemplate,
+      });
+
+      let parsed = normalizeParsedResume(raw);
+      if (templateDiscouragesSummary(uiState.selectedTemplate)) {
+        parsed = { ...parsed, profile: "" };
+      }
+      if (parsed.experience.length === 0) {
+        parsed = {
+          ...parsed,
+          experience: [
+            {
+              title: "",
+              company: "",
+              startDate: "",
+              endDate: "",
+              description: [""],
+            },
+          ],
+        };
+      }
+
+      setResumeData(parsed);
+      setExpandedExperienceIndex(0);
+      isDirtyRef.current = true;
+      setHasPendingSync(true);
+      setPastedResume("");
+      setUiState((prev) => ({ ...prev, showPasteModal: false }));
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not parse this resume. Try again.";
+      setParseError(message);
+    } finally {
+      setParsingResume(false);
+    }
   };
 
   // On mount: seed user from localStorage for UI, then always subscribe to auth state
@@ -363,69 +461,241 @@ const ResumeBuilder = () => {
     return () => unsubscribe();
   }, []);
 
-  // On mount/update: prefer localStorage resume; only fetch after authReady and real Firebase user
-  useEffect(() => {
-    const storedResume = localStorage.getItem("resume");
-    if (storedResume) {
-      setResumeData(JSON.parse(storedResume));
-      setLoading(false);
-      return;
-    }
+  const localStorageKey = resumeId ? resumeLocalStorageKey(resumeId) : "resume";
+  const localEditAtKey = resumeId
+    ? resumeLocalEditAtKey(resumeId)
+    : "resume_local_edit_at";
 
-    if (authReady && auth.currentUser) {
-      setLoading(true);
-      loadResumeData(auth.currentUser.uid).then((data) => {
-        if (data) {
-          setResumeData(data);
-          localStorage.setItem("resume", JSON.stringify(data));
-        }
-        setLoading(false);
+  const flushResumeToLocalStorage = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    const blob = {
+      ...resumeData,
+      selectedTemplate: uiState.selectedTemplate,
+      lastUpdated: new Date().toISOString(),
+    };
+    const str = JSON.stringify(blob);
+    localStorage.setItem(localStorageKey, str);
+    return str;
+  }, [localStorageKey, resumeData, uiState.selectedTemplate]);
+
+  const saveResumeToCloud = useCallback(
+    async () => {
+      const uid = auth.currentUser?.uid ?? user?.uid;
+      if (!uid || !isAuthenticated) {
+        throw new Error("Sign in to save your resume to the cloud");
+      }
+      if (!resumeId) {
+        throw new Error("Missing resume id");
+      }
+
+      flushResumeToLocalStorage();
+
+      const resumeDataToSave = buildCloudPayload(
+        uid,
+        resumeData,
+        uiState.selectedTemplate
+      );
+
+      await setDoc(resumeDocRef(uid, resumeId), resumeDataToSave, {
+        merge: true,
       });
-    } else if (authReady && !auth.currentUser) {
-      // Auth resolved and no user; stop loading
-      setLoading(false);
-    }
-  }, [authReady, isAuthenticated]);
 
-  // On save: push localStorage resume to Firebase
+      const fp = resumeEditorFingerprint(
+        resumeData,
+        uiState.selectedTemplate
+      );
+      lastSyncedAtRef.current = Date.now();
+      lastSyncedContentRef.current = fp;
+      loadedBaselineRef.current = fp;
+      cloudDocExistsRef.current = true;
+      isDirtyRef.current = false;
+      setHasPendingSync(false);
+      return resumeDataToSave;
+    },
+    [
+      flushResumeToLocalStorage,
+      isAuthenticated,
+      resumeData,
+      resumeId,
+      uiState.selectedTemplate,
+      user?.uid,
+    ]
+  );
+
+  useEffect(() => {
+    if (guestOnly || !authReady || !resumeId) return;
+
+    const load = async () => {
+      setLoading(true);
+      setFirestoreError(null);
+
+      try {
+        let localRaw: Record<string, unknown> | null = null;
+        let localUpdated: string | undefined;
+        let storedResume = localStorage.getItem(localStorageKey);
+        if (!storedResume) {
+          const legacy = localStorage.getItem("resume");
+          if (legacy) {
+            storedResume = legacy;
+            localStorage.setItem(localStorageKey, legacy);
+          }
+        }
+        if (storedResume) {
+          try {
+            localRaw = JSON.parse(storedResume) as Record<string, unknown>;
+            const parsed = stripResumeDocument(localRaw);
+            localUpdated = parsed.lastUpdated;
+          } catch {
+            localRaw = null;
+          }
+        }
+
+        if (!auth.currentUser) {
+          if (localRaw) {
+            const parsed = stripResumeDocument(localRaw);
+            setResumeData(parsed.resume);
+          }
+          return;
+        }
+
+        const cloudDoc = await fetchUserResume(auth.currentUser.uid, resumeId);
+
+        if (cloudDoc) {
+          const cloudRaw = cloudDoc as unknown as Record<string, unknown>;
+          const cloud = stripResumeDocument(cloudRaw);
+          const cloudTime = cloud.lastUpdated
+            ? Date.parse(cloud.lastUpdated)
+            : 0;
+          const localEditAt = localStorage.getItem(localEditAtKey);
+          const localTime = localEditAt
+            ? Date.parse(localEditAt)
+            : localUpdated
+              ? Date.parse(localUpdated)
+              : 0;
+
+          let useCloud = true;
+          if (localRaw) {
+            if (cloudTime > 0 && localTime > 0) {
+              useCloud = cloudTime >= localTime;
+            } else {
+              useCloud = false;
+            }
+          }
+          const chosen = useCloud ? cloudRaw : localRaw!;
+          const parsed = stripResumeDocument(chosen);
+
+          setResumeData(parsed.resume);
+          if (
+            parsed.selectedTemplate &&
+            isResumeTemplateId(parsed.selectedTemplate)
+          ) {
+            const normalized = normalizeTemplateId(parsed.selectedTemplate);
+            setUiState((prev) => ({
+              ...prev,
+              selectedTemplate: normalized,
+              selectedIvy: ivyForTemplate(normalized),
+            }));
+            localStorage.setItem(
+              RESUME_TEMPLATE_STORAGE_KEY,
+              normalized
+            );
+          }
+
+          localStorage.setItem(localStorageKey, JSON.stringify(chosen));
+          const templateForFp =
+            parsed.selectedTemplate &&
+            isResumeTemplateId(parsed.selectedTemplate)
+              ? normalizeTemplateId(parsed.selectedTemplate)
+              : uiState.selectedTemplate;
+          const fp = resumeEditorFingerprint(parsed.resume, templateForFp);
+          loadedBaselineRef.current = fp;
+          isDirtyRef.current = false;
+          cloudDocExistsRef.current = true;
+          lastSyncedContentRef.current = fp;
+          lastSyncedAtRef.current = Date.now();
+          setHasPendingSync(!useCloud);
+        } else if (localRaw) {
+          const parsed = stripResumeDocument(localRaw);
+          setResumeData(parsed.resume);
+          if (
+            parsed.selectedTemplate &&
+            isResumeTemplateId(parsed.selectedTemplate)
+          ) {
+            const normalized = normalizeTemplateId(parsed.selectedTemplate);
+            setUiState((prev) => ({
+              ...prev,
+              selectedTemplate: normalized,
+              selectedIvy: ivyForTemplate(normalized),
+            }));
+          }
+          const templateForFp =
+            parsed.selectedTemplate &&
+            isResumeTemplateId(parsed.selectedTemplate)
+              ? normalizeTemplateId(parsed.selectedTemplate)
+              : uiState.selectedTemplate;
+          const fp = resumeEditorFingerprint(parsed.resume, templateForFp);
+          loadedBaselineRef.current = fp;
+          isDirtyRef.current = false;
+          cloudDocExistsRef.current = false;
+          lastSyncedContentRef.current = null;
+          setHasPendingSync(false);
+        } else {
+          setFirestoreError("This resume could not be found.");
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load resume from the cloud";
+        setFirestoreError(message);
+        const cached = localStorage.getItem(localStorageKey);
+        if (cached) {
+          try {
+            setResumeData(stripResumeDocument(JSON.parse(cached)).resume);
+          } catch {}
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, [authReady, guestOnly, localEditAtKey, localStorageKey, resumeId]);
+
   const handleManualSave = useCallback(async () => {
     if (!user || !isAuthenticated) {
       setUiState((prev) => ({ ...prev, showSignInModal: true }));
-      // setPendingAction(() => handleManualSave);
       return;
     }
     setSaving(true);
     setSaveStatus(null);
     setFirestoreError(null);
     try {
-      const resumeStr = localStorage.getItem("resume");
-      if (!resumeStr) throw new Error("No resume data in localStorage");
-      const resume = JSON.parse(resumeStr);
-      // const token = await user.getIdToken(true);
-      const resumeDataToSave = {
-        ...resume,
-        lastUpdated: new Date().toISOString(),
-        userId: user.uid,
-        updatedBy: user.uid,
-      };
-      // Always overwrite a single resume document keyed by user ID
-      const resumeDocRef = doc(db, "resumes", user.uid);
-      await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
+      await saveResumeToCloud();
       setSaveStatus("saved");
       setTimeout(() => {
         setSaveStatus(null);
       }, 2000);
-      // Update localStorage with latest
-      localStorage.setItem("resume", JSON.stringify(resumeDataToSave));
     } catch (error) {
       let message = "Failed to save resume. Please try again.";
       if (error instanceof Error) message = error.message;
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code: string }).code)
+          : "";
+      if (code === "permission-denied") {
+        message =
+          "Cloud save blocked by Firestore rules. Ensure rules are deployed and you are signed in.";
+      }
       setFirestoreError(message);
       setSaveStatus("error");
     } finally {
       setSaving(false);
     }
-  }, [user, isAuthenticated, currentResumeId]);
+  }, [user, isAuthenticated, saveResumeToCloud]);
 
   // Auto-save resume changes to localStorage (debounced)
   useEffect(() => {
@@ -434,13 +704,16 @@ const ResumeBuilder = () => {
     }
     autoSaveTimerRef.current = window.setTimeout(() => {
       try {
-        const currentStr = JSON.stringify(resumeData);
-        localStorage.setItem("resume", currentStr);
-        if (lastSyncedContentRef.current === null) {
-          // First run; don't mark pending unless it differs from loaded baseline
-          setHasPendingSync(true);
-        } else {
-          setHasPendingSync(lastSyncedContentRef.current !== currentStr);
+        const fp = resumeEditorFingerprint(
+          resumeData,
+          uiState.selectedTemplate
+        );
+        flushResumeToLocalStorage();
+        const dirty = fp !== loadedBaselineRef.current;
+        isDirtyRef.current = dirty;
+        setHasPendingSync(dirty);
+        if (dirty) {
+          localStorage.setItem(localEditAtKey, new Date().toISOString());
         }
       } catch {}
     }, 600);
@@ -450,48 +723,40 @@ const ResumeBuilder = () => {
         window.clearTimeout(autoSaveTimerRef.current);
       }
     };
-  }, [resumeData]);
+  }, [
+    flushResumeToLocalStorage,
+    localEditAtKey,
+    localStorageKey,
+    resumeData,
+    uiState.selectedTemplate,
+  ]);
 
-  // Internal save to Firestore without UI prompts; throttled to avoid excess writes
   const syncLocalResumeToFirestore = useCallback(async () => {
-    try {
-      if (!isAuthenticated || !auth.currentUser) return;
-      if (!navigator.onLine) return;
-      if (!hasPendingSync) return;
+    if (!isAuthenticated || !auth.currentUser) return;
+    if (!navigator.onLine) return;
+    if (!isDirtyRef.current) return;
 
-      const now = Date.now();
-      // Throttle: at most one write every 8s
-      if (now - lastSyncedAtRef.current < 8000) return;
+    const now = Date.now();
+    if (now - lastSyncedAtRef.current < 8000) return;
 
-      const resumeStr = localStorage.getItem("resume");
-      if (!resumeStr) return;
-      const resume = JSON.parse(resumeStr);
-
-      // Skip if no changes since last sync
-      const currentStr = JSON.stringify(resume);
-      if (lastSyncedContentRef.current === currentStr) {
-        setHasPendingSync(false);
-        return;
-      }
-
-      const resumeDataToSave = {
-        ...resume,
-        lastUpdated: new Date().toISOString(),
-        userId: auth.currentUser.uid,
-        updatedBy: auth.currentUser.uid,
-      };
-
-      // Always write to resumes/{uid}
-      const resumeDocRef = doc(db, "resumes", auth.currentUser.uid);
-      await setDoc(resumeDocRef, resumeDataToSave, { merge: true });
-
-      lastSyncedAtRef.current = now;
-      lastSyncedContentRef.current = currentStr;
+    const fp = resumeEditorFingerprint(
+      resumeDataRef.current,
+      selectedTemplateRef.current
+    );
+    if (lastSyncedContentRef.current === fp) {
+      isDirtyRef.current = false;
       setHasPendingSync(false);
-    } catch (e) {
-      // Keep pending flag so we retry on next safe event
+      return;
     }
-  }, [isAuthenticated, currentResumeId, hasPendingSync]);
+
+    flushResumeToLocalStorage();
+
+    try {
+      await saveResumeToCloud();
+    } catch (error) {
+      console.error("[Resume] Background cloud sync failed:", error);
+    }
+  }, [flushResumeToLocalStorage, isAuthenticated, saveResumeToCloud]);
 
   // Flush pending changes on safe lifecycle/network events
   useEffect(() => {
@@ -511,100 +776,24 @@ const ResumeBuilder = () => {
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);
-      // Best-effort flush on unmount
       void syncLocalResumeToFirestore();
     };
   }, [syncLocalResumeToFirestore]);
 
-  // Improve the load resume data function with auth handling
-  const loadResumeData = useCallback(
-    async (userId: string) => {
-      if (!isAuthenticated) {
-        setFirestoreError("Please sign in to load your resume");
-        setUiState((prev) => ({ ...prev, showSignInModal: true }));
-        return;
-      }
-
-      setLoading(true);
-      setFirestoreError(null);
-
-      try {
-        // Ensure user is a Firebase User object
-        const firebaseUser = auth.currentUser;
-        if (!firebaseUser) {
-          throw new Error("No authenticated user found");
-        }
-        // const token = await firebaseUser.getIdToken(true);
-
-        // Ensure Firestore is initialized
-        if (!db) {
-          throw new Error("Firestore is not initialized");
-        }
-
-        const docRef = doc(db, "users", userId, "resume", "main");
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const data = docSnap.data() as ResumeData;
-          // Validate the loaded data
-          if (data && typeof data === "object") {
-            return data;
-          } else {
-            throw new Error("Invalid resume data format");
-          }
-        }
-      } catch (error: any) {
-        console.error("[Firebase] Error loading resume:", error);
-        if (error.code === "permission-denied") {
-          setFirestoreError(
-            "You don't have permission to load this resume. Using local data if available."
-          );
-          const cached = localStorage.getItem("resume");
-          if (cached) {
-            try {
-              setResumeData(JSON.parse(cached));
-            } catch {}
-          }
-        } else if (error.message === "Firestore is not initialized") {
-          setFirestoreError(
-            "Database connection error. Please try again later."
-          );
-        } else {
-          setFirestoreError(error.message || "Failed to load resume data");
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [isAuthenticated]
-  );
-
   useEffect(() => {
-    const fetchAndLoadResume = async () => {
-      // Skip if a cached resume exists
-      const cached = localStorage.getItem("resume");
-      if (cached) return;
+    if (guestOnly || !resumeId) return;
 
-      // Wait until auth is ready and we have a real Firebase user
-      if (!authReady || !auth.currentUser) return;
+    return () => {
+      const data = resumeDataRef.current;
+      const template = selectedTemplateRef.current;
+      const pristine = isPristineNewResumeDraft(data, template);
 
-      setLoading(true);
-      try {
-        // Load the single resume doc keyed by user ID
-        const resumeRef = doc(db, "resumes", auth.currentUser.uid);
-        const resumeSnap = await getDoc(resumeRef);
-        if (resumeSnap.exists()) {
-          setResumeData(resumeSnap.data() as ResumeData);
-          localStorage.setItem("resume", JSON.stringify(resumeSnap.data()));
-        }
-      } catch (error) {
-        setFirestoreError("Failed to load resume from resumes collection");
-      } finally {
-        setLoading(false);
-      }
+      if (!pristine || cloudDocExistsRef.current) return;
+
+      localStorage.removeItem(resumeLocalStorageKey(resumeId));
+      localStorage.removeItem(resumeLocalEditAtKey(resumeId));
     };
-    fetchAndLoadResume();
-  }, [authReady]);
+  }, [guestOnly, resumeId]);
 
   const renderEditSection = useCallback(() => {
     switch (uiState.activeSection) {
@@ -620,12 +809,12 @@ const ResumeBuilder = () => {
         }
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
               Personal Information
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                   Full Name
                 </label>
                 <input
@@ -640,7 +829,7 @@ const ResumeBuilder = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                   Title
                 </label>
                 <input
@@ -655,7 +844,7 @@ const ResumeBuilder = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                   Email
                 </label>
                 <input
@@ -670,7 +859,7 @@ const ResumeBuilder = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                   Phone
                 </label>
                 <input
@@ -685,7 +874,7 @@ const ResumeBuilder = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                   Location
                 </label>
                 <input
@@ -706,9 +895,19 @@ const ResumeBuilder = () => {
       case "profile":
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
               Professional Summary
             </h3>
+            {templateDiscouragesSummary(uiState.selectedTemplate) ? (
+              <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-lg px-3 py-2">
+                For{" "}
+                {uiState.selectedTemplate === "brown-standard"
+                  ? "Brown CareerLAB"
+                  : "Harvard MCS–style"}{" "}
+                templates, early-career resumes usually omit a summary. Leave
+                this blank unless an advisor asks for one.
+              </p>
+            ) : null}
             <textarea
               className="resume-textarea"
               value={resumeData.profile}
@@ -720,6 +919,7 @@ const ResumeBuilder = () => {
               onSuggestionSelect={handleSuggestionSelect}
               section="profile"
               onSuggestionsChange={() => {}}
+              templateId={uiState.selectedTemplate}
             />
           </div>
         );
@@ -728,7 +928,7 @@ const ResumeBuilder = () => {
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Experience</h3>
+              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">Experience</h3>
               <button
                 onClick={addExperience}
                 className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
@@ -737,172 +937,217 @@ const ResumeBuilder = () => {
                 <span>Add Experience</span>
               </button>
             </div>
-            {resumeData.experience.map((exp: any, expIndex: number) => (
-              <div
-                key={expIndex}
-                className="space-y-4 p-4 bg-gray-50 rounded-lg"
-              >
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Job Title
-                  </label>
-                  <input
-                    type="text"
-                    className="resume-input mt-1"
-                    value={exp.title}
-                    onChange={(e) =>
-                      handleExperienceChange(expIndex, "title", e.target.value)
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Company
-                  </label>
-                  <input
-                    type="text"
-                    className="resume-input mt-1"
-                    value={exp.company}
-                    onChange={(e) =>
-                      handleExperienceChange(
-                        expIndex,
-                        "company",
-                        e.target.value
-                      )
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Start Date
-                    </label>
-                    <div className="relative mt-1">
-                      <DatePicker
-                        selected={parseDate(exp.startDate)}
-                        onChange={(date) =>
-                          handleExperienceChange(
-                            expIndex,
-                            "startDate",
-                            formatDateForState(date)
-                          )
-                        }
-                        dateFormat="MMMM yyyy"
-                        showMonthYearPicker
-                        className="resume-input pl-3 pr-10 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholderText="Select start date"
-                        showFourColumnMonthYearPicker
-                        fixedHeight
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <CalendarIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      End Date
-                    </label>
-                    <div className="relative mt-1">
-                      <DatePicker
-                        selected={parseDate(exp.endDate)}
-                        onChange={(date) =>
-                          handleExperienceChange(
-                            expIndex,
-                            "endDate",
-                            formatDateForState(date)
-                          )
-                        }
-                        dateFormat="MMMM yyyy"
-                        showMonthYearPicker
-                        isClearable
-                        className="resume-input pl-3 pr-10 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholderText="Present"
-                        showFourColumnMonthYearPicker
-                        fixedHeight
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <CalendarIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Key Achievements
-                    </label>
-                    {exp.description.length < 5 && (
+            <div className="max-h-[min(70vh,720px)] overflow-y-auto space-y-3 pr-1">
+              {resumeData.experience.map((exp: any, expIndex: number) => {
+                const isExpanded = expandedExperienceIndex === expIndex;
+                return (
+                  <div
+                    key={expIndex}
+                    className="rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden bg-gray-50 dark:bg-zinc-900/50"
+                  >
+                    <div className="flex items-stretch">
                       <button
-                        onClick={() => addBulletPoint(expIndex)}
-                        className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
+                        type="button"
+                        onClick={() => toggleExperienceExpanded(expIndex)}
+                        className="flex flex-1 min-w-0 items-center gap-3 p-4 text-left hover:bg-gray-100/80 dark:hover:bg-zinc-800/80 transition-colors"
                       >
-                        <PlusIcon className="w-4 h-4" />
-                        <span>Add bullet point</span>
+                        <ChevronDownIcon
+                          className={`h-5 w-5 shrink-0 text-gray-500 dark:text-zinc-400 transition-transform ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                            {exp.title?.trim() || "Untitled role"}
+                          </p>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
+                            {exp.company?.trim() || "Company not set"}
+                            {" · "}
+                            {formatExperienceRangeLabel(
+                              exp.startDate,
+                              exp.endDate
+                            )}
+                          </p>
+                        </div>
                       </button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {exp.description.map(
-                      (bullet: string, bulletIndex: number) => (
-                        <div
-                          key={bulletIndex}
-                          className="flex items-start space-x-2"
-                        >
-                          <span className="mt-2.5 text-gray-500">•</span>
-                          <textarea
-                            className="flex-1 resume-textarea mt-1"
-                            value={bullet}
+                      <button
+                        type="button"
+                        onClick={() => removeExperience(expIndex)}
+                        className="shrink-0 px-4 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 border-l border-gray-200 dark:border-zinc-700"
+                        aria-label="Remove this job"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                    {isExpanded && (
+                      <div className="space-y-4 border-t border-gray-200 dark:border-zinc-700 p-4 bg-white dark:bg-zinc-950/40">
+                        <div>
+                          <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                            Job Title
+                          </label>
+                          <input
+                            type="text"
+                            className="resume-input mt-1"
+                            value={exp.title}
                             onChange={(e) =>
-                              handleBulletPointChange(
+                              handleExperienceChange(
                                 expIndex,
-                                bulletIndex,
+                                "title",
                                 e.target.value
                               )
                             }
-                            placeholder="Describe your achievement..."
-                            rows={2}
                           />
-                          <button
-                            onClick={() =>
-                              removeBulletPoint(expIndex, bulletIndex)
-                            }
-                            className="mt-2 text-red-600 hover:text-red-700"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
                         </div>
-                      )
+                        <div>
+                          <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                            Company
+                          </label>
+                          <input
+                            type="text"
+                            className="resume-input mt-1"
+                            value={exp.company}
+                            onChange={(e) =>
+                              handleExperienceChange(
+                                expIndex,
+                                "company",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                              Start Date
+                            </label>
+                            <div className="relative mt-1">
+                              <DatePicker
+                                selected={parseDate(exp.startDate)}
+                                onChange={(date) =>
+                                  handleExperienceChange(
+                                    expIndex,
+                                    "startDate",
+                                    formatDateForState(date)
+                                  )
+                                }
+                                dateFormat="MMMM yyyy"
+                                showMonthYearPicker
+                                className="resume-input pl-3 pr-10 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholderText="Select start date"
+                                showFourColumnMonthYearPicker
+                                fixedHeight
+                              />
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <CalendarIcon className="h-5 w-5 text-gray-400" />
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                              End Date
+                            </label>
+                            <div className="relative mt-1">
+                              <DatePicker
+                                selected={parseDate(exp.endDate)}
+                                onChange={(date) =>
+                                  handleExperienceChange(
+                                    expIndex,
+                                    "endDate",
+                                    formatDateForState(date)
+                                  )
+                                }
+                                dateFormat="MMMM yyyy"
+                                showMonthYearPicker
+                                isClearable
+                                className="resume-input pl-3 pr-10 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholderText="Present"
+                                showFourColumnMonthYearPicker
+                                fixedHeight
+                              />
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <CalendarIcon className="h-5 w-5 text-gray-400" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                              Key Achievements
+                            </label>
+                            {exp.description.length < 5 && (
+                              <button
+                                type="button"
+                                onClick={() => addBulletPoint(expIndex)}
+                                className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
+                              >
+                                <PlusIcon className="w-4 h-4" />
+                                <span>Add bullet point</span>
+                              </button>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            {exp.description.map(
+                              (bullet: string, bulletIndex: number) => (
+                                <div
+                                  key={bulletIndex}
+                                  className="flex items-start space-x-2"
+                                >
+                                  <span className="mt-2.5 text-gray-500">
+                                    •
+                                  </span>
+                                  <textarea
+                                    className="flex-1 resume-textarea mt-1"
+                                    value={bullet}
+                                    onChange={(e) =>
+                                      handleBulletPointChange(
+                                        expIndex,
+                                        bulletIndex,
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Describe your achievement..."
+                                    rows={2}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeBulletPoint(expIndex, bulletIndex)
+                                    }
+                                    className="mt-2 text-red-600 hover:text-red-700"
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )
+                            )}
+                          </div>
+                          <div className="mt-2">
+                            <AIResumeAssistant
+                              profession={exp.title}
+                              onSuggestionSelect={(suggestion) => {
+                                handleExperienceChange(expIndex, "description", [
+                                  ...exp.description,
+                                  suggestion,
+                                ]);
+                              }}
+                              disabled={!exp.title || exp.title.trim() === ""}
+                              section="employment"
+                              templateId={uiState.selectedTemplate}
+                            />
+                            {!exp.title || exp.title.trim() === "" ? (
+                              <div className="text-xs text-gray-400 mt-1">
+                                Enter a job title to get AI suggestions.
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="mt-2">
-                    <AIResumeAssistant
-                      profession={exp.title}
-                      onSuggestionSelect={(suggestion) => {
-                        handleExperienceChange(expIndex, "description", [
-                          ...exp.description,
-                          suggestion,
-                        ]);
-                      }}
-                      disabled={!exp.title || exp.title.trim() === ""}
-                      section="employment"
-                    />
-                    {!exp.title || exp.title.trim() === "" ? (
-                      <div className="text-xs text-gray-400 mt-1">
-                        Enter a job title to get AI suggestions.
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeExperience(expIndex)}
-                  className="flex items-center space-x-2 text-red-600 hover:text-red-700"
-                >
-                  <TrashIcon className="w-5 h-5" />
-                  <span>Remove</span>
-                </button>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         );
 
@@ -910,7 +1155,7 @@ const ResumeBuilder = () => {
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Education</h3>
+              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">Education</h3>
               <button
                 onClick={addEducation}
                 className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
@@ -920,9 +1165,12 @@ const ResumeBuilder = () => {
               </button>
             </div>
             {resumeData.education.map((edu: any, index: number) => (
-              <div key={index} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+              <div
+                key={index}
+                className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-lg"
+              >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                     Degree
                   </label>
                   <input
@@ -935,7 +1183,7 @@ const ResumeBuilder = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                     School
                   </label>
                   <input
@@ -949,7 +1197,7 @@ const ResumeBuilder = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                       Start Year
                     </label>
                     <div className="relative mt-1">
@@ -975,7 +1223,7 @@ const ResumeBuilder = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                       End Year
                     </label>
                     <div className="relative mt-1">
@@ -1018,7 +1266,7 @@ const ResumeBuilder = () => {
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
                 Websites & Social Links
               </h3>
               <button
@@ -1041,9 +1289,12 @@ const ResumeBuilder = () => {
               </button>
             </div>
             {resumeData.websites.map((website, index) => (
-              <div key={index} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+              <div
+                key={index}
+                className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-lg"
+              >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                     Label
                   </label>
                   <input
@@ -1061,7 +1312,7 @@ const ResumeBuilder = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                     URL
                   </label>
                   <input
@@ -1095,12 +1346,24 @@ const ResumeBuilder = () => {
           </div>
         );
 
+      case "atsCheck":
+        return (
+          <AtsCheckPanel
+            resumeData={resumeData}
+            templateId={uiState.selectedTemplate as ResumeTemplateId}
+            onUpdateResume={setResumeData}
+          />
+        );
+
       default:
         return null;
     }
   }, [
     uiState.activeSection,
+    uiState.selectedTemplate,
     resumeData,
+    expandedExperienceIndex,
+    toggleExperienceExpanded,
     handlePersonalInfoChange,
     handleProfileChange,
     handleExperienceChange,
@@ -1170,14 +1433,22 @@ const ResumeBuilder = () => {
     );
   }, [firestoreError]);
 
-  // const navigate = useNavigate();
+  useEffect(() => {
+    if (guestOnly) {
+      setLoading(false);
+    }
+  }, [guestOnly]);
 
-  if (loading)
+  if (guestOnly && authReady && user) {
+    return <Navigate to="/resume" replace />;
+  }
+
+  if (!guestOnly && loading)
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-purple-100">
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-purple-100 dark:from-zinc-950 dark:to-zinc-900">
         <div className="flex flex-col items-center">
           <svg
-            className="animate-spin h-12 w-12 text-blue-600 mb-4"
+            className="animate-spin h-12 w-12 text-blue-600 dark:text-teal-400 mb-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -1196,17 +1467,26 @@ const ResumeBuilder = () => {
               d="M4 12a8 8 0 018-8v8z"
             ></path>
           </svg>
-          <div className="text-xl font-semibold text-gray-700">Loading...</div>
+          <div className="text-xl font-semibold text-zinc-600 dark:text-zinc-300">
+            Loading...
+          </div>
         </div>
       </div>
     );
 
-  // Landing page for non-authenticated users
+  if (guestOnly && !authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+        <p className="text-zinc-600 dark:text-zinc-400">Loading…</p>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-white flex flex-col">
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col">
           <div className="flex-1">
             <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="pt-32 pb-16 text-center">
@@ -1217,10 +1497,10 @@ const ResumeBuilder = () => {
                   <span>→</span>
                   <span>🚀</span>
                 </div>
-                <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+                <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-6">
                   Build Professional Resumes
                 </h1>
-                <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
+                <p className="text-lg md:text-xl text-zinc-600 dark:text-zinc-400 max-w-3xl mx-auto mb-10">
                   Create stunning resumes with AI assistance. Choose from professional templates and get expert suggestions.
                 </p>
                 <div className="mt-2 flex justify-center gap-3 mb-16">
@@ -1232,7 +1512,7 @@ const ResumeBuilder = () => {
                   </button>
                   <a
                     href="#preview"
-                    className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
+                    className="inline-block px-6 py-3 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-full border-2 border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-all text-base font-semibold"
                   >
                     See Preview
                   </a>
@@ -1241,14 +1521,16 @@ const ResumeBuilder = () => {
 
               {/* Resume Preview Demo */}
               <div id="preview" className="max-w-4xl mx-auto mb-16">
-                <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg">
+                <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-8 shadow-lg">
                   <div className="flex items-center gap-2 mb-6">
-                    <DocumentTextIcon className="h-5 w-5 text-green-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Resume Preview</h2>
+                    <DocumentTextIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      Resume Preview
+                    </h2>
                   </div>
 
                   {/* Sample Resume Display */}
-                  <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300">
+                  <div className="resume-preview-paper bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300">
                     <div className="max-w-2xl mx-auto">
                       {/* Header */}
                       <div className="text-center mb-6">
@@ -1314,41 +1596,43 @@ const ResumeBuilder = () => {
               {/* Features Section */}
               <div className="max-w-6xl mx-auto mt-16 mb-16">
                 <div className="text-center mb-12">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Why Choose Brightfolio?</h3>
-                  <p className="text-gray-600 max-w-2xl mx-auto">
+                  <h3 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+                    Why Choose Brightfolio?
+                  </h3>
+                  <p className="text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
                     Everything you need to create professional resumes that get results.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
-                      <span className="text-green-600">🎨</span>
+                  <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 flex items-center justify-center mb-4">
+                      <span className="text-green-600 dark:text-green-400">🎨</span>
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Professional Templates</h4>
-                    <p className="text-sm text-gray-600">Choose from carefully designed templates that impress employers.</p>
+                    <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Professional Templates</h4>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Choose from carefully designed templates that impress employers.</p>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-4">
-                      <span className="text-green-600">🤖</span>
+                  <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 flex items-center justify-center mb-4">
+                      <span className="text-green-600 dark:text-green-400">🤖</span>
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">AI-Powered Suggestions</h4>
-                    <p className="text-sm text-gray-600">Get intelligent recommendations to improve your resume content.</p>
+                    <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">AI-Powered Suggestions</h4>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Get intelligent recommendations to improve your resume content.</p>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-200 to-green-100 border border-green-200 flex items-center justify-center mb-4">
-                      <span className="text-green-600">📄</span>
+                  <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-200 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 flex items-center justify-center mb-4">
+                      <span className="text-green-600 dark:text-green-400">📄</span>
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">PDF Export</h4>
-                    <p className="text-sm text-gray-600">Download your resume as a professional PDF ready for applications.</p>
+                    <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">PDF Export</h4>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Download your resume as a professional PDF ready for applications.</p>
                   </div>
                 </div>
               </div>
 
               {/* Final CTA */}
               <div className="max-w-3xl mx-auto mt-12 mb-16">
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-8 text-center">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Build Your Resume?</h3>
-                  <p className="text-gray-700 mb-6">
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-zinc-950 dark:to-zinc-900 border border-green-200 dark:border-zinc-800 rounded-xl p-8 text-center">
+                  <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">Ready to Build Your Resume?</h3>
+                  <p className="text-zinc-600 dark:text-zinc-300 mb-6">
                     Join thousands of professionals who have created stunning resumes with Brightfolio.
                   </p>
                   <button
@@ -1375,367 +1659,134 @@ const ResumeBuilder = () => {
     );
   }
 
+  if (!resumeId) {
+    return <Navigate to="/resume" replace />;
+  }
+
+  const editorTitle = resumeTitleFromData({
+    ...resumeData,
+    title: resumeData.personalInfo?.fullName,
+  });
+
+  const pdfDownloadButton = (
+    <PDFDownloadLink
+      document={pdfDocument}
+      fileName={`${(resumeData.personalInfo.fullName || "resume").replace(/\s+/g, "-")}.pdf`}
+      className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] dark:focus:ring-offset-zinc-950"
+    >
+      {({ loading }) => (
+        <>
+          <PrinterIcon className="w-5 h-5 mr-2 shrink-0" />
+          <span className="hidden md:inline">
+            {loading ? "Preparing PDF..." : "Download PDF"}
+          </span>
+          <span className="md:hidden">{loading ? "…" : "PDF"}</span>
+        </>
+      )}
+    </PDFDownloadLink>
+  );
+
   return (
-    <div className="min-h-screen sticky z-[1000] backdrop-blur">
-      {/* Navigation Bar */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <Link
-                  to="/"
-                  className="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
-                  aria-label="Back"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-6 w-6 text-gray-700"
-                  >
-                    <polyline points="15 6 9 12 15 18" />
-                  </svg>
-                </Link>
-                <img
-                  src={bunny1}
-                  alt="ResumeAI Logo"
-                  className="h-8 w-8 mr-2"
-                />
-                <h1 className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black bg-clip-text text-transparent mr-6">
-                  Brightfolio
-                </h1>
-                <nav className="flex space-x-1 bg-transparent">
-                  <button
-                    className={`px-4 py-2 border border-gray-200 rounded-t-md bg-white text-gray-800 font-semibold ${
-                      uiState.activeTopTab === "myResumes"
-                        ? "border-b-0 font-bold"
-                        : "opacity-70"
-                    }`}
-                    onClick={() =>
-                      setUiState((prev) => ({
-                        ...prev,
-                        activeTopTab: "myResumes",
-                      }))
-                    }
-                  >
-                    My Resumes
-                  </button>
-                  <button
-                    className={`px-4 py-2 border border-gray-200 rounded-t-md bg-white text-gray-800 font-semibold ${
-                      uiState.activeTopTab === "help"
-                        ? "border-b-0 font-bold"
-                        : "opacity-70"
-                    }`}
-                    onClick={() =>
-                      setUiState((prev) => ({ ...prev, activeTopTab: "help" }))
-                    }
-                  >
-                    Help
-                  </button>
-                </nav>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => (window.location.href = "/cover-letter")}
-                className="inline-flex items-center px-3 py-2 rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac]"
-                title="Cover Letter"
-              >
-                <DocumentTextIcon className="w-5 h-5" />
-                <span className="ml-2 text-sm">Cover Letter</span>
-              </button>
-              <button
-                onClick={handleManualSave}
-                className={`inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] transition-all duration-200 ${
-                  saving ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                title={saveStatus || "Save Resume"}
-                disabled={saving}
-              >
-                {saving ? (
-                  <svg
-                    className="animate-spin h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  if (!user)
-                    setUiState((prev) => ({ ...prev, showSignInModal: true }));
-                  else window.location.href = "/account";
-                }}
-                className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#16aeac] flex items-center justify-center bg-white hover:bg-gray-50 transition-colors"
-                title="Account"
-              >
-                <span className="text-[#16aeac] font-semibold text-sm">
-                  {user?.displayName?.[0]?.toUpperCase() ||
-                    user?.email?.[0]?.toUpperCase() ||
-                    "?"}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="backdrop-blur rounded-2xl shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Resume Builder
-                </h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handlePasteResume}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac]"
-                >
-                  <svg
-                    className="h-5 w-5 mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                  Paste Resume
-                </button>
-                <PDFDownloadLink
-                  document={pdfDocument}
-                  fileName="resume.pdf"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac]"
-                >
-                  {({ loading }) => (
-                    <>
-                      <PrinterIcon className="w-5 h-5 mr-2" />
-                      {loading ? "Preparing PDF..." : "Download PDF"}
-                    </>
-                  )}
-                </PDFDownloadLink>
-              </div>
-            </div>
-          </div>
-
-          {/* Content Area */}
-          {uiState.activeTopTab === "help" ? (
-            <div className="p-6">
-              <div className="max-w-4xl">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Resume Builder Help
-                </h2>
-                <p className="text-gray-600 mb-8">
-                  Quick guide to building and saving your resume efficiently.
-                </p>
-
-                <div className="space-y-6">
-                  <section className="bg-white rounded-xl border border-gray-200 p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Getting Started
-                    </h3>
-                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
-                      <li>
-                        Choose a template in "Choose a Template" on the left.
-                      </li>
-                      <li>
-                        Open each section (Personal, Summary, Experience,
-                        Education, Websites) and fill in fields.
-                      </li>
-                      <li>
-                        Use the AI Suggestions buttons for summaries and bullet
-                        points.
-                      </li>
-                    </ul>
-                  </section>
-
-                  <section className="bg-white rounded-xl border border-gray-200 p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      AI Suggestions
-                    </h3>
-                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
-                      <li>
-                        Profile: generates 5 concise professional summaries for
-                        your title.
-                      </li>
-                      <li>
-                        Experience: generates achievement bullets for the job
-                        title in that card.
-                      </li>
-                      <li>
-                        Click + on a suggestion to insert it into your resume.
-                      </li>
-                    </ul>
-                  </section>
-
-                  <section className="bg-white rounded-xl border border-gray-200 p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Saving & Sync
-                    </h3>
-                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
-                      <li>
-                        Auto‑save: changes are saved to your browser
-                        automatically after a short pause.
-                      </li>
-                      <li>
-                        Cloud sync: if you are signed in, changes are synced to
-                        Firebase during safe moments (when you switch
-                        tabs/windows, the tab becomes hidden, you come back
-                        online, or when leaving the page). Writes are throttled
-                        to minimize calls.
-                      </li>
-                      <li>
-                        Manual save: click the disk icon in the header to
-                        immediately push to the cloud.
-                      </li>
-                    </ul>
-                  </section>
-
-                  <section className="bg-white rounded-xl border border-gray-200 p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Download PDF
-                    </h3>
-                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
-                      <li>
-                        Use the "Download PDF" button in the header to export
-                        your resume as a PDF.
-                      </li>
-                      <li>The PDF uses the currently selected template.</li>
-                    </ul>
-                  </section>
-
-                  <section className="bg-white rounded-xl border border-gray-200 p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Tips
-                    </h3>
-                    <ul className="list-disc pl-5 text-gray-700 space-y-1 text-sm">
-                      <li>
-                        Keep bullet points action‑oriented and quantify results
-                        where possible.
-                      </li>
-                      <li>
-                        Use at most 4–5 bullets per experience for readability.
-                      </li>
-                      <li>
-                        Switch templates anytime; your content remains the same.
-                      </li>
-                    </ul>
-                  </section>
-                </div>
-              </div>
-            </div>
-          ) : (
+    <>
+      <ResumeShell
+        activeTab="editor"
+        mode="editor"
+        titleOverride={editorTitle}
+        sidebarOpen={uiState.sidebarOpen}
+        onSidebarOpen={() =>
+          setUiState((prev) => ({ ...prev, sidebarOpen: true }))
+        }
+        onSidebarClose={() =>
+          setUiState((prev) => ({ ...prev, sidebarOpen: false }))
+        }
+        onPaste={openPasteResumeModal}
+        onSave={handleManualSave}
+        saving={saving}
+        saveStatus={saveStatus}
+        downloadAction={pdfDownloadButton}
+      >
             <div className="p-6">
               <div className="grid grid-cols-12 gap-6">
                 {/* Left Side - Edit Sections */}
-                <div className="col-span-5">
+                <div className="col-span-5 text-zinc-800 dark:text-zinc-200">
                   <div className="space-y-6">
-                    {/* Templates Section */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      <h2 className="text-lg font-semibold text-gray-900 p-4 border-b border-gray-200">
-                        Choose a Template
-                      </h2>
-                      <div className="p-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          {resumeTemplates.map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() =>
-                                setUiState((prev) => ({
+                    {/* Ivy templates */}
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
+                      <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-gray-200 dark:border-zinc-800">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                          Ivy templates
+                        </h2>
+                        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400 shrink-0">
+                          <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                            School
+                          </span>
+                          <select
+                            value={uiState.selectedIvy}
+                            onChange={(e) => {
+                              const nextIvy = e.target.value as IvyLeagueId;
+                              const options = templatesForIvy(nextIvy);
+                              setUiState((prev) => {
+                                const keepCurrent = options.some(
+                                  (t) => t.id === prev.selectedTemplate
+                                );
+                                return {
                                   ...prev,
-                                  selectedTemplate: template.id,
-                                }))
-                              }
-                              className={`p-4 rounded-lg border ${
-                                uiState.selectedTemplate === template.id
-                                  ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-50"
-                                  : "border-gray-200 hover:border-gray-300"
-                              }`}
-                            >
-                              {/* PNG Icon for each template */}
-                              {template.id === "modern" && (
-                                <img
-                                  src="/svg/Businessprofessional.png"
-                                  alt="Modern Professional"
-                                  className="w-16 h-16 mx-auto mb-3 object-contain"
-                                />
-                              )}
-                              {template.id === "executive" && (
-                                <img
-                                  src="/svg/Executive.png"
-                                  alt="Executive"
-                                  className="w-16 h-16 mx-auto mb-3 object-contain"
-                                />
-                              )}
-                              {template.id === "minimal" && (
-                                <img
-                                  src="/svg/minimal.png"
-                                  alt="Minimal"
-                                  className="w-16 h-16 mx-auto mb-3 object-contain"
-                                />
-                              )}
-                              {template.id === "creative" && (
-                                <img
-                                  src="/svg/Creativethinking.png"
-                                  alt="Creative Professional"
-                                  className="w-16 h-16 mx-auto mb-3 object-contain"
-                                />
-                              )}
-                              <div className="text-xs font-medium text-center mt-2">
-                                {template.name}
+                                  selectedIvy: nextIvy,
+                                  selectedTemplate: keepCurrent
+                                    ? prev.selectedTemplate
+                                    : options[0]?.id ?? "harvard-mcs",
+                                };
+                              });
+                            }}
+                            className="rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#16aeac]/50"
+                          >
+                            {ivyLeagueOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        {templatesForIvy(uiState.selectedIvy).map((template) => (
+                          <button
+                            key={template.id}
+                            type="button"
+                            onClick={() =>
+                              setUiState((prev) => ({
+                                ...prev,
+                                selectedTemplate: template.id,
+                              }))
+                            }
+                            className={`w-full p-4 rounded-lg border text-left bg-white dark:bg-zinc-900 ${
+                              uiState.selectedTemplate === template.id
+                                ? "border-[#16aeac] ring-2 ring-[#16aeac]/40"
+                                : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <img
+                                src={template.thumbnail}
+                                alt=""
+                                className="w-12 h-12 shrink-0 object-contain"
+                              />
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                  {template.name}
+                                </div>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                  {template.description}
+                                </p>
                               </div>
-                            </button>
-                          ))}
-                        </div>
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     </div>
 
                     {/* Personal Information Section */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
                       <button
                         onClick={() =>
                           setUiState((prev) => ({
@@ -1746,13 +1797,13 @@ const ResumeBuilder = () => {
                                 : "personal",
                           }))
                         }
-                        className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                        className="w-full p-4 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                           Personal Information
                         </h2>
                         <ChevronDownIcon
-                          className={`w-5 h-5 text-gray-500 transition-transform ${
+                          className={`w-5 h-5 text-gray-500 dark:text-zinc-400 transition-transform ${
                             uiState.activeSection === "personal"
                               ? "transform rotate-180"
                               : ""
@@ -1765,7 +1816,7 @@ const ResumeBuilder = () => {
                     </div>
 
                     {/* Professional Summary Section */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
                       <button
                         onClick={() =>
                           setUiState((prev) => ({
@@ -1776,13 +1827,13 @@ const ResumeBuilder = () => {
                                 : "profile",
                           }))
                         }
-                        className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                        className="w-full p-4 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                           Professional Summary
                         </h2>
                         <ChevronDownIcon
-                          className={`w-5 h-5 text-gray-500 transition-transform ${
+                          className={`w-5 h-5 text-gray-500 dark:text-zinc-400 transition-transform ${
                             uiState.activeSection === "profile"
                               ? "transform rotate-180"
                               : ""
@@ -1795,7 +1846,7 @@ const ResumeBuilder = () => {
                     </div>
 
                     {/* Work Experience Section */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
                       <button
                         onClick={() =>
                           setUiState((prev) => ({
@@ -1806,13 +1857,13 @@ const ResumeBuilder = () => {
                                 : "experience",
                           }))
                         }
-                        className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                        className="w-full p-4 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                           Work Experience
                         </h2>
                         <ChevronDownIcon
-                          className={`w-5 h-5 text-gray-500 transition-transform ${
+                          className={`w-5 h-5 text-gray-500 dark:text-zinc-400 transition-transform ${
                             uiState.activeSection === "experience"
                               ? "transform rotate-180"
                               : ""
@@ -1825,7 +1876,7 @@ const ResumeBuilder = () => {
                     </div>
 
                     {/* Education Section */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
                       <button
                         onClick={() =>
                           setUiState((prev) => ({
@@ -1836,13 +1887,13 @@ const ResumeBuilder = () => {
                                 : "education",
                           }))
                         }
-                        className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                        className="w-full p-4 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                           Education
                         </h2>
                         <ChevronDownIcon
-                          className={`w-5 h-5 text-gray-500 transition-transform ${
+                          className={`w-5 h-5 text-gray-500 dark:text-zinc-400 transition-transform ${
                             uiState.activeSection === "education"
                               ? "transform rotate-180"
                               : ""
@@ -1855,7 +1906,7 @@ const ResumeBuilder = () => {
                     </div>
 
                     {/* Websites Section */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
                       <button
                         onClick={() =>
                           setUiState((prev) => ({
@@ -1866,13 +1917,13 @@ const ResumeBuilder = () => {
                                 : "websites",
                           }))
                         }
-                        className="w-full p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                        className="w-full p-4 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                           Websites & Social Links
                         </h2>
                         <ChevronDownIcon
-                          className={`w-5 h-5 text-gray-500 transition-transform ${
+                          className={`w-5 h-5 text-gray-500 dark:text-zinc-400 transition-transform ${
                             uiState.activeSection === "websites"
                               ? "transform rotate-180"
                               : ""
@@ -1883,79 +1934,122 @@ const ResumeBuilder = () => {
                         <div className="p-6">{renderEditSection()}</div>
                       )}
                     </div>
+
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
+                      <button
+                        onClick={() =>
+                          setUiState((prev) => ({
+                            ...prev,
+                            activeSection:
+                              uiState.activeSection === "atsCheck"
+                                ? null
+                                : "atsCheck",
+                          }))
+                        }
+                        className="w-full p-4 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                          ATS Check
+                        </h2>
+                        <ChevronDownIcon
+                          className={`w-5 h-5 text-gray-500 dark:text-zinc-400 transition-transform ${
+                            uiState.activeSection === "atsCheck"
+                              ? "transform rotate-180"
+                              : ""
+                          }`}
+                        />
+                      </button>
+                      {uiState.activeSection === "atsCheck" && (
+                        <div className="p-6">{renderEditSection()}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Right Side - Resume Preview */}
                 <div className="col-span-7">
-                  <div className="sticky top-6 z-[1000]">
-                    <ResumePreview
-                      resumeData={resumeData}
-                      template={uiState.selectedTemplate}
-                    />
+                  <div className="sticky top-6 z-[10]">
+                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
+                      Live preview
+                    </p>
+                    <div className="rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-900/80 p-3 sm:p-4 shadow-sm">
+                      <ResumePdfPreview
+                        resumeData={resumeData}
+                        template={uiState.selectedTemplate}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          )}
+      </ResumeShell>
 
-          {/* Sign In Modal */}
-          <SignInModal
-            isOpen={uiState.showSignInModal}
-            onClose={() =>
-              setUiState((prev) => ({ ...prev, showSignInModal: false }))
-            }
-            onSuccess={() =>
-              setUiState((prev) => ({ ...prev, showSignInModal: false }))
-            }
-          />
+      <SignInModal
+        isOpen={uiState.showSignInModal}
+        onClose={() =>
+          setUiState((prev) => ({ ...prev, showSignInModal: false }))
+        }
+        onSuccess={() =>
+          setUiState((prev) => ({ ...prev, showSignInModal: false }))
+        }
+      />
 
-          {/* Paste Resume Modal */}
-          {uiState.showPasteModal && (
-            <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg relative">
-                <button
-                  onClick={() =>
-                    setUiState((prev) => ({ ...prev, showPasteModal: false }))
-                  }
-                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-500"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Paste Your Resume
-                </h3>
-                <textarea
-                  ref={textareaRef}
-                  value={pastedResume}
-                  onChange={(e) => setPastedResume(e.target.value)}
-                  className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Paste your resume text here..."
-                />
-                <div className="mt-4 flex justify-end space-x-3">
-                  <button
-                    onClick={() =>
-                      setUiState((prev) => ({ ...prev, showPasteModal: false }))
-                    }
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePasteResume}
-                    disabled={!pastedResume.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {"Parse Resume"}
-                  </button>
-                </div>
-              </div>
+      {uiState.showPasteModal && (
+        <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/55 dark:bg-black/75 backdrop-blur-xl p-4">
+          <div className="bg-white/95 dark:bg-zinc-950/95 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg relative">
+            <button
+              type="button"
+              onClick={closePasteResumeModal}
+              disabled={parsingResume}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-500 dark:text-zinc-500 disabled:opacity-40"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 pr-8">
+              Import resume text
+            </h3>
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+              AI maps jobs (with dates), education, and contact info into your
+              fields. Activities, sports, and other extras are dropped. Up to
+              four Ivy-style bullets per role.
+            </p>
+            {parseError && (
+              <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+                {parseError}
+              </p>
+            )}
+            <textarea
+              ref={textareaRef}
+              value={pastedResume}
+              disabled={parsingResume}
+              onChange={(e) => setPastedResume(e.target.value)}
+              className="mt-4 w-full h-64 p-4 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-[#16aeac] focus:border-[#16aeac] disabled:opacity-60"
+              placeholder="Paste plain text from a PDF, Word doc, or LinkedIn export…"
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closePasteResumeModal}
+                disabled={parsingResume}
+                className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitPasteParse()}
+                disabled={!pastedResume.trim() || parsingResume}
+                className="px-4 py-2 bg-[#16aeac] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[8.5rem]"
+              >
+                {parsingResume ? "Importing…" : "Import resume"}
+              </button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
+
       <ErrorDisplay />
-    </div>
+    </>
   );
 };
 

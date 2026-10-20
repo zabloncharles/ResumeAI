@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply antialiased text-gray-900 bg-white;
+    @apply antialiased text-gray-900 bg-white dark:text-zinc-100 dark:bg-zinc-950;
   }
 
   input:focus {
@@ -27,6 +27,14 @@
 
   .btn-secondary {
     @apply px-6 py-2.5 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-all;
+  }
+
+  .study-btn {
+    @apply bg-study-accent text-white rounded-study hover:opacity-90 transition-opacity;
+  }
+
+  .study-round {
+    @apply rounded-study;
   }
 
   .section-card {
@@ -88,8 +96,33 @@
     @apply border-b border-gray-200 pb-8 mb-8 last:border-b-0 last:mb-0 last:pb-0;
   }
 
+  .resume-preview-paper {
+    @apply bg-white text-zinc-900;
+    color-scheme: light;
+  }
+
+  .dark .resume-preview-paper .text-gray-900 {
+    @apply text-zinc-900;
+  }
+
+  .dark .resume-preview-paper .text-gray-800 {
+    @apply text-zinc-800;
+  }
+
+  .dark .resume-preview-paper .text-gray-700 {
+    @apply text-zinc-700;
+  }
+
+  .dark .resume-preview-paper .text-gray-600 {
+    @apply text-zinc-600;
+  }
+
+  .dark .resume-preview-paper .text-gray-500 {
+    @apply text-zinc-500;
+  }
+
   .resume-input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    @apply w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
   }
 
   .resume-textarea {
@@ -183,4 +216,33 @@
 
 .react-datepicker__close-icon {
   @apply after:bg-gray-400 after:text-white after:rounded-full after:w-4 after:h-4 after:content-['×'] after:flex after:items-center after:justify-center after:text-sm after:hover:bg-gray-500 !important;
+}
+
+.study-flip-scene {
+  perspective: 1200px;
+  height: 280px;
+}
+
+@media (min-width: 640px) {
+  .study-flip-scene {
+    height: 300px;
+  }
+}
+
+.study-flip-card {
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.study-flip-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.study-flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.study-flip-face-back {
+  transform: rotateY(180deg);
 }

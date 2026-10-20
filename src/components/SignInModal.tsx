@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { auth, db } from "../firebase";
 import {
   createUserWithEmailAndPassword,
@@ -6,21 +7,32 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { InputValidator, CommonValidations } from "../utils/validation";
 import { sanitize } from "../utils/sanitize";
 import { createRateLimitedActions } from "../utils/rateLimit";
+import bunny1 from "../bunny1.png";
+
+type AuthModalMode = "signIn" | "register";
 
 interface SignInModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialMode?: AuthModalMode;
 }
 
-const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
+const SignInModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialMode = "signIn",
+}: SignInModalProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(
+    initialMode === "register"
+  );
   const [error, setError] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -125,16 +137,62 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
 
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      setVerificationSent(false);
-    } else {
-      document.body.style.overflow = "unset";
+    if (!isOpen) return;
+
+    setVerificationSent(false);
+    setIsRegistering(initialMode === "register");
+    setError("");
+    setValidationErrors({});
+
+    const scrollY = window.scrollY;
+    const { style: htmlStyle } = document.documentElement;
+    const { style: bodyStyle } = document.body;
+
+    const prevHtmlOverflow = htmlStyle.overflow;
+    const prevBodyOverflow = bodyStyle.overflow;
+    const prevBodyPosition = bodyStyle.position;
+    const prevBodyTop = bodyStyle.top;
+    const prevBodyWidth = bodyStyle.width;
+    const prevBodyPaddingRight = bodyStyle.paddingRight;
+
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+
+    htmlStyle.overflow = "hidden";
+    bodyStyle.overflow = "hidden";
+    bodyStyle.position = "fixed";
+    bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.width = "100%";
+    if (scrollbarWidth > 0) {
+      bodyStyle.paddingRight = `${scrollbarWidth}px`;
     }
-    return () => {
-      document.body.style.overflow = "unset";
+
+    const blockBackgroundScroll = (event: TouchEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("[data-signin-modal-panel]")
+      ) {
+        return;
+      }
+      event.preventDefault();
     };
-  }, [isOpen]);
+
+    document.addEventListener("touchmove", blockBackgroundScroll, {
+      passive: false,
+    });
+
+    return () => {
+      document.removeEventListener("touchmove", blockBackgroundScroll);
+      htmlStyle.overflow = prevHtmlOverflow;
+      bodyStyle.overflow = prevBodyOverflow;
+      bodyStyle.position = prevBodyPosition;
+      bodyStyle.top = prevBodyTop;
+      bodyStyle.width = prevBodyWidth;
+      bodyStyle.paddingRight = prevBodyPaddingRight;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpen, initialMode]);
 
   // Map Firebase Auth error codes to user-friendly messages
   const getFriendlyError = (error: any) => {
@@ -251,7 +309,16 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
         });
         setVerificationSent(true);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+        await setDoc(
+          doc(db, "users", userCredential.user.uid),
+          { lastLogin: new Date().toISOString() },
+          { merge: true }
+        );
         onSuccess();
         onClose();
       }
@@ -263,81 +330,125 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
   };
 
   const handleGoogleSignIn = async () => {
+    setError("");
+    if (!rateLimitActions.checkSignInLimit()) {
+      const resetTime = rateLimitActions.getSignInResetTime();
+      const minutes = Math.ceil(resetTime / (60 * 1000));
+      setError(
+        `Too many sign-in attempts. Please wait ${minutes} minute${minutes !== 1 ? "s" : ""} before trying again.`
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
-      
-      // Extract first/last name from displayName if available
-      let firstName = "";
-      let lastName = "";
+
+      let googleFirstName = "";
+      let googleLastName = "";
       if (userCredential.user.displayName) {
         const parts = userCredential.user.displayName.split(" ");
-        firstName = parts[0] || "";
-        lastName = parts.slice(1).join(" ") || "";
+        googleFirstName = parts[0] || "";
+        googleLastName = parts.slice(1).join(" ") || "";
       }
-      
-      // Try to get location, but don't fail if it doesn't work
-      let location = "";
-      try {
-        location = await getRandomCoordForZip(zip);
-      } catch (locationError) {
-        console.log("Location fetch failed, continuing without location");
+
+      const userRef = doc(db, "users", userCredential.user.uid);
+      const existing = await getDoc(userRef);
+      const now = new Date().toISOString();
+
+      if (existing.exists()) {
+        const data = existing.data();
+        const patch: Record<string, string> = { lastLogin: now };
+        if (userCredential.user.email) {
+          patch.email = userCredential.user.email;
+        }
+        if (!data.firstName && googleFirstName) {
+          patch.firstName = googleFirstName;
+        }
+        if (!data.lastName && googleLastName) {
+          patch.lastName = googleLastName;
+        }
+        await setDoc(userRef, patch, { merge: true });
+      } else {
+        let location = "";
+        try {
+          location = await getRandomCoordForZip(zip);
+        } catch {
+          if (import.meta.env.DEV) {
+            console.warn("Location fetch failed, continuing without location");
+          }
+        }
+
+        await setDoc(userRef, {
+          email: userCredential.user.email ?? "",
+          firstName: googleFirstName,
+          lastName: googleLastName,
+          createdAt: now,
+          lastLogin: now,
+          location,
+          phone: "",
+          resumeIds: [],
+          state: stateField,
+          zip,
+          totalTokens: 0,
+          totalApiCalls: 0,
+          type: "free",
+        });
       }
-      
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        email: userCredential.user.email,
-        firstName,
-        lastName,
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        location,
-        phone: "",
-        resumeIds: [],
-        state: stateField,
-        zip,
-        totalTokens: 0,
-        totalApiCalls: 0,
-        type: "free",
-      });
+
       onSuccess();
       onClose();
     } catch (err: any) {
       setError(getFriendlyError(err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   if (!isOpen) {
     return null;
   }
-  return (
+
+  const labelClass =
+    "block text-sm font-medium text-gray-700 dark:text-zinc-300";
+  const fieldClass =
+    "mt-1 block w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 shadow-sm focus:border-[#16aeac] focus:ring-[#16aeac] sm:text-sm h-10 pl-4";
+
+  const handleBackdropClose = () => {
+    if (isSubmitting) return;
+    onClose();
+  };
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center h-screen bg-black/30 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-[9999] isolate"
+      role="dialog"
+      aria-modal="true"
+      onClick={handleBackdropClose}
     >
       <div
-        className="relative w-full max-w-md mx-auto p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+        className="absolute inset-0 bg-black/55 dark:bg-black/75 backdrop-blur-xl pointer-events-none"
+        aria-hidden
+      />
+      <div className="relative z-10 flex min-h-full w-full items-center justify-center overflow-y-auto overscroll-contain p-4 sm:p-6 pointer-events-none">
+        <div
+          data-signin-modal-panel
+          className="relative w-full max-w-md mx-auto my-auto p-6 bg-white/95 dark:bg-zinc-950/95 rounded-2xl shadow-2xl border border-gray-200/80 dark:border-zinc-800 pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div>
-          <div className="mt-3 text-center sm:mt-5">
-            <svg
-              className="h-8 w-8 mx-auto mb-2 text-green-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-            <h3 className="text-2xl font-medium leading-6 bg-gradient-to-r from-green-500 to-black text-transparent bg-clip-text pb-2">
-              {isRegistering ? "Create an Account" : "Sign In"}
+          <div className="mt-1 text-center sm:mt-2">
+            <img
+              src={bunny1}
+              alt="Brightfolio"
+              className="h-12 w-12 mx-auto mb-4"
+            />
+            <h3 className="text-2xl font-semibold leading-6 text-zinc-900 dark:text-zinc-100 pb-2">
+              {isRegistering ? "Create an account" : "Sign in"}
             </h3>
             <div className="mt-2">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-zinc-400">
                 {isRegistering
                   ? "Create an account to save your resume"
                   : "Sign in to access your saved resume"}
@@ -348,7 +459,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
 
         {verificationSent ? (
           <div className="mt-5">
-            <div className="rounded-md bg-green-50 p-4">
+            <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-900/50 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg
@@ -364,10 +475,10 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800">
+                  <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
                     Verification email sent
                   </h3>
-                  <div className="mt-2 text-sm text-green-700">
+                  <div className="mt-2 text-sm text-green-700 dark:text-green-300/90">
                     <p>
                       Please check your email to verify your account before
                       signing in.
@@ -380,7 +491,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex justify-center rounded-md border border-transparent bg-gradient-to-r from-green-500 to-yellow-500 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-green-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm w-32"
+                className="inline-flex justify-center rounded-md border border-transparent bg-[#16aeac] px-4 py-2 text-base font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[#16aeac] focus:ring-offset-2 dark:focus:ring-offset-zinc-950 sm:text-sm w-32"
               >
                 Done
               </button>
@@ -392,10 +503,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label
-                      htmlFor="firstName"
-                      className="block text-sm font-medium text-gray-700"
-                    >
+                    <label htmlFor="firstName" className={labelClass}>
                       First Name
                     </label>
                     <input
@@ -405,15 +513,12 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                       onChange={(e) =>
                         handleNameChange('firstName', capitalizeFirstLetter(e.target.value))
                       }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                      className={fieldClass}
                       required
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="lastName"
-                      className="block text-sm font-medium text-gray-700"
-                    >
+                    <label htmlFor="lastName" className={labelClass}>
                       Last Name
                     </label>
                     <input
@@ -423,22 +528,19 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                       onChange={(e) =>
                         handleNameChange('lastName', capitalizeFirstLetter(e.target.value))
                       }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                      className={fieldClass}
                       required
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="state"
-                      className="block text-sm font-medium text-gray-700"
-                    >
+                    <label htmlFor="state" className={labelClass}>
                       State
                     </label>
                     <select
                       id="state"
                       value={stateField}
                       onChange={(e) => setStateField(e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                      className={fieldClass}
                       required
                     >
                       <option value="">Select a state</option>
@@ -495,10 +597,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     </select>
                   </div>
                   <div>
-                    <label
-                      htmlFor="zip"
-                      className="block text-sm font-medium text-gray-700"
-                    >
+                    <label htmlFor="zip" className={labelClass}>
                       Zip Code
                     </label>
                     <input
@@ -506,16 +605,13 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                       id="zip"
                       value={zip}
                       onChange={(e) => setZip(e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                      className={fieldClass}
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="email" className={labelClass}>
                     Email
                   </label>
                   <input
@@ -524,15 +620,12 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => handleEmailChange(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                    className={fieldClass}
                     required
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="password" className={labelClass}>
                     Password
                   </label>
                   <input
@@ -541,7 +634,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                    className={fieldClass}
                     required
                   />
                 </div>
@@ -551,15 +644,18 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     id="privacy"
                     checked={privacyAccepted}
                     onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-[#16aeac] focus:ring-[#16aeac] border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900"
                     required
                   />
                   <label
                     htmlFor="privacy"
-                    className="ml-2 block text-sm text-gray-700"
+                    className="ml-2 block text-sm text-gray-700 dark:text-zinc-300"
                   >
                     I agree to the{" "}
-                    <a href="#" className="text-green-600 hover:text-green-500">
+                    <a
+                      href="/privacy"
+                      className="text-[#16aeac] hover:opacity-80"
+                    >
                       Privacy Policy
                     </a>
                   </label>
@@ -568,10 +664,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="email" className={labelClass}>
                     Email
                   </label>
                   <input
@@ -580,15 +673,12 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => handleEmailChange(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                    className={fieldClass}
                     required
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700"
-                  >
+                  <label htmlFor="password" className={labelClass}>
                     Password
                   </label>
                   <input
@@ -597,7 +687,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm h-10 pl-4"
+                    className={fieldClass}
                     required
                   />
                 </div>
@@ -605,10 +695,10 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
             )}
 
             {error && (
-              <div className="rounded-md bg-red-50 p-4">
+              <div className="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 p-4">
                 <div className="flex">
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
+                    <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
                       {error}
                     </h3>
                   </div>
@@ -620,7 +710,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex w-full justify-center rounded-md border border-transparent bg-gradient-to-r from-green-500 to-yellow-500 px-4 py-2 text-base font-medium text-white shadow-sm hover:from-green-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex w-full justify-center rounded-md border border-transparent bg-[#16aeac] px-4 py-2 text-base font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[#16aeac] focus:ring-offset-2 dark:focus:ring-offset-zinc-950 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <div className="flex items-center">
@@ -631,7 +721,7 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
                     {isRegistering ? "Creating Account..." : "Signing In..."}
                   </div>
                 ) : (
-                  isRegistering ? "Register" : "Sign In"
+                  isRegistering ? "Register" : "Sign in"
                 )}
               </button>
             </div>
@@ -640,7 +730,8 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:text-sm"
+                disabled={isSubmitting}
+                className="inline-flex w-full justify-center rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2 text-base font-medium text-gray-700 dark:text-zinc-200 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#16aeac] focus:ring-offset-2 dark:focus:ring-offset-zinc-950 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg
                   className="mr-2 h-5 w-5"
@@ -656,8 +747,12 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
             <div className="mt-4 text-center">
               <button
                 type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
-                className="text-sm text-blue-600 hover:text-blue-500"
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError("");
+                  setValidationErrors({});
+                }}
+                className="text-sm text-[#16aeac] hover:opacity-80"
               >
                 {isRegistering
                   ? "Already have an account? Sign in"
@@ -666,8 +761,10 @@ const SignInModal = ({ isOpen, onClose, onSuccess }: SignInModalProps) => {
             </div>
           </form>
         )}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

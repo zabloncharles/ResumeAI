@@ -4,9 +4,11 @@ import { auth, db } from "../firebase";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
+import { useTheme } from "../contexts/ThemeContext";
 
 const AccountSettings = () => {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -137,11 +139,11 @@ const AccountSettings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-16">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-8 bg-gradient-to-r from-green-500 to-black text-transparent bg-clip-text">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-8 bg-gradient-to-r from-green-500 to-black dark:to-white text-transparent bg-clip-text">
             Account Settings
           </h1>
 
@@ -372,7 +374,14 @@ const AccountSettings = () => {
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={theme === "dark"}
+                      onChange={(e) =>
+                        setTheme(e.target.checked ? "dark" : "light")
+                      }
+                    />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-green-500 peer-checked:to-yellow-500"></div>
                   </label>
                 </div>

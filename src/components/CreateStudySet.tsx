@@ -1,21 +1,39 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import Navbar from "./Navbar";
-import Footer from "./Footer";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import StudyShell from "./study/StudyShell";
+import StudySectionHeader from "./study/StudySectionHeader";
+import NewFolderModal from "./study/NewFolderModal";
+import StudyCategorySelect from "./study/StudyCategorySelect";
+import {
+  DEFAULT_STUDY_CATEGORY_ID,
+  getStudyCategoryLabel,
+  resolveStudyCategoryId,
+  studyCategoryFirestoreFields,
+} from "../constants/studyCategories";
+import { useStudyFolders } from "../hooks/useStudyFolders";
 import { auth, db } from "../firebase";
 import {
   collection,
   doc,
   addDoc,
-  setDoc,
   serverTimestamp,
   getDoc,
   getDocs,
   updateDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { ArrowLeftIcon, TrashIcon } from "@heroicons/react/24/outline";
-import Cookies from "js-cookie";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  issuePrivateShareCredentials,
+  markStudySetPublic,
+} from "../utils/studyPublicSet";
+import {
+  clearStudySetDraft,
+  loadStudySetDraft,
+  migrateLegacyCookieDraftToLocalStorage,
+  saveStudySetDraft,
+  type StudySetDraftStudySet,
+} from "../utils/studySetDraftStorage";
 
 interface Flashcard {
   id?: string;
@@ -34,10 +52,11 @@ interface StudySet {
   id?: string;
   title: string;
   description: string;
-  category: string;
+  categoryId: string;
+  folderId?: string | null;
   isPublic: boolean;
-  publicCode?: string;
-  publicPassword?: string;
+  shareCode?: string;
+  sharePassword?: string;
   createdBy?: string;
   createdAt?: Date;
   lastStudied?: Date;
@@ -45,22 +64,33 @@ interface StudySet {
   flashcards: Flashcard[];
 }
 
-const COOKIE_KEY = "study_set_draft";
+const DRAFT_SAVE_MS = 400;
+const CREATE_FOLDER_SELECT_VALUE = "__create_folder__";
 
 export default function CreateStudySet() {
   const navigate = useNavigate();
   const { studySetId } = useParams();
+  const [searchParams] = useSearchParams();
+  const initialFolderId = searchParams.get("folder");
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [folderId, setFolderId] = useState<string | null>(
+    initialFolderId || null
+  );
+  const { folders, createFolder, touchFolder } = useStudyFolders(user?.uid);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editLoadComplete, setEditLoadComplete] = useState(false);
+  const createDraftHydrated = useRef(false);
 
   // Study set form
   const [studySet, setStudySet] = useState<StudySet>({
     title: "",
     description: "",
-    category: "",
+    categoryId: DEFAULT_STUDY_CATEGORY_ID,
     isPublic: false,
     cardCount: 0,
     flashcards: [],
@@ -82,56 +112,45 @@ export default function CreateStudySet() {
     password: string;
   } | null>(null);
 
-  // Cookie management functions
-  const saveToCookies = (data: StudySet) => {
-    try {
-      Cookies.set(COOKIE_KEY, JSON.stringify(data), { expires: 7 }); // 7 days
-      setHasUnsavedChanges(true);
-    } catch (error) {
-      console.error("Error saving to cookies:", error);
-    }
+  const draftScope = (): "new" | string =>
+    isEditMode && studySet.id ? studySet.id : studySetId ?? "new";
+
+  const clearLocalDraft = () => {
+    if (!user) return;
+    clearStudySetDraft(user.uid, draftScope());
+    setHasUnsavedChanges(false);
   };
 
-  // Utility functions for public sets
-  const generatePublicCode = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+  const normalizeDraftStudySet = (raw: StudySetDraftStudySet): StudySet => {
+    const categoryId = resolveStudyCategoryId({
+      categoryId: raw.categoryId,
+      category: raw.category,
+    });
+    return {
+      id: raw.id,
+      title: raw.title,
+      description: raw.description,
+      categoryId,
+      folderId: raw.folderId,
+      isPublic: raw.isPublic,
+      shareCode: raw.shareCode,
+      sharePassword: raw.sharePassword,
+      createdBy: raw.createdBy,
+      createdAt: raw.createdAt,
+      lastStudied: raw.lastStudied,
+      cardCount: raw.cardCount,
+      flashcards: raw.flashcards as Flashcard[],
+    };
   };
 
-  const generatePublicPassword = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 4; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
-
-  const loadFromCookies = (): StudySet | null => {
-    try {
-      const saved = Cookies.get(COOKIE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setHasUnsavedChanges(true);
-        return parsed;
-      }
-    } catch (error) {
-      console.error("Error loading from cookies:", error);
-    }
-    return null;
-  };
-
-  const clearCookies = () => {
-    try {
-      Cookies.remove(COOKIE_KEY);
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error("Error clearing cookies:", error);
-    }
+  const applyDraftSnapshot = (
+    snapshot: ReturnType<typeof loadStudySetDraft>
+  ) => {
+    if (!snapshot) return;
+    setStudySet(normalizeDraftStudySet(snapshot.studySet));
+    setFolderId(snapshot.folderId);
+    setCurrentCard(snapshot.currentCard as Flashcard);
+    setHasUnsavedChanges(true);
   };
 
   // Load study set data for editing
@@ -152,14 +171,17 @@ export default function CreateStudySet() {
           lastReviewed: cardDoc.data().lastReviewed?.toDate(),
         })) as Flashcard[];
 
+        setFolderId(setData.folderId ?? null);
+
         const loadedSet: StudySet = {
           id: setId,
           title: setData.title,
           description: setData.description,
-          category: setData.category,
+          categoryId: resolveStudyCategoryId(setData),
+          folderId: setData.folderId ?? null,
           isPublic: setData.isPublic,
-          publicCode: setData.publicCode,
-          publicPassword: setData.publicPassword,
+          shareCode: setData.shareCode ?? setData.publicCode,
+          sharePassword: setData.sharePassword ?? setData.publicPassword,
           createdBy: setData.createdBy,
           createdAt: setData.createdAt?.toDate() || new Date(),
           lastStudied: setData.lastStudied?.toDate(),
@@ -168,43 +190,83 @@ export default function CreateStudySet() {
         };
 
         // Set public credentials if the set is public
-        if (setData.isPublic && setData.publicCode && setData.publicPassword) {
+        const shareCode = setData.shareCode ?? setData.publicCode;
+        const sharePassword = setData.sharePassword ?? setData.publicPassword;
+        if (!setData.isPublic && shareCode && sharePassword) {
           setPublicCredentials({
-            code: setData.publicCode,
-            password: setData.publicPassword,
+            code: shareCode,
+            password: sharePassword,
           });
         }
 
-        setStudySet(loadedSet);
+        const localDraft =
+          user && setId ? loadStudySetDraft(user.uid, setId) : null;
+        if (localDraft) {
+          setStudySet(localDraft.studySet as StudySet);
+          setFolderId(localDraft.folderId);
+          setCurrentCard(localDraft.currentCard as Flashcard);
+          setHasUnsavedChanges(true);
+        } else {
+          setStudySet(loadedSet);
+        }
         setIsEditMode(true);
+      } else {
+        navigate("/study");
       }
+      setEditLoadComplete(true);
     } catch (error) {
       console.error("Error loading study set for editing:", error);
+      setEditLoadComplete(true);
     }
   };
 
-  // Auto-save effect (only for create mode)
   useEffect(() => {
-    if (
-      !isEditMode &&
-      (studySet.title ||
-        studySet.description ||
-        studySet.category ||
-        studySet.flashcards.length > 0)
-    ) {
-      saveToCookies(studySet);
-    }
-  }, [studySet, isEditMode]);
+    if (!user || studySetId || createDraftHydrated.current) return;
+    createDraftHydrated.current = true;
+    const snapshot =
+      loadStudySetDraft(user.uid, "new") ??
+      migrateLegacyCookieDraftToLocalStorage(user.uid);
+    applyDraftSnapshot(snapshot);
+  }, [user, studySetId]);
 
-  // Load data from cookies on mount (only for create mode)
   useEffect(() => {
-    if (!isEditMode) {
-      const savedData = loadFromCookies();
-      if (savedData) {
-        setStudySet(savedData);
-      }
-    }
-  }, [isEditMode]);
+    if (!user) return;
+    const canPersist =
+      (!studySetId && createDraftHydrated.current) ||
+      (studySetId && editLoadComplete);
+    if (!canPersist) return;
+
+    const scope = draftScope();
+    const hasContent =
+      studySet.title.trim() ||
+      studySet.description.trim() ||
+      studySet.flashcards.length > 0 ||
+      currentCard.front.trim() ||
+      currentCard.back.trim() ||
+      folderId;
+
+    if (!hasContent && scope === "new") return;
+
+    const timer = window.setTimeout(() => {
+      saveStudySetDraft(user.uid, scope, {
+        studySet: { ...studySet, folderId },
+        folderId,
+        currentCard,
+      });
+      setHasUnsavedChanges(true);
+    }, DRAFT_SAVE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    user,
+    studySet,
+    folderId,
+    currentCard,
+    studySetId,
+    editLoadComplete,
+    isEditMode,
+    studySet.id,
+  ]);
 
   // Load study set for editing if studySetId is provided
   useEffect(() => {
@@ -216,7 +278,7 @@ export default function CreateStudySet() {
   // Navigation guard
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges && !isEditMode) {
+      if (hasUnsavedChanges) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -224,7 +286,7 @@ export default function CreateStudySet() {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges, isEditMode]);
+  }, [hasUnsavedChanges]);
 
   // Authentication effect
   useEffect(() => {
@@ -249,7 +311,7 @@ export default function CreateStudySet() {
   }, [navigate]);
 
   const handleBackClick = () => {
-    if (hasUnsavedChanges && !isEditMode) {
+    if (hasUnsavedChanges) {
       setShowExitModal(true);
     } else {
       navigate("/study");
@@ -257,8 +319,12 @@ export default function CreateStudySet() {
   };
 
   const confirmExit = () => {
-    clearCookies();
     navigate("/study");
+  };
+
+  const handleCreateFolder = async (title: string, description: string) => {
+    const id = await createFolder(title, description);
+    if (id) setFolderId(id);
   };
 
   const addCard = () => {
@@ -290,43 +356,30 @@ export default function CreateStudySet() {
     }));
   };
 
-  const makeSetPublic = async () => {
-    if (!user) return;
+  const createPrivateShareLink = async () => {
+    if (!user || !studySet.id || studySet.isPublic) return;
 
     try {
-      const publicCode = generatePublicCode();
-      const publicPassword = generatePublicPassword();
-
-      // Update the study set to be public
-      if (studySet.id) {
-        await updateDoc(doc(db, "studySets", studySet.id), {
-          isPublic: true,
-          publicCode,
-          publicPassword,
-        });
-      }
-
-      // Store in publicSets collection for easy lookup
-      await setDoc(doc(db, "publicSets", publicCode), {
-        originalSetId: studySet.id,
-        publicCode,
-        publicPassword,
-        createdBy: user.uid,
-        title: studySet.title,
-        description: studySet.description,
-        category: studySet.category,
-        cardCount: studySet.flashcards.length,
-        createdAt: serverTimestamp(),
-        isActive: true,
-      });
-
-      setPublicCredentials({ code: publicCode, password: publicPassword });
-      setStudySet(prev => ({ ...prev, isPublic: true }));
-      
-      alert("Study set made public successfully!");
+      const { shareCode, sharePassword } = await issuePrivateShareCredentials(
+        studySet.id,
+        {
+          title: studySet.title,
+          description: studySet.description,
+          category: getStudyCategoryLabel(studySet.categoryId),
+          cardCount: studySet.flashcards.length,
+          createdBy: user.uid,
+        }
+      );
+      setPublicCredentials({ code: shareCode, password: sharePassword });
+      setStudySet((prev) => ({
+        ...prev,
+        isPublic: false,
+        shareCode,
+        sharePassword,
+      }));
     } catch (error) {
-      console.error("Error making set public:", error);
-      alert("Error making set public. Please try again.");
+      console.error("Error creating share link:", error);
+      alert("Could not create a share link. Try again.");
     }
   };
 
@@ -341,9 +394,14 @@ export default function CreateStudySet() {
         await updateDoc(doc(db, "studySets", setId), {
           title: studySet.title,
           description: studySet.description,
-          category: studySet.category,
+          ...studyCategoryFirestoreFields(studySet.categoryId),
+          folderId: folderId || null,
           isPublic: studySet.isPublic,
         });
+        if (studySet.isPublic) {
+          await markStudySetPublic(setId);
+        }
+        if (folderId) await touchFolder(folderId);
 
         // Get existing flashcards to compare
         await getDocs(
@@ -370,19 +428,23 @@ export default function CreateStudySet() {
 
         await Promise.all(addPromises);
 
-        // Navigate back to study page
-        navigate("/study");
+        clearLocalDraft();
+
+        navigate(
+          folderId ? `/study/folder/${folderId}` : "/study"
+        );
       } else {
-        // Create new study set
         const docRef = await addDoc(collection(db, "studySets"), {
           title: studySet.title,
           description: studySet.description,
-          category: studySet.category,
+          ...studyCategoryFirestoreFields(studySet.categoryId),
+          folderId: folderId || null,
           isPublic: studySet.isPublic,
           createdBy: user.uid,
           createdAt: serverTimestamp(),
           lastStudied: null,
         });
+        if (folderId) await touchFolder(folderId);
 
         // Add all flashcards to the study set
         const flashcardPromises = studySet.flashcards.map((card) =>
@@ -401,11 +463,15 @@ export default function CreateStudySet() {
 
         await Promise.all(flashcardPromises);
 
-        // Clear cookies after successful save
-        clearCookies();
+        if (studySet.isPublic) {
+          await markStudySetPublic(docRef.id);
+        }
 
-        // Navigate to the study set page
-        navigate(`/study/${docRef.id}`);
+        clearLocalDraft();
+
+        navigate(
+          folderId ? `/study/folder/${folderId}` : "/study"
+        );
       }
     } catch (error) {
       console.error("Error saving study set:", error);
@@ -420,51 +486,51 @@ export default function CreateStudySet() {
     );
   }
 
+  const saveDisabled =
+    !studySet.title.trim() ||
+    (!isEditMode && studySet.flashcards.length === 0);
+
   return (
-    <>
-      <Navbar />
+    <StudyShell
+      folders={folders}
+      uncategorizedCount={0}
+      libraryFilter="all"
+      onLibraryFilter={() => navigate("/study/library")}
+      onNewFolder={() => setShowNewFolderModal(true)}
+      searchQuery=""
+      onSearchChange={() => {}}
+      onCreateSet={() => {}}
+      sidebarOpen={sidebarOpen}
+      onSidebarOpen={() => setSidebarOpen(true)}
+      onSidebarClose={() => setSidebarOpen(false)}
+      pageHeader={{
+        title: isEditMode ? "Edit Study Set" : "Create Study Set",
+        description: isEditMode
+          ? "Modify your flashcards and settings"
+          : "Build your flashcards and share knowledge",
+        onBack: handleBackClick,
+      }}
+    >
+        <div className="w-full">
+          {hasUnsavedChanges && (
+            <p className="text-sm text-green-600 dark:text-green-500 mb-6 max-w-4xl">
+              Saved on this device. Click Done to save to your account.
+            </p>
+          )}
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-20">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBackClick}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-all duration-200"
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {isEditMode ? "Edit Study Set" : "Create Study Set"}
-                </h1>
-                <p className="text-gray-600">
-                  {isEditMode
-                    ? "Modify your flashcards and settings"
-                    : "Build your flashcards and share knowledge"}
-                </p>
-                {hasUnsavedChanges && !isEditMode && (
-                  <p className="text-sm text-green-600 mt-1">
-                    ✓ Auto-saved progress
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column - Study Set Details */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">
-                  Study Set Details
-                </h2>
+          <div className="flex flex-col gap-8 w-full">
+            <div className="w-full">
+                <StudySectionHeader
+                  size="large"
+                  className="mb-4"
+                  title="Study Set Details"
+                  description="Title, description, folder, and sharing settings for this set."
+                />
 
                 <div className="space-y-4">
                   {/* Title */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
                       Title *
                     </label>
                     <input
@@ -473,7 +539,7 @@ export default function CreateStudySet() {
                       onChange={(e) =>
                         setStudySet({ ...studySet, title: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200"
                       placeholder="Enter study set title..."
                       required
                     />
@@ -481,7 +547,7 @@ export default function CreateStudySet() {
 
                   {/* Description */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
                       Description
                     </label>
                     <textarea
@@ -492,96 +558,101 @@ export default function CreateStudySet() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
                       rows={3}
                       placeholder="Describe what this study set covers..."
                     />
                   </div>
 
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      value={studySet.category}
-                      onChange={(e) =>
-                        setStudySet({ ...studySet, category: e.target.value })
-                      }
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
-                      placeholder="e.g., Programming, Math, History..."
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
+                        Subject
+                      </label>
+                      <StudyCategorySelect
+                        value={studySet.categoryId}
+                        onChange={(categoryId) =>
+                          setStudySet({ ...studySet, categoryId })
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
+                        Folder
+                      </label>
+                      <select
+                        value={folderId ?? ""}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          if (next === CREATE_FOLDER_SELECT_VALUE) {
+                            setShowNewFolderModal(true);
+                            return;
+                          }
+                          setFolderId(next || null);
+                        }}
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100"
+                      >
+                        <option value="">Uncategorized</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.title}
+                          </option>
+                        ))}
+                        <option value={CREATE_FOLDER_SELECT_VALUE}>
+                          + Create new folder…
+                        </option>
+                      </select>
+                    </div>
                   </div>
 
                   {/* Visibility */}
                   <div className="space-y-4">
-                    {/* For new sets - show checkbox */}
-                    {!isEditMode && (
-                      <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <input
-                          type="checkbox"
-                          id="isPublic"
-                          checked={studySet.isPublic}
-                          onChange={(e) =>
-                            setStudySet({ ...studySet, isPublic: e.target.checked })
-                          }
-                          className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded bg-white"
-                        />
-                        <label
-                          htmlFor="isPublic"
-                          className="ml-3 block text-sm text-gray-700"
-                        >
-                          <span className="font-semibold">
-                            Make this set public
-                          </span>
-                          <span className="block text-gray-500 mt-1">
-                            Other users can discover and use this study set
-                          </span>
-                        </label>
-                      </div>
+                    <div className="flex items-center p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-lg border border-gray-200 dark:border-zinc-800">
+                      <input
+                        type="checkbox"
+                        id="isPublic"
+                        checked={studySet.isPublic}
+                        onChange={(e) =>
+                          setStudySet({ ...studySet, isPublic: e.target.checked })
+                        }
+                        className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-950 disabled:opacity-50"
+                      />
+                      <label
+                        htmlFor="isPublic"
+                        className="ml-3 block text-sm"
+                      >
+                        <span className="font-semibold text-gray-900 dark:text-zinc-100">
+                          Make this set public
+                        </span>
+                        <span className="block text-gray-500 dark:text-zinc-400 mt-1">
+                          Public sets are discoverable without a code. Private
+                          sets use a code and password to share.
+                        </span>
+                      </label>
+                    </div>
+
+                    {!studySet.isPublic && isEditMode && studySet.id && (
+                      <button
+                        type="button"
+                        onClick={() => void createPrivateShareLink()}
+                        className="w-full px-4 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors font-semibold"
+                      >
+                        {publicCredentials?.code
+                          ? "Regenerate share code"
+                          : "Create share code and password"}
+                      </button>
                     )}
 
-                    {/* For existing sets - show status and make public button */}
-                    {isEditMode && (
-                      <div className="space-y-3">
-                        <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                          <div className="flex items-center">
-                            {studySet.isPublic ? (
-                              <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
-                                <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            ) : (
-                              <div className="h-5 w-5 bg-gray-300 rounded-full"></div>
-                            )}
-                            <span className="ml-3 text-sm font-semibold text-gray-700">
-                              {studySet.isPublic ? "Public Set" : "Private Set"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Make Public Button for existing private sets */}
-                        {!studySet.isPublic && studySet.id && (
-                          <button
-                            onClick={makeSetPublic}
-                            className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-                          >
-                            Make This Set Public
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Public Credentials Display */}
-                    {(studySet.isPublic || publicCredentials) && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold text-green-800 mb-3">
-                          Public Set Credentials
+                    {!studySet.isPublic && publicCredentials && (
+                      <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-900/50 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-violet-900 dark:text-violet-200 mb-3">
+                          Private share credentials
                         </h3>
-                        <p className="text-sm text-green-700 mb-4">
-                          Share these credentials with others to let them import your study set:
+                        <p className="text-sm text-violet-800 dark:text-violet-300/90 mb-4">
+                          Share these with people you want to import this private
+                          set:
                         </p>
                         
                         <div className="space-y-3">
@@ -633,40 +704,24 @@ export default function CreateStudySet() {
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Create Button */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg">
-                <button
-                  onClick={createStudySet}
-                  disabled={
-                    !studySet.title.trim() ||
-                    (!isEditMode && studySet.flashcards.length === 0)
-                  }
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg shadow-green-500/25"
-                >
-                  {isEditMode
-                    ? "Save Changes"
-                    : `Create Study Set (${studySet.flashcards.length} cards)`}
-                </button>
-              </div>
             </div>
 
-            {/* Right Column - Add Cards */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">
-                  Add Cards
-                </h2>
+            <div className="w-full">
+                <StudySectionHeader
+                  size="large"
+                  className="mb-4"
+                  title="Add Cards"
+                  description="Enter a term and definition for each flashcard in this set."
+                />
 
                 {/* Current Card Form */}
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
+                <div className="bg-gray-50 dark:bg-zinc-950/80 border border-gray-200 dark:border-zinc-800 rounded-xl p-6 mb-6">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-semibold text-gray-700">
+                    <span className="text-lg font-semibold text-gray-700 dark:text-zinc-300">
                       New Card
                     </span>
                     <div className="flex items-center space-x-2">
-                      <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-all duration-200">
+                      <button className="p-2 text-gray-400 hover:text-gray-600 dark:text-zinc-400 hover:bg-gray-200 rounded-lg transition-all duration-200">
                         <svg
                           className="w-5 h-5"
                           fill="none"
@@ -687,7 +742,7 @@ export default function CreateStudySet() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Term Field */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
                         TERM
                       </label>
                       <textarea
@@ -698,7 +753,7 @@ export default function CreateStudySet() {
                             front: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                        className="w-full px-4 py-4 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
                         rows={4}
                         placeholder="Enter your question here..."
                       />
@@ -706,7 +761,7 @@ export default function CreateStudySet() {
 
                     {/* Definition Field */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
                         DEFINITION
                       </label>
                       <textarea
@@ -717,7 +772,7 @@ export default function CreateStudySet() {
                             back: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200 resize-none"
+                        className="w-full px-4 py-4 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
                         rows={4}
                         placeholder="Enter the answer here..."
                       />
@@ -725,35 +780,45 @@ export default function CreateStudySet() {
                   </div>
                 </div>
 
-                {/* Add Card Button */}
-                <div className="text-center">
+                <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
                   <button
+                    type="button"
                     onClick={addCard}
                     disabled={
                       !currentCard.front.trim() || !currentCard.back.trim()
                     }
-                    className="px-8 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold border border-gray-700"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-gray-300 dark:border-zinc-600 text-gray-800 dark:text-zinc-200 bg-white dark:bg-zinc-900 hover:border-study-accent hover:text-study-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Add a card.
+                    <PlusIcon className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                    Add a card
+                  </button>
+                  <button
+                    type="button"
+                    onClick={createStudySet}
+                    disabled={saveDisabled}
+                    className="shrink-0 px-5 py-2.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Done
                   </button>
                 </div>
-              </div>
 
-              {/* Added Cards List */}
               {studySet.flashcards.length > 0 && (
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
-                    Added Cards ({studySet.flashcards.length})
-                  </h3>
+                <div className="mt-8 pt-8 border-t border-gray-100">
+                  <StudySectionHeader
+                    as="h3"
+                    className="mb-4"
+                    title={`Added Cards (${studySet.flashcards.length})`}
+                    description="Review or remove cards before you save the set."
+                  />
 
                   <div className="space-y-3">
                     {studySet.flashcards.map((card, index) => (
                       <div
                         key={card.id}
-                        className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                        className="bg-gray-50 dark:bg-zinc-950/80 border border-gray-200 dark:border-zinc-800 rounded-lg p-4"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-600">
+                          <span className="text-sm font-medium text-gray-600 dark:text-zinc-400">
                             Card {index + 1}
                           </span>
                           <button
@@ -765,16 +830,16 @@ export default function CreateStudySet() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="font-semibold text-gray-700">
+                            <span className="font-semibold text-gray-700 dark:text-zinc-300">
                               Term:
                             </span>
-                            <p className="text-gray-600 mt-1">{card.front}</p>
+                            <p className="text-gray-600 dark:text-zinc-400 mt-1">{card.front}</p>
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-700">
+                            <span className="font-semibold text-gray-700 dark:text-zinc-300">
                               Definition:
                             </span>
-                            <p className="text-gray-600 mt-1">{card.back}</p>
+                            <p className="text-gray-600 dark:text-zinc-400 mt-1">{card.back}</p>
                           </div>
                         </div>
                       </div>
@@ -785,27 +850,30 @@ export default function CreateStudySet() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Exit Confirmation Modal */}
+      <NewFolderModal
+        isOpen={showNewFolderModal}
+        onClose={() => setShowNewFolderModal(false)}
+        onCreate={handleCreateFolder}
+      />
+
       {showExitModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-md shadow-2xl">
+          <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-2xl p-8 w-full max-w-md shadow-2xl">
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-zinc-100 mb-4">
                 Unsaved Changes
               </h3>
-              <p className="text-gray-600 mb-6">
-                You have {studySet.flashcards.length} card
-                {studySet.flashcards.length !== 1 ? "s" : ""} that haven't been
-                saved. Are you sure you want to leave without creating the study
-                set?
+              <p className="text-gray-600 dark:text-zinc-400 mb-6">
+                Your work is saved on this device, but it is not in your account
+                until you click Done. Leave anyway?
               </p>
 
               <div className="flex space-x-4">
                 <button
                   onClick={() => setShowExitModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 dark:text-zinc-300 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold"
                 >
                   Stay
                 </button>
@@ -820,8 +888,6 @@ export default function CreateStudySet() {
           </div>
         </div>
       )}
-
-      <Footer />
-    </>
+    </StudyShell>
   );
 }

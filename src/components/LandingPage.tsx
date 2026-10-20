@@ -12,6 +12,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import videoBg from "../video.mp4";
 import SignInModal from "./SignInModal";
+import HeroTypewriterHeadline from "./HeroTypewriterHeadline";
 
 const stats = [
   { value: "100K+", label: "Resumes Created" },
@@ -130,22 +131,25 @@ const LandingPage = () => {
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-black">
       {/* Navigation */}
       <Navbar />
 
       {/* Hero Section + AI Cover Letter Section with shared video background */}
-      <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Blurred background video */}
+      <section className="relative w-full overflow-hidden bg-white dark:bg-black">
         <video
-          className="absolute inset-0 w-full h-full object-cover z-0 blur-md"
+          className="absolute inset-0 w-full h-full object-cover z-0 blur-md opacity-90 dark:opacity-80 dark:invert dark:hue-rotate-180"
           src={videoBg}
           autoPlay
           loop
           muted
           playsInline
         />
-        <div className="relative z-10">
+        <div
+          className="absolute inset-0 z-[1] bg-white/50 dark:bg-transparent pointer-events-none"
+          aria-hidden
+        />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
           {/* Hero Section */}
           <div className="pt-32 pb-16 text-center">
             <div className="flex items-center justify-center space-x-2 mb-8">
@@ -159,12 +163,8 @@ const LandingPage = () => {
               <span>→</span>
               <span>💼</span>
             </div>
-            <h1 className="text-6xl font-bold tracking-tight text-gray-900 mb-8">
-              Create Your Future,
-              <br />
-              Build Your Perfect Resume Now!
-            </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
+            <HeroTypewriterHeadline />
+            <p className="text-xl text-gray-600 dark:text-zinc-400 max-w-3xl mx-auto mb-12">
               Transform your career journey with AI-powered resume creation. We
               specialize in crafting professional resumes that stand out and get
               you noticed.
@@ -172,7 +172,7 @@ const LandingPage = () => {
             <div className="mt-8 flex justify-center">
               <Link
                 to="/loading"
-                className="inline-block px-8 py-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl text-lg font-semibold flex items-center"
+                className="inline-block px-8 py-4 bg-black dark:bg-zinc-100 dark:text-zinc-900 text-white rounded-full hover:bg-gray-800 dark:hover:bg-white transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl text-lg font-semibold flex items-center"
               >
                 Get Started
                 <svg
@@ -193,17 +193,17 @@ const LandingPage = () => {
           </div>
           {/* AI Cover Letter Feature Section */}
           <div
-            className="mt-12 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+            className="mt-12 max-w-2xl mx-auto bg-green-50/60 dark:bg-green-950/40 backdrop-blur-md border border-green-200/70 dark:border-green-800/50 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
             data-aos="fade-up"
             data-aos-delay="300"
           >
             <div className="flex items-center mb-3 justify-center">
               <DocumentTextIcon className="h-7 w-7 text-green-600 mr-2" />
-              <h2 className="text-2xl font-bold text-green-700">
+              <h2 className="text-2xl font-bold text-green-700 dark:text-green-300">
                 ✨ New: AI Cover Letter Generator
               </h2>
             </div>
-            <p className="text-gray-700 mb-2">
+            <p className="text-gray-700 dark:text-zinc-300 mb-2">
               Instantly create a tailored, professional cover letter using your
               resume or a specific job description. Save time and stand out to
               employers with a personalized cover letter that matches your
@@ -211,23 +211,23 @@ const LandingPage = () => {
             </p>
             <Link
               to="/cover-letter"
-              className="px-6 py-2.5 bg-white text-gray-900 rounded-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
+              className="px-6 py-2.5 bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 rounded-full border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950/50 hover:border-green-300 dark:hover:border-green-700 transition-all shadow-sm"
             >
               Try the Cover Letter Creator
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20">
           {stats.map((stat) => (
             <div key={stat.value} className="text-center">
-              <div className="text-4xl font-bold text-gray-900 mb-2">
+              <div className="text-4xl font-bold text-gray-900 dark:text-zinc-100 mb-2">
                 {stat.value}
               </div>
-              <div className="text-gray-600">{stat.label}</div>
+              <div className="text-gray-600 dark:text-zinc-400">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -237,16 +237,16 @@ const LandingPage = () => {
       <div className="py-20">
         <div className="max-w-7xl mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-6">
               AI-powered resume building for better results
             </h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 dark:text-zinc-400 mb-8">
               Our intelligent system analyzes successful resumes and provides
               personalized suggestions to make yours stand out.
             </p>
             <Link
               to="/loading"
-              className="px-6 py-2.5 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-all"
+              className="px-6 py-2.5 bg-gray-900 dark:bg-zinc-100 dark:text-zinc-900 text-white rounded-full hover:bg-gray-800 dark:hover:bg-white transition-all"
             >
               Try AI Builder
             </Link>
@@ -257,10 +257,10 @@ const LandingPage = () => {
       {/* Features */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="text-center mb-16" data-aos="fade-up">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-zinc-100 mb-4">
             Everything you need to succeed
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-zinc-400 max-w-3xl mx-auto">
             Our comprehensive suite of tools and features helps you create the
             perfect resume and advance your career
           </p>
@@ -271,17 +271,17 @@ const LandingPage = () => {
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-gradient-to-br from-gray-100 to-gray-200 hover:border-green-300 hover:scale-105"
+                className="bg-white dark:bg-zinc-950 rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-zinc-800 hover:border-green-300 dark:hover:border-green-700 hover:scale-105"
                 data-aos="fade-up"
                 data-aos-delay={index * 100}
               >
-                <div className="bg-gradient-to-br from-green-50 to-green-100 w-14 h-14 rounded-xl flex items-center justify-center mb-6 border border-green-200">
-                  <feature.icon className="w-7 h-7 text-green-600" />
+                <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 w-14 h-14 rounded-xl flex items-center justify-center mb-6 border border-green-200 dark:border-green-800">
+                  <feature.icon className="w-7 h-7 text-green-600 dark:text-green-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-zinc-100 mb-3">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600">{feature.description}</p>
+                <p className="text-gray-600 dark:text-zinc-400">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -291,13 +291,13 @@ const LandingPage = () => {
       {/* Templates */}
       <div className="max-w-7xl mx-auto px-4 py-20">
         <h2
-          className="text-3xl font-bold text-gray-900 mb-4"
+          className="text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-4"
           data-aos="fade-up"
         >
           Professional resume templates
         </h2>
         <p
-          className="text-gray-600 mb-12"
+          className="text-gray-600 dark:text-zinc-400 mb-12"
           data-aos="fade-up"
           data-aos-delay="100"
         >
@@ -308,7 +308,7 @@ const LandingPage = () => {
           {templates.map((template, index) => (
             <div
               key={template.title}
-              className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-gray-200 hover:border-blue-300 hover:scale-105"
+              className="bg-white dark:bg-zinc-950 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-sky-600 hover:scale-105"
               data-aos="flip-left"
               data-aos-delay={index * 200}
             >
@@ -319,14 +319,14 @@ const LandingPage = () => {
               />
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
+                  <span className="text-sm text-green-600 dark:text-green-300 bg-green-50 dark:bg-green-950 px-2 py-1 rounded-full border border-green-200 dark:border-green-800">
                     {template.type}
                   </span>
                 </div>
-                <h3 className="font-medium text-gray-900 mb-2">
+                <h3 className="font-medium text-gray-900 dark:text-zinc-100 mb-2">
                   {template.title}
                 </h3>
-                <p className="text-gray-600 text-sm">{template.description}</p>
+                <p className="text-gray-600 dark:text-zinc-400 text-sm">{template.description}</p>
               </div>
             </div>
           ))}
@@ -334,27 +334,35 @@ const LandingPage = () => {
       </div>
 
       {/* Steps */}
-      <div className="bg-gradient-to-br from-green-50 to-blue-50 py-20 border-t-2 border-b-2 border-gradient-to-r from-green-200 to-blue-200">
+      <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-zinc-950 dark:to-black py-20 border-t border-b border-green-200/80 dark:border-zinc-800">
         <div className="max-w-7xl mx-auto px-4">
           <h2
-            className="text-3xl font-bold text-gray-900 mb-4"
+            className="text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-4"
             data-aos="fade-up"
           >
             Create your resume in minutes
           </h2>
+          <p
+            className="text-gray-600 dark:text-zinc-400 max-w-2xl"
+            data-aos="fade-up"
+            data-aos-delay="100"
+          >
+            Pick a template, add your experience, and export a polished resume in
+            three quick steps.
+          </p>
           <div className="grid md:grid-cols-3 gap-8 mt-12">
             {steps.map((step, index) => (
               <div
                 key={step.title}
-                className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-green-300 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="bg-white dark:bg-zinc-950 p-6 rounded-xl border border-gray-200 dark:border-zinc-800 hover:border-green-300 dark:hover:border-green-700 shadow-lg hover:shadow-xl transition-all duration-300"
                 data-aos="fade-right"
                 data-aos-delay={index * 200}
               >
-                <div className="text-green-600 font-medium mb-4 bg-green-50 px-3 py-1 rounded-full border border-green-200 inline-block">
+                <div className="text-green-600 dark:text-green-300 font-medium mb-4 bg-green-50 dark:bg-green-950 px-3 py-1 rounded-full border border-green-200 dark:border-green-800 inline-block">
                   Step {index + 1}
                 </div>
-                <h3 className="font-medium text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
+                <h3 className="font-medium text-gray-900 dark:text-zinc-100 mb-2">{step.title}</h3>
+                <p className="text-gray-600 dark:text-zinc-400">{step.description}</p>
               </div>
             ))}
           </div>
@@ -364,7 +372,7 @@ const LandingPage = () => {
       {/* Testimonial */}
       <div className="max-w-7xl mx-auto px-4 py-20">
         <div
-          className="bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-2xl p-12 relative overflow-hidden border-2 border-gray-700 shadow-2xl"
+          className="bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-2xl p-12 relative overflow-hidden border border-gray-700 shadow-2xl"
           data-aos="fade-up"
           data-aos-duration="1200"
         >
@@ -375,7 +383,7 @@ const LandingPage = () => {
               landed interviews at my dream companies within weeks."
             </p>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full border-2 border-gray-500" />
+              <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full border border-gray-500" />
               <div>
                 <div className="font-medium">Sarah Chen</div>
                 <div className="text-gray-400">
@@ -390,26 +398,33 @@ const LandingPage = () => {
       {/* FAQ */}
       <div className="max-w-7xl mx-auto px-4 py-20">
         <h2
-          className="text-3xl font-bold text-gray-900 mb-4"
+          className="text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-4"
           data-aos="fade-up"
         >
           Common resume questions answered
         </h2>
+        <p
+          className="text-gray-600 dark:text-zinc-400 max-w-2xl"
+          data-aos="fade-up"
+          data-aos-delay="100"
+        >
+          Quick answers on ATS, length, customization, and what recruiters expect.
+        </p>
         <div className="mt-12 space-y-6">
           {faq.map((item, index) => (
             <div
               key={index}
-              className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all"
+              className="overflow-hidden bg-gradient-to-r from-gray-50 to-gray-100 dark:from-zinc-950 dark:to-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-sky-600 shadow-sm hover:shadow-md transition-all"
               data-aos="fade-left"
               data-aos-delay={index * 100}
             >
               <div
-                className="flex items-center justify-between p-6 cursor-pointer hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 transition-all"
+                className="flex items-center justify-between p-6 cursor-pointer hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 dark:hover:from-zinc-900 dark:hover:to-zinc-900 transition-all"
                 onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
               >
-                <span className="text-gray-900 font-medium">{item.question}</span>
+                <span className="text-gray-900 dark:text-zinc-100 font-medium">{item.question}</span>
                 <svg
-                  className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
+                  className={`w-5 h-5 text-gray-600 dark:text-zinc-400 transition-transform duration-200 ${
                     expandedFAQ === index ? 'rotate-90' : ''
                   }`}
                   fill="none"
@@ -426,8 +441,8 @@ const LandingPage = () => {
               </div>
               {expandedFAQ === index && (
                 <div className="px-6 pb-6">
-                  <div className="pt-4 border-t border-gray-200">
-                    <p className="text-gray-700 leading-relaxed">{item.answer}</p>
+                  <div className="pt-4 border-t border-gray-200 dark:border-zinc-700">
+                    <p className="text-gray-700 dark:text-zinc-300 leading-relaxed">{item.answer}</p>
                   </div>
                 </div>
               )}
@@ -437,7 +452,7 @@ const LandingPage = () => {
       </div>
 
       {/* CTA */}
-      <div className="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-32 relative overflow-hidden border-t-2 border-b-2 border-gradient-to-r from-green-200 via-blue-200 to-purple-200">
+      <div className="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 py-32 relative overflow-hidden border-t border-b border-green-200/80 dark:border-zinc-800">
         <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:75px_75px]"></div>
         <div
           className="max-w-7xl mx-auto px-4 text-center relative"
@@ -448,7 +463,7 @@ const LandingPage = () => {
           <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-40 h-40 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-full blur-3xl"></div>
 
           <span
-            className="inline-flex items-center rounded-full px-4 py-1 text-sm font-medium bg-blue-50 text-blue-700 ring-2 ring-inset ring-blue-300 mb-8 border border-blue-200"
+            className="inline-flex items-center rounded-full px-4 py-1 text-sm font-medium bg-blue-50 dark:bg-sky-950 text-blue-700 dark:text-sky-300 ring-2 ring-inset ring-blue-300 dark:ring-sky-800 mb-8 border border-blue-200 dark:border-sky-800"
             data-aos="fade-up"
             data-aos-delay="100"
           >
@@ -456,7 +471,7 @@ const LandingPage = () => {
           </span>
 
           <h2
-            className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 max-w-3xl mx-auto leading-tight"
+            className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-zinc-100 mb-6 max-w-3xl mx-auto leading-tight"
             data-aos="fade-up"
             data-aos-delay="200"
           >
@@ -464,7 +479,7 @@ const LandingPage = () => {
           </h2>
 
           <p
-            className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto"
+            className="text-xl text-gray-600 dark:text-zinc-400 mb-10 max-w-2xl mx-auto"
             data-aos="fade-up"
             data-aos-delay="300"
           >
@@ -479,7 +494,7 @@ const LandingPage = () => {
           >
             <Link
               to="/loading"
-              className="px-8 py-4 bg-gradient-to-r from-black to-gray-800 text-white rounded-full hover:from-gray-800 hover:to-gray-900 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group border-2 border-gray-700"
+              className="px-8 py-4 bg-gradient-to-r from-black to-gray-800 dark:from-zinc-100 dark:to-zinc-200 dark:text-zinc-900 text-white rounded-full hover:from-gray-800 hover:to-gray-900 dark:hover:from-white dark:hover:to-zinc-100 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group border border-gray-700 dark:border-zinc-600"
             >
               Create Your Resume
               <svg
@@ -496,7 +511,10 @@ const LandingPage = () => {
                 />
               </svg>
             </Link>
-            <button className="px-8 py-4 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-all border-2 border-gray-300 hover:border-blue-400 shadow-lg hover:shadow-xl flex items-center">
+            <Link
+              to="/templates"
+              className="px-8 py-4 bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 rounded-full hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all border border-gray-300 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-sky-500 shadow-lg hover:shadow-xl flex items-center"
+            >
               <svg
                 className="w-5 h-5 mr-2"
                 fill="none"
@@ -511,7 +529,7 @@ const LandingPage = () => {
                 />
               </svg>
               View Templates
-            </button>
+            </Link>
           </div>
 
           <div
@@ -519,7 +537,7 @@ const LandingPage = () => {
             data-aos="fade-up"
             data-aos-delay="500"
           >
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-green-200 shadow-sm">
+            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-green-200 dark:border-green-900 shadow-sm">
               <svg
                 className="w-5 h-5 text-green-500"
                 fill="none"
@@ -533,9 +551,9 @@ const LandingPage = () => {
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <span className="text-gray-600">Free Templates</span>
+              <span className="text-gray-600 dark:text-zinc-400">Free Templates</span>
             </div>
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-blue-200 shadow-sm">
+            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-blue-200 dark:border-sky-900 shadow-sm">
               <svg
                 className="w-5 h-5 text-blue-500"
                 fill="none"
@@ -549,9 +567,9 @@ const LandingPage = () => {
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <span className="text-gray-600">AI Powered</span>
+              <span className="text-gray-600 dark:text-zinc-400">AI Powered</span>
             </div>
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-purple-200 shadow-sm">
+            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-purple-200 dark:border-purple-900 shadow-sm">
               <svg
                 className="w-5 h-5 text-purple-500"
                 fill="none"
@@ -565,7 +583,7 @@ const LandingPage = () => {
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <span className="text-gray-600">ATS Friendly</span>
+              <span className="text-gray-600 dark:text-zinc-400">ATS Friendly</span>
             </div>
           </div>
         </div>

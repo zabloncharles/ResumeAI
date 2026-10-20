@@ -11,6 +11,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import SignInModal from "./SignInModal";
+import { postGenerateResume } from "../utils/aiApi";
 
 interface CoverLetterCreatorProps {
   resumeData?: any;
@@ -126,25 +127,15 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
     const prompt = getPrompt();
     try {
       const token = await user.getIdToken();
-      const response = await fetch("/.netlify/functions/generateResume", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to generate cover letter");
-        setIsLoading(false);
-        return;
-      }
-      const data = await response.json();
+      const data = await postGenerateResume(token, { prompt });
       const raw = data.content || "";
       setCoverLetter(personalizeOutput(raw));
     } catch (err) {
-      setError("Failed to generate cover letter. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to generate cover letter. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +160,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col">
         <div className="flex-1">
           <div className="relative overflow-visible max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="pt-24 pb-12 text-center">
@@ -180,22 +171,22 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                 <span>→</span>
                 <span>💼</span>
               </div>
-              <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+              <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 dark:text-zinc-100 mb-6">
                 Craft Perfect Cover Letters
               </h1>
-              <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-10">
+              <p className="text-lg md:text-xl text-gray-600 dark:text-zinc-400 max-w-3xl mx-auto mb-10">
                 Generate professional, tailored cover letters from your resume or any job description.
               </p>
               <div className="mt-2 flex justify-center gap-3 mb-8">
                 <a
                   href="#generator"
-                  className="inline-block px-8 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
+                  className="inline-block px-8 py-3 bg-black dark:bg-zinc-100 dark:text-zinc-900 text-white rounded-full hover:bg-gray-800 dark:hover:bg-white transition-all transform hover:scale-105 duration-300 shadow-lg text-base font-semibold"
                 >
                   Start Creating
                 </a>
                 <a
                   href="#features"
-                  className="inline-block px-6 py-3 bg-white text-gray-900 rounded-full border-2 border-gray-200 hover:bg-gray-50 transition-all text-base font-semibold"
+                  className="inline-block px-6 py-3 bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 rounded-full border-2 border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-all text-base font-semibold"
                 >
                   Explore features
                 </a>
@@ -204,18 +195,18 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
 
             {/* Promo Card */}
             <div
-              className="mt-2 max-w-2xl mx-auto bg-green-50/60 backdrop-blur-md border border-green-200/70 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
+              className="mt-2 max-w-2xl mx-auto bg-green-50/60 dark:bg-green-950/40 backdrop-blur-md border border-green-200/70 dark:border-green-800/50 rounded-xl p-8 pb-10 flex flex-col items-center text-center shadow-lg"
             >
               <div className="flex items-center mb-3 justify-center">
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-700 mr-2">✓</span>
-                <h2 className="text-2xl font-bold text-green-700">AI-Powered Generation</h2>
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 dark:bg-green-900/60 text-green-700 dark:text-green-300 mr-2">✓</span>
+                <h2 className="text-2xl font-bold text-green-700 dark:text-green-300">AI-Powered Generation</h2>
               </div>
-              <p className="text-gray-700 mb-3">
+              <p className="text-gray-700 dark:text-zinc-300 mb-3">
                 Create personalized cover letters that highlight your skills and match job requirements perfectly.
               </p>
               <a
                 href="#generator"
-                className="px-6 py-2.5 bg-white text-gray-900 rounded-full border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
+                className="px-6 py-2.5 bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 rounded-full border-2 border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950/50 hover:border-green-300 dark:hover:border-green-700 transition-all shadow-sm"
               >
                 Try it now
               </a>
@@ -223,10 +214,10 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
 
             {/* Generator Section */}
             <div id="generator" className="max-w-3xl mx-auto mt-12">
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <SparklesIcon className="h-5 w-5 text-green-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Start</h2>
+                  <SparklesIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">Start</h2>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
@@ -234,7 +225,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                       mode === "resume"
                         ? "border-green-600 bg-green-600 text-white"
-                        : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
+                        : "border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 hover:border-green-600 dark:hover:border-green-500"
                     }`}
                     onClick={() => setMode("resume")}
                   >
@@ -248,7 +239,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     </div>
                     <div
                       className={`text-xs mt-1 ${
-                        mode === "resume" ? "text-white/80" : "text-gray-500"
+                        mode === "resume" ? "text-white/80" : "text-gray-500 dark:text-zinc-400"
                       }`}
                     >
                       Uses your saved resume details.
@@ -259,7 +250,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                       mode === "job"
                         ? "border-green-600 bg-green-600 text-white"
-                        : "border-gray-300 bg-white text-gray-900 hover:border-green-600"
+                        : "border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 hover:border-green-600 dark:hover:border-green-500"
                     }`}
                     onClick={() => setMode("job")}
                   >
@@ -273,7 +264,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     </div>
                     <div
                       className={`text-xs mt-1 ${
-                        mode === "job" ? "text-white/80" : "text-gray-500"
+                        mode === "job" ? "text-white/80" : "text-gray-500 dark:text-zinc-400"
                       }`}
                     >
                       Paste a job description to tailor the letter.
@@ -283,11 +274,11 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
 
                 {mode === "job" && (
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
                       Job description
                     </label>
                     <textarea
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                      className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-green-600 focus:border-green-600"
                       rows={6}
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
@@ -333,15 +324,15 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                   )}
                 </button>
 
-                {error && <div className="text-red-600 mt-4 text-sm">{error}</div>}
+                {error && <div className="text-red-600 dark:text-red-400 mt-4 text-sm">{error}</div>}
 
                 {coverLetter && (
                   <div className="mt-6">
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                    <label className="block text-sm font-medium text-gray-900 dark:text-zinc-100 mb-2">
                       Generated cover letter
                     </label>
                     <textarea
-                      className="w-full p-4 border border-gray-200 rounded-lg bg-white focus:outline-none text-gray-900 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-green-600"
+                      className="w-full p-4 border border-gray-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 focus:outline-none text-gray-900 dark:text-zinc-100 font-sans text-base leading-relaxed resize-none focus:ring-2 focus:ring-green-600"
                       rows={12}
                       value={coverLetter}
                       readOnly
@@ -349,7 +340,7 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
                     />
                     <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-end">
                       <button
-                        className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-green-600 border-green-600 hover:bg-green-50 ${
+                        className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-green-600 dark:text-green-400 border-green-600 dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-950/40 ${
                           copied ? "opacity-70" : ""
                         }`}
                         onClick={handleCopy}
@@ -375,35 +366,35 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           {[
             {
-              icon: <DocumentTextIcon className="h-6 w-6 text-gray-700" />,
+              icon: <DocumentTextIcon className="h-6 w-6 text-gray-700 dark:text-zinc-300" />,
               title: "1. Enter Info",
               desc: "Add your resume details or job description.",
             },
             {
-              icon: <SparklesIcon className="h-6 w-6 text-gray-700" />,
+              icon: <SparklesIcon className="h-6 w-6 text-gray-700 dark:text-zinc-300" />,
               title: "2. Generate",
               desc: "Let AI craft a personalized cover letter.",
             },
             {
-              icon: <ClipboardIcon className="h-6 w-6 text-gray-700" />,
+              icon: <ClipboardIcon className="h-6 w-6 text-gray-700 dark:text-zinc-300" />,
               title: "3. Copy or Download",
               desc: "Copy to clipboard or download instantly.",
             },
             {
-              icon: <BriefcaseIcon className="h-6 w-6 text-gray-700" />,
+              icon: <BriefcaseIcon className="h-6 w-6 text-gray-700 dark:text-zinc-300" />,
               title: "4. Apply",
               desc: "Use your new cover letter for any job.",
             },
           ].map((step, idx) => (
             <div
               key={idx}
-              className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col items-center text-center"
+              className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 flex flex-col items-center text-center"
             >
               <div className="mb-2">{step.icon}</div>
-              <div className="font-semibold text-base text-gray-900 mb-1">
+              <div className="font-semibold text-base text-gray-900 dark:text-zinc-100 mb-1">
                 {step.title}
               </div>
-              <div className="text-gray-600 text-sm">{step.desc}</div>
+              <div className="text-gray-600 dark:text-zinc-400 text-sm">{step.desc}</div>
             </div>
           ))}
             </div>
@@ -411,11 +402,11 @@ const CoverLetterCreator = ({ resumeData }: CoverLetterCreatorProps) => {
 
           {/* CTA - Minimal */}
           <div className="max-w-3xl mx-auto mt-12 mb-8">
-            <div className="bg-white border border-gray-200 rounded-xl p-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100 mb-2">
               Want a matching resume?
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-zinc-400 mb-4">
               Use our AI Resume Builder for a cohesive application.
             </p>
             <a

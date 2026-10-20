@@ -1,21 +1,40 @@
 import admin from "firebase-admin";
+import {
+  buildParseResumeSystemMessage,
+  buildParseResumeUserPrompt,
+} from "../../shared/ivyAiGuidelines.js";
+import {
+  normalizeParsedResume,
+  resumeDataJsonSchemaDescription,
+} from "../../shared/normalizeParsedResume.js";
 
-// Initialize Firebase Admin with environment variables
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       type: "service_account",
       project_id: process.env.FIREBASE_PROJECT_ID,
       private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       client_email: process.env.FIREBASE_CLIENT_EMAIL,
       client_id: process.env.FIREBASE_CLIENT_ID,
       auth_uri: "https://accounts.google.com/o/oauth2/auth",
       token_uri: "https://oauth2.googleapis.com/token",
       auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
+      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
     }),
   });
+}
+
+const MAX_INPUT_CHARS = 28000;
+
+function getAuthorizationHeader(event) {
+  const headers = event.headers || {};
+  return (
+    headers.authorization ||
+    headers.Authorization ||
+    headers["Authorization"] ||
+    ""
+  );
 }
 
 async function verifyIdToken(authHeader) {
@@ -29,17 +48,34 @@ async function verifyIdToken(authHeader) {
   }
 }
 
-export const handler = async function (event, context) {
-  let debugLog = [];
+function extractJsonObject(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(trimmed.slice(start, end + 1));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+export const handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: "Method Not Allowed",
+      body: JSON.stringify({ error: "Method Not Allowed" }),
     };
   }
 
-  // Verify user
-  const uid = await verifyIdToken(event.headers["authorization"]);
+  const uid = await verifyIdToken(getAuthorizationHeader(event));
   if (!uid) {
     return {
       statusCode: 401,
@@ -47,60 +83,48 @@ export const handler = async function (event, context) {
     };
   }
 
+  let body;
   try {
-    const { text } = JSON.parse(event.body);
-    debugLog.push({ step: "Received text", text });
-    if (!text) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "No resume text provided.", debugLog }),
-      };
-    }
+    body = JSON.parse(event.body);
+  } catch {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Invalid request body" }),
+    };
+  }
 
-    // ResumeData schema for the AI
-    const schema = `{
-  personalInfo: {
-    fullName: string,
-    title: string,
-    email: string,
-    phone: string,
-    location: string,
-    photo: string
-  },
-  profile: string,
-  experience: Array<{
-    title: string,
-    company: string,
-    startDate: string,
-    endDate: string,
-    description: string[]
-  }>,
-  education: Array<{
-    degree: string,
-    school: string,
-    startDate: string,
-    endDate: string
-  }>,
-  websites: Array<{
-    label: string,
-    url: string
-  }>
-}`;
+  const { text, templateId: rawTemplateId } = body || {};
+  const templateId = rawTemplateId || "harvard-mcs";
+  const trimmedText = typeof text === "string" ? text.trim() : "";
 
-    const prompt = `You are a resume assistant. Given the following resume text, extract all relevant information, improve the content for clarity and professionalism, and return the result as a JSON object matching this schema (do not include any explanation, just the JSON):\n\nSchema: ${schema}\n\nResume:\n${text}`;
-    debugLog.push({ step: "Prompt", prompt });
+  if (!trimmedText) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "No resume text provided." }),
+    };
+  }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          error: "OpenAI API key not configured",
-          debugLog,
-        }),
-      };
-    }
+  if (trimmedText.length > MAX_INPUT_CHARS) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({
+        error: `Resume text is too long (max ${MAX_INPUT_CHARS} characters).`,
+      }),
+    };
+  }
 
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "OpenAI API key not configured" }),
+    };
+  }
+
+  const schema = resumeDataJsonSchemaDescription();
+  const prompt = buildParseResumeUserPrompt(schema, trimmedText, templateId);
+
+  try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -108,34 +132,34 @@ export const handler = async function (event, context) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo-16k",
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a helpful resume assistant." },
+          {
+            role: "system",
+            content: buildParseResumeSystemMessage(templateId),
+          },
           { role: "user", content: prompt },
         ],
-        temperature: 0.3,
-        max_tokens: 2000,
+        temperature: 0.2,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      debugLog.push({ step: "OpenAI API error", error: errorData });
       return {
         statusCode: 500,
         body: JSON.stringify({
           error: errorData.error?.message || "Failed to contact OpenAI",
-          debugLog,
         }),
       };
     }
 
     const data = await response.json();
-    debugLog.push({ step: "OpenAI API response", data });
     const aiResponse = data.choices?.[0]?.message?.content || "";
     const total_tokens = data.usage?.total_tokens || 0;
 
-    // Increment user's totalTokens in Firestore
     try {
       await admin
         .firestore()
@@ -145,38 +169,29 @@ export const handler = async function (event, context) {
           totalTokens: admin.firestore.FieldValue.increment(total_tokens),
         });
     } catch (e) {
-      // Log but do not block response
       console.error("Failed to increment totalTokens", e);
     }
 
-    debugLog.push({ step: "AI Response", aiResponse });
-    let jsonStart = aiResponse.indexOf("{");
-    let jsonEnd = aiResponse.lastIndexOf("}");
-    let jsonString = aiResponse.substring(jsonStart, jsonEnd + 1);
-    debugLog.push({ step: "Extracted JSON string", jsonString });
-    let resumeJson;
-    try {
-      resumeJson = JSON.parse(jsonString);
-    } catch (e) {
-      debugLog.push({ step: "JSON parse error", error: e.message });
+    const parsed = extractJsonObject(aiResponse);
+    if (!parsed) {
       return {
         statusCode: 500,
-        body: JSON.stringify({
-          error: "AI did not return valid JSON.",
-          debugLog,
-        }),
+        body: JSON.stringify({ error: "AI did not return valid JSON." }),
       };
     }
 
+    const resume = normalizeParsedResume(parsed);
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ ...resumeJson, total_tokens }),
+      body: JSON.stringify({ resume, total_tokens }),
     };
   } catch (error) {
-    debugLog.push({ step: "General error", error: error.message });
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message, debugLog }),
+      body: JSON.stringify({
+        error: error.message || "Failed to parse resume",
+      }),
     };
   }
 };

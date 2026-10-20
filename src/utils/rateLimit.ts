@@ -108,7 +108,6 @@ export const RateLimitConfigs = {
   RESUME_SAVE: { maxRequests: 20, windowMs: 60 * 1000 }, // 20 saves per minute
   STUDY_SET_CREATE: { maxRequests: 5, windowMs: 60 * 1000 }, // 5 creates per minute
   FLASHCARD_CREATE: { maxRequests: 50, windowMs: 60 * 1000 }, // 50 flashcards per minute
-  CAREER_PATH_GENERATE: { maxRequests: 3, windowMs: 60 * 1000 }, // 3 paths per minute
   COVER_LETTER_GENERATE: { maxRequests: 5, windowMs: 60 * 1000 }, // 5 letters per minute
   SIGN_IN_ATTEMPTS: { maxRequests: 5, windowMs: 15 * 60 * 1000 }, // 5 attempts per 15 minutes
   PASSWORD_RESET: { maxRequests: 3, windowMs: 60 * 60 * 1000 }, // 3 resets per hour
@@ -148,8 +147,6 @@ export const createRateLimitedActions = () => {
     checkAILimit: () => rateLimiter.isAllowed('ai-suggestions', RateLimitConfigs.AI_SUGGESTIONS.maxRequests, RateLimitConfigs.AI_SUGGESTIONS.windowMs),
     checkSaveLimit: () => rateLimiter.isAllowed('resume-save', RateLimitConfigs.RESUME_SAVE.maxRequests, RateLimitConfigs.RESUME_SAVE.windowMs),
     checkSignInLimit: () => rateLimiter.isAllowed('sign-in', RateLimitConfigs.SIGN_IN_ATTEMPTS.maxRequests, RateLimitConfigs.SIGN_IN_ATTEMPTS.windowMs),
-    checkCareerPathLimit: () => rateLimiter.isAllowed('career-path', RateLimitConfigs.CAREER_PATH_GENERATE.maxRequests, RateLimitConfigs.CAREER_PATH_GENERATE.windowMs),
-    
     getRemainingAIRequests: () => rateLimiter.getRemainingRequests('ai-suggestions', RateLimitConfigs.AI_SUGGESTIONS.maxRequests),
     getRemainingSignInAttempts: () => rateLimiter.getRemainingRequests('sign-in', RateLimitConfigs.SIGN_IN_ATTEMPTS.maxRequests),
     

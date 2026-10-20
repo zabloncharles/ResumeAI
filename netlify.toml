@@ -14,4 +14,11 @@
 
 # Environment variables will be set in Netlify's dashboard
 # Required environment variables:
-# - OPENAI_API_KEY 
+# - OPENAI_API_KEY
+# - FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (Admin SDK for auth)
+
+[dev]
+  command = "npm run dev:vite"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false

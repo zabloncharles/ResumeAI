@@ -116,20 +116,19 @@ export class InputSanitizer {
     for (const [key, value] of Object.entries(sanitized)) {
       if (typeof value === 'string') {
         if (emailFields.includes(key as keyof T)) {
-          sanitized[key] = this.sanitizeEmail(value);
+          sanitized[key] = InputSanitizer.sanitizeEmail(value);
         } else if (urlFields.includes(key as keyof T)) {
-          sanitized[key] = this.sanitizeUrl(value);
+          sanitized[key] = InputSanitizer.sanitizeUrl(value);
         } else if (phoneFields.includes(key as keyof T)) {
-          sanitized[key] = this.sanitizePhone(value);
+          sanitized[key] = InputSanitizer.sanitizePhone(value);
         } else if (textFields.includes(key as keyof T)) {
-          sanitized[key] = this.sanitizeText(value);
+          sanitized[key] = InputSanitizer.sanitizeText(value);
         } else {
-          // Default to text sanitization for string fields
-          sanitized[key] = this.sanitizeText(value);
+          sanitized[key] = InputSanitizer.sanitizeText(value);
         }
       } else if (Array.isArray(value)) {
         sanitized[key] = value.map(item => 
-          typeof item === 'string' ? this.sanitizeText(item) : item
+          typeof item === 'string' ? InputSanitizer.sanitizeText(item) : item
         );
       }
     }
