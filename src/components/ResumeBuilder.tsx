@@ -17,7 +17,8 @@ import AIResumeAssistant from "./AIResumeAssistant";
 import type { ResumeData } from "../types/ResumeData";
 import { auth } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { setDoc } from "firebase/firestore";
+import { getDoc, setDoc } from "firebase/firestore";
+import { recordAnalyticsEvent } from "../utils/analyticsEvents";
 import SignInModal from "./SignInModal";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -499,9 +500,17 @@ const ResumeBuilder = ({ guestOnly = false }: ResumeBuilderProps) => {
         uiState.selectedTemplate
       );
 
-      await setDoc(resumeDocRef(uid, resumeId), resumeDataToSave, {
+      const resumeRef = resumeDocRef(uid, resumeId);
+      const isFirstCloudSave =
+        !cloudDocExistsRef.current && !(await getDoc(resumeRef)).exists();
+
+      await setDoc(resumeRef, resumeDataToSave, {
         merge: true,
       });
+
+      if (isFirstCloudSave) {
+        void recordAnalyticsEvent("resumeCreated");
+      }
 
       const fp = resumeEditorFingerprint(
         resumeData,

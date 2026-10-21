@@ -9,7 +9,7 @@ import UserAccountMenu from "../UserAccountMenu";
 import bunny1 from "../../bunny1.png";
 import type { ResumeWorkspaceTab } from "./ResumeSidebar";
 
-export type ResumeShellMode = "home" | "help" | "editor";
+export type ResumeShellMode = "home" | "help" | "editor" | "coverLetter";
 
 type ResumeTopBarProps = {
   activeTab: ResumeWorkspaceTab;
@@ -23,12 +23,14 @@ type ResumeTopBarProps = {
   downloadAction?: ReactNode;
   onCreateResume?: () => void;
   creating?: boolean;
+  onCreateCoverLetter?: () => void;
 };
 
 const tabTitles: Record<ResumeWorkspaceTab, string> = {
   home: "Your resumes",
   help: "Help",
   editor: "Resume editor",
+  coverLetter: "Cover letter",
 };
 
 export default function ResumeTopBar({
@@ -43,6 +45,7 @@ export default function ResumeTopBar({
   downloadAction,
   onCreateResume,
   creating = false,
+  onCreateCoverLetter,
 }: ResumeTopBarProps) {
   const actionBtn =
     "inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16aeac] dark:focus:ring-offset-zinc-950";
@@ -100,6 +103,16 @@ export default function ResumeTopBar({
             <span className="hidden sm:inline">
               {creating ? "Creating…" : "New resume"}
             </span>
+          </button>
+        )}
+        {mode === "coverLetter" && onCreateCoverLetter && (
+          <button
+            type="button"
+            onClick={onCreateCoverLetter}
+            aria-label="Create cover letter"
+            className={`inline-flex h-10 w-10 items-center justify-center ${actionBtn} text-[#16aeac] border-[#16aeac]/40 hover:bg-[#16aeac]/5`}
+          >
+            <PlusIcon className="h-5 w-5" strokeWidth={2.25} />
           </button>
         )}
         {mode === "editor" && (

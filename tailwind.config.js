@@ -31,7 +31,7 @@ export default {
         },
       },
       borderRadius: {
-        study: '1.5rem',
+        study: '1.3rem',
       },
       maxWidth: {
         '8xl': '88rem',

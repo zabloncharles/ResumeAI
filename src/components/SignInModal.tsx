@@ -11,6 +11,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { InputValidator, CommonValidations } from "../utils/validation";
 import { sanitize } from "../utils/sanitize";
 import { createRateLimitedActions } from "../utils/rateLimit";
+import { recordAnalyticsEvent } from "../utils/analyticsEvents";
+import { resolveUserLocationCoords } from "../utils/userLocation";
 import bunny1 from "../bunny1.png";
 
 type AuthModalMode = "signIn" | "register";
@@ -232,26 +234,6 @@ const SignInModal = ({
     }
   };
 
-  // Helper: Fetch coordinates for a zip code using Zippopotam.us API
-  const getRandomCoordForZip = async (zip: string) => {
-    if (!zip || zip.trim() === "") return "";
-    try {
-      const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
-      if (!res.ok) return "";
-      const data = await res.json();
-      if (!data.places || !data.places[0]) return "";
-      const lat = parseFloat(data.places[0].latitude);
-      const lng = parseFloat(data.places[0].longitude);
-      // Add a small random offset (±0.01) to latitude and longitude
-      const randLat = lat + (Math.random() - 0.5) * 0.02;
-      const randLng = lng + (Math.random() - 0.5) * 0.02;
-      return `${randLat},${randLng}`;
-    } catch (error) {
-      if (import.meta.env.DEV) console.warn("Location API error (non-critical):", error);
-      return "";
-    }
-  };
-
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -281,20 +263,18 @@ const SignInModal = ({
           password
         );
         
-        // Try to get location, but don't fail if it doesn't work
-        let location = "";
-        try {
-          location = await getRandomCoordForZip(zip);
-        } catch (locationError) {
-          if (import.meta.env.DEV) console.warn("Location fetch failed, continuing without location");
-        }
-        
-        // Sanitize user data before saving
+        const resolved = await resolveUserLocationCoords({
+          zip,
+          state: stateField,
+          seed: userCredential.user.uid,
+        });
+        const resolvedState = stateField || resolved.detectedState || "";
+
         const sanitizedUserData = sanitize.object({
           email: userCredential.user.email || '',
           firstName,
           lastName,
-          state: stateField,
+          state: resolvedState,
           zip,
           phone: "",
         }, ['firstName', 'lastName', 'state'], ['email'], [], []);
@@ -303,12 +283,13 @@ const SignInModal = ({
           ...sanitizedUserData,
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString(),
-          location,
+          location: resolved.location,
           resumeIds: [],
           totalTokens: 0,
           totalApiCalls: 0,
           type: "free",
         });
+        void recordAnalyticsEvent("userSignup");
         setVerificationSent(true);
       } else {
         const userCredential = await signInWithEmailAndPassword(
@@ -316,11 +297,24 @@ const SignInModal = ({
           email,
           password
         );
-        await setDoc(
-          doc(db, "users", userCredential.user.uid),
-          { lastLogin: new Date().toISOString() },
-          { merge: true }
-        );
+        const userRef = doc(db, "users", userCredential.user.uid);
+        const existing = await getDoc(userRef);
+        const patch: Record<string, string> = {
+          lastLogin: new Date().toISOString(),
+        };
+        if (existing.exists() && !existing.data().location) {
+          const data = existing.data();
+          const resolved = await resolveUserLocationCoords({
+            zip: String(data.zip || ""),
+            state: String(data.state || ""),
+            seed: userCredential.user.uid,
+          });
+          if (resolved.location) patch.location = resolved.location;
+          if (!data.state && resolved.detectedState) {
+            patch.state = resolved.detectedState;
+          }
+        }
+        await setDoc(userRef, patch, { merge: true });
         onSuccess();
         onClose();
       }
@@ -371,16 +365,24 @@ const SignInModal = ({
         if (!data.lastName && googleLastName) {
           patch.lastName = googleLastName;
         }
-        await setDoc(userRef, patch, { merge: true });
-      } else {
-        let location = "";
-        try {
-          location = await getRandomCoordForZip(zip);
-        } catch {
-          if (import.meta.env.DEV) {
-            console.warn("Location fetch failed, continuing without location");
+        if (!data.location) {
+          const resolved = await resolveUserLocationCoords({
+            zip: String(data.zip || zip || ""),
+            state: String(data.state || stateField || ""),
+            seed: userCredential.user.uid,
+          });
+          if (resolved.location) patch.location = resolved.location;
+          if (!data.state && resolved.detectedState) {
+            patch.state = resolved.detectedState;
           }
         }
+        await setDoc(userRef, patch, { merge: true });
+      } else {
+        const resolved = await resolveUserLocationCoords({
+          zip,
+          state: stateField,
+          seed: userCredential.user.uid,
+        });
 
         await setDoc(userRef, {
           email: userCredential.user.email ?? "",
@@ -388,15 +390,16 @@ const SignInModal = ({
           lastName: googleLastName,
           createdAt: now,
           lastLogin: now,
-          location,
+          location: resolved.location,
           phone: "",
           resumeIds: [],
-          state: stateField,
+          state: stateField || resolved.detectedState || "",
           zip,
           totalTokens: 0,
           totalApiCalls: 0,
           type: "free",
         });
+        void recordAnalyticsEvent("userSignup");
       }
 
       onSuccess();

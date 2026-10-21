@@ -2,13 +2,17 @@ import {
   PlusIcon,
   BookOpenIcon,
   ChevronDownIcon,
+  PlayCircleIcon,
+  MicrophoneIcon,
 } from "@heroicons/react/24/outline";
+import { Link } from "react-router-dom";
 import {
   displayStudySetCategory,
   studyCategorySearchText,
 } from "../../constants/studyCategories";
 import type { StudySet } from "../../types/study";
 import StudySectionHeader from "./StudySectionHeader";
+import blueOrb from "../../blueorb.mp4";
 
 export function getSetReviewProgress(set: StudySet) {
   const total = set.flashcards?.length || set.cardCount || 0;
@@ -122,18 +126,22 @@ export function filterSetsBySearch(sets: StudySet[], query: string) {
 type HubQuickActionsProps = {
   onCreateSet: () => void;
   onAddPublicSet: () => void;
+  fromTranscriptTo?: string;
+  podcastTo?: string;
 };
 
 export function StudyHubQuickActions({
   onCreateSet,
   onAddPublicSet,
+  fromTranscriptTo = "/create/from-transcript",
+  podcastTo = "/podcast",
 }: HubQuickActionsProps) {
   return (
     <section className="w-full max-w-4xl self-start min-w-0 mb-8">
       <StudySectionHeader
         className="mb-4"
         title="Get started"
-        description="Create your own flashcards or import a set someone shared with you."
+        description="Create flashcards, import a set, turn a transcript into cards, or make a teaching podcast."
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
@@ -153,13 +161,53 @@ export function StudyHubQuickActions({
           <ChevronDownIcon className="h-5 w-5 text-gray-400 dark:text-zinc-500 rotate-[-90deg] hidden sm:block" />
         </button>
 
+        <Link
+          to={fromTranscriptTo}
+          className="study-round flex items-center justify-between px-5 py-4 bg-rose-50 dark:bg-rose-950/35 border border-rose-100 dark:border-rose-900/45 hover:bg-rose-100/80 dark:hover:bg-rose-950/55 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-zinc-950 text-rose-600 dark:text-rose-400 border border-rose-100/80 dark:border-rose-900/50 shadow-sm">
+              <PlayCircleIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 dark:text-zinc-100">
+                From YouTube transcript
+              </p>
+              <p className="text-sm text-gray-600 dark:text-zinc-400">
+                High level or detailed
+              </p>
+            </div>
+          </div>
+          <ChevronDownIcon className="h-5 w-5 text-gray-400 dark:text-zinc-500 rotate-[-90deg] hidden sm:block shrink-0" />
+        </Link>
+
+        <Link
+          to={podcastTo}
+          className="study-round flex items-center justify-between px-5 py-4 bg-violet-50 dark:bg-violet-950/35 border border-violet-100 dark:border-violet-900/45 hover:bg-violet-100/80 dark:hover:bg-violet-950/55 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-zinc-950 text-violet-600 dark:text-violet-400 border border-violet-100/80 dark:border-violet-900/50 shadow-sm">
+              <MicrophoneIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 dark:text-zinc-100">
+                Podcast
+              </p>
+              <p className="text-sm text-gray-600 dark:text-zinc-400">
+                Emotion and mannerism you choose
+              </p>
+            </div>
+          </div>
+          <ChevronDownIcon className="h-5 w-5 text-gray-400 dark:text-zinc-500 rotate-[-90deg] hidden sm:block shrink-0" />
+        </Link>
+
         <button
           type="button"
           onClick={onAddPublicSet}
-          className="study-round flex items-center justify-between px-5 py-4 bg-violet-50 dark:bg-violet-950/35 border border-violet-100 dark:border-violet-900/45 hover:bg-violet-100/80 dark:hover:bg-violet-950/55 transition-colors text-left"
+          className="study-round flex items-center justify-between px-5 py-4 bg-indigo-50 dark:bg-indigo-950/35 border border-indigo-100 dark:border-indigo-900/45 hover:bg-indigo-100/80 dark:hover:bg-indigo-950/55 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white dark:bg-zinc-950 text-violet-600 dark:text-violet-400 border border-violet-100/80 dark:border-violet-900/50 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white dark:bg-zinc-950 text-indigo-600 dark:text-indigo-400 border border-indigo-100/80 dark:border-indigo-900/50 shadow-sm">
               <BookOpenIcon className="h-5 w-5" />
             </span>
             <div>
@@ -189,43 +237,56 @@ export function StudyHubJumpBack({ set, onContinue }: JumpBackProps) {
         title="Jump back in"
         description="Continue the set you were studying most recently."
       />
-      <div className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-stretch">
-          <div className="flex-1 p-6 md:p-8">
-            <p className="text-sm font-medium text-[#16aeac] mb-1">
+      <div className="study-round relative overflow-hidden border border-sky-100 bg-sky-50/40 shadow-sm dark:border-zinc-800 dark:bg-black">
+        <div
+          className="pointer-events-none absolute inset-0 hidden md:block"
+          aria-hidden
+        >
+          <video
+            src={blueOrb}
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            className="absolute inset-0 h-full w-full scale-125 object-cover object-right opacity-90 motion-reduce:hidden dark:invert"
+          />
+          <div className="absolute inset-0 bg-sky-50/55 backdrop-blur-md dark:bg-black/50" />
+          <div className="absolute inset-0 bg-gradient-to-r from-sky-50 from-[18%] via-sky-50/80 via-[42%] to-sky-50/30 to-[80%] dark:from-black dark:via-black/80 dark:to-black/30" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,_rgba(2,132,199,0.14),_transparent_55%)] dark:bg-[radial-gradient(ellipse_at_70%_50%,_rgba(2,132,199,0.16),_transparent_55%)]" />
+        </div>
+        <div className="relative z-10 p-6 md:p-8">
+          <div className="md:max-w-[55%] mb-4">
+            <p className="mb-1 text-sm font-medium text-sky-600 dark:text-sky-400">
               {displayStudySetCategory(set)}
             </p>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-4">{set.title}</h3>
-            <div className="mb-2 flex items-center justify-between text-sm text-gray-600 dark:text-zinc-400">
-              <span>
-                {reviewed}/{total} cards reviewed
-              </span>
-              <span>{percent}%</span>
-            </div>
-            <div className="w-full max-w-md bg-gray-200 dark:bg-zinc-700 rounded-full h-2.5 mb-6">
-              <div
-                className="bg-[#16aeac] h-2.5 rounded-full transition-all"
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={onContinue}
-              className="study-btn px-8 py-3 font-semibold"
-            >
-              Continue
-            </button>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {set.title}
+            </h3>
+            {set.description?.trim() ? (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                {set.description.trim()}
+              </p>
+            ) : null}
           </div>
-          <div
-            className="hidden md:flex md:w-48 lg:w-56 items-end justify-center bg-gradient-to-br from-sky-100 to-sky-50 p-6"
-            aria-hidden
+          <div className="mb-2 flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
+            <span>
+              {reviewed}/{total} cards reviewed
+            </span>
+            <span>{percent}%</span>
+          </div>
+          <div className="mb-6 h-2.5 w-full rounded-full bg-sky-200/70 dark:bg-zinc-800">
+            <div
+              className="h-2.5 rounded-full bg-sky-500 transition-all"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="study-btn px-8 py-3 font-semibold"
           >
-            <div className="space-y-2 rotate-[-6deg]">
-              <div className="w-28 h-16 bg-white rounded-lg shadow-md border border-sky-100" />
-              <div className="w-28 h-16 bg-sky-200/80 rounded-lg shadow-md ml-4" />
-              <div className="w-28 h-16 bg-white rounded-lg shadow-md border border-sky-100" />
-            </div>
-          </div>
+            Continue
+          </button>
         </div>
       </div>
     </section>
@@ -247,7 +308,7 @@ export function StudyHubRecents({ sets, onOpenSet }: RecentsProps) {
         title="Recents"
         description="Sets you opened lately—tap one to start studying again."
       />
-      <ul className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 divide-y divide-gray-100 dark:divide-zinc-800 shadow-sm">
+      <ul className="study-round overflow-hidden bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 divide-y divide-gray-100 dark:divide-zinc-800 shadow-sm">
         {sets.map((set) => (
           <li key={set.id}>
             <button

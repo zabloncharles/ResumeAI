@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply antialiased text-gray-900 bg-white dark:text-zinc-100 dark:bg-zinc-950;
   }
@@ -30,11 +34,108 @@
   }
 
   .study-btn {
-    @apply bg-study-accent text-white rounded-study hover:opacity-90 transition-opacity;
+    @apply bg-sky-600 text-white rounded-study hover:bg-sky-700 transition-colors;
+  }
+
+  .study-btn-rose {
+    @apply bg-rose-600 text-white rounded-study hover:bg-rose-700 transition-colors;
+  }
+
+  .study-btn-violet {
+    @apply bg-violet-600 text-white rounded-study hover:bg-violet-700 transition-colors;
   }
 
   .study-round {
     @apply rounded-study;
+  }
+
+  .podcast-scrubber {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: rgb(228 228 231);
+    accent-color: rgb(139 92 246);
+    cursor: pointer;
+  }
+
+  .dark .podcast-scrubber {
+    background: rgb(63 63 70);
+  }
+
+  .podcast-scrubber::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    background: rgb(139 92 246);
+    border: none;
+  }
+
+  .podcast-scrubber::-moz-range-thumb {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    background: rgb(139 92 246);
+    border: none;
+  }
+
+  .podcast-eq {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.2rem;
+    height: 1.75rem;
+  }
+
+  .podcast-eq span {
+    width: 0.2rem;
+    border-radius: 9999px;
+    background: rgb(139 92 246);
+    opacity: 0.55;
+    transform-origin: bottom;
+    height: 35%;
+  }
+
+  .podcast-eq.is-live span {
+    opacity: 0.95;
+    animation: podcast-eq-pulse 0.9s ease-in-out infinite;
+  }
+
+  .podcast-eq span:nth-child(1) { height: 40%; animation-delay: 0ms; }
+  .podcast-eq span:nth-child(2) { height: 70%; animation-delay: 80ms; }
+  .podcast-eq span:nth-child(3) { height: 45%; animation-delay: 160ms; }
+  .podcast-eq span:nth-child(4) { height: 90%; animation-delay: 240ms; }
+  .podcast-eq span:nth-child(5) { height: 55%; animation-delay: 320ms; }
+  .podcast-eq span:nth-child(6) { height: 75%; animation-delay: 400ms; }
+  .podcast-eq span:nth-child(7) { height: 35%; animation-delay: 480ms; }
+
+  @keyframes podcast-eq-pulse {
+    0%,
+    100% {
+      transform: scaleY(0.45);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .podcast-eq.is-live span {
+      animation: none;
+      transform: none;
+    }
   }
 
   .section-card {

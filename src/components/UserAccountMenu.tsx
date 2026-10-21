@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -84,6 +84,30 @@ export default function UserAccountMenu({
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (menuRef.current && target && !menuRef.current.contains(target)) {
+        setIsSettingsOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsSettingsOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isSettingsOpen]);
 
   const handleSignOut = async () => {
     try {
@@ -127,7 +151,7 @@ export default function UserAccountMenu({
       <span className="text-gray-700 dark:text-zinc-300 font-medium whitespace-nowrap text-sm">
         Hi, {firstName}
       </span>
-      <div className="relative shrink-0">
+      <div className="relative shrink-0" ref={menuRef}>
         <button
           type="button"
           onClick={() => setIsSettingsOpen(!isSettingsOpen)}

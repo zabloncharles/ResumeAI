@@ -88,6 +88,10 @@ import {
   issuePrivateShareCredentials,
   resolvePrivateShareImport,
 } from "../utils/studyPublicSet";
+import {
+  invalidateStudySetsCache,
+  studySetsCacheKey,
+} from "../utils/studySetsCache";
 
 const STUDY_IDLE_MS = 60_000;
 
@@ -142,6 +146,7 @@ const Study = () => {
   const [filter, setFilter] = useState<"all" | "my" | "public" | "borrowed">(
     "all"
   );
+  const [setsRefreshKey, setSetsRefreshKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessionSidebarOpen, setSessionSidebarOpen] = useState(false);
@@ -303,12 +308,10 @@ const Study = () => {
 
     const loadStudySets = async () => {
       try {
-        // Check localStorage first
-        const cacheKey = `studySets_${memoizedUser.uid}`;
+        const cacheKey = studySetsCacheKey(memoizedUser.uid);
         const cachedData = localStorage.getItem(cacheKey);
         const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
 
-        // Use cache if it's less than 10 minutes old
         const isCacheValid =
           cacheTimestamp &&
           Date.now() - parseInt(cacheTimestamp) < 10 * 60 * 1000;
@@ -341,10 +344,8 @@ const Study = () => {
             })),
           }));
           setStudySets(revivedSets);
-          return;
         }
 
-        // Load from Firebase only if cache is invalid
         if (import.meta.env.DEV)
           console.log("Loading study sets from Firebase (one-time load)");
         let q;
@@ -457,7 +458,7 @@ const Study = () => {
     };
 
     loadStudySets();
-  }, [memoizedUser, memoizedFilter]);
+  }, [memoizedUser, memoizedFilter, setsRefreshKey]);
 
   // Debounced user stats loading to prevent excessive calls
   const loadUserStats = useCallback(async () => {
@@ -1079,6 +1080,9 @@ const Study = () => {
 
       await Promise.all(addFlashcardPromises);
 
+      invalidateStudySetsCache(memoizedUser.uid);
+      setSetsRefreshKey((key) => key + 1);
+
       // Reset import form
       setImportForm({ code: "", password: "" });
       setShowImportPublicModal(false);
@@ -1104,6 +1108,8 @@ const Study = () => {
 
       // Delete the study set
       await deleteDoc(doc(db, "studySets", setId));
+      invalidateStudySetsCache(memoizedUser.uid);
+      setStudySets((prev) => prev.filter((set) => set.id !== setId));
     } catch (error) {
       console.error("Error deleting study set:", error);
     }
@@ -1940,6 +1946,16 @@ const Study = () => {
     <div className="flex w-full flex-col flex-1 min-h-0">
         <StudyHubQuickActions
           onCreateSet={() => goCreateSet()}
+          fromTranscriptTo={
+            folderId && folderId !== UNCATEGORIZED_FOLDER_ID
+              ? `/create/from-transcript?folder=${folderId}`
+              : "/create/from-transcript"
+          }
+          podcastTo={
+            folderId && folderId !== UNCATEGORIZED_FOLDER_ID
+              ? `/podcast?folder=${folderId}`
+              : "/podcast"
+          }
           onAddPublicSet={() => setShowImportPublicModal(true)}
         />
 
@@ -1957,9 +1973,9 @@ const Study = () => {
 
         <Link
           to="/study/performance"
-          className="study-round flex items-center justify-between w-full max-w-4xl self-start mb-10 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 px-5 py-4 shadow-sm hover:border-sky-200 dark:hover:border-sky-800 transition-colors"
+          className="study-round flex items-center gap-4 w-full max-w-4xl self-start mb-10 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 px-5 py-4 shadow-sm hover:border-sky-200 dark:hover:border-sky-800 transition-colors"
         >
-          <div className="min-w-0 text-left">
+          <div className="min-w-0 flex-1 text-left">
             <StudySectionHeader
               title="Performance"
               description="Charts, streaks, heatmaps, and your full session history."
@@ -1969,7 +1985,34 @@ const Study = () => {
               sessions · Level {userStats.level}
             </p>
           </div>
-          <ChevronDownIcon className="h-5 w-5 shrink-0 text-gray-400 rotate-[-90deg]" aria-hidden />
+          <div
+            className="hidden sm:grid shrink-0 grid-cols-7 gap-1"
+            aria-hidden
+          >
+            {[
+              0, 1, 0, 2, 1, 0, 3, 2, 0, 1, 4, 2, 0, 1, 3, 4, 1, 0, 2, 3, 1, 0,
+              4, 2, 1, 0, 3, 2, 0, 1, 2, 4, 3, 1, 0,
+            ].map((level, i) => (
+              <span
+                key={i}
+                className={`h-2.5 w-2.5 rounded-sm ${
+                  level === 0
+                    ? "bg-gray-200 dark:bg-zinc-800"
+                    : level === 1
+                      ? "bg-sky-200 dark:bg-sky-950"
+                      : level === 2
+                        ? "bg-sky-300 dark:bg-sky-800"
+                        : level === 3
+                          ? "bg-sky-500 dark:bg-sky-600"
+                          : "bg-sky-600 dark:bg-sky-400"
+                }`}
+              />
+            ))}
+          </div>
+          <ChevronDownIcon
+            className="h-5 w-5 shrink-0 text-gray-400 rotate-[-90deg]"
+            aria-hidden
+          />
         </Link>
 
         <section className="w-full flex flex-col flex-1 min-h-0 pb-20">

@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   RectangleStackIcon,
@@ -21,6 +23,15 @@ export default function StudySessionSidebar({
   mobileOpen,
   onCloseMobile,
 }: StudySessionSidebarProps) {
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCloseMobile();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen, onCloseMobile]);
+
   const modeLinkClass = (active: boolean) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-left ${
       active
@@ -86,16 +97,19 @@ export default function StudySessionSidebar({
 
   return (
     <>
-      {mobileOpen && (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
-          aria-label="Close menu"
-          onClick={onCloseMobile}
-        />
-      )}
+      {mobileOpen
+        ? createPortal(
+            <button
+              type="button"
+              className="fixed inset-0 z-[100] bg-black/30 lg:hidden"
+              aria-label="Close menu"
+              onClick={onCloseMobile}
+            />,
+            document.body
+          )
+        : null}
       <aside
-        className={`fixed lg:sticky top-0 z-50 lg:z-auto h-full lg:h-[calc(100vh-0px)] w-64 shrink-0 flex flex-col bg-gray-50 dark:bg-zinc-950 border-r border-gray-200 dark:border-zinc-800 transform transition-transform duration-200 ${
+        className={`fixed lg:sticky top-0 z-[110] lg:z-auto h-full lg:h-[calc(100vh-0px)] w-64 shrink-0 flex flex-col bg-gray-50 dark:bg-zinc-950 border-r border-gray-200 dark:border-zinc-800 transform transition-transform duration-200 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >

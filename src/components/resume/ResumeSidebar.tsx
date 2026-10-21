@@ -3,10 +3,11 @@ import {
   DocumentTextIcon,
   QuestionMarkCircleIcon,
   HomeIcon,
+  EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 import bunny1 from "../../bunny1.png";
 
-export type ResumeWorkspaceTab = "home" | "help" | "editor";
+export type ResumeWorkspaceTab = "home" | "help" | "editor" | "coverLetter";
 
 type ResumeSidebarProps = {
   activeTab: ResumeWorkspaceTab;
@@ -54,6 +55,14 @@ export default function ResumeSidebar({
         >
           <HomeIcon className="h-5 w-5 shrink-0" />
           Home
+        </Link>
+        <Link
+          to="/cover-letter"
+          onClick={onCloseMobile}
+          className={navLinkClass(activeTab === "coverLetter")}
+        >
+          <EnvelopeIcon className="h-5 w-5 shrink-0" />
+          Cover letter
         </Link>
         <Link
           to="/resume/help"

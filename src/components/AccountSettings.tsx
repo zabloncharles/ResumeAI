@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { resolveUserLocationCoords } from "../utils/userLocation";
 import { useTheme } from "../contexts/ThemeContext";
 import { clearDeviceStoredData } from "../utils/accountDeviceData";
 import { deleteAllUserFirestoreData } from "../utils/deleteAccountData";
@@ -18,17 +19,16 @@ import {
   userNeedsPasswordReauth,
 } from "../utils/reauthenticateUser";
 
-function formatLastUsed(value: unknown): string {
-  if (value == null || value === "") return "-";
+const FREE_AI_ACTIONS_SOFT_LIMIT = 100;
+
+function parseLastUsedDate(value: unknown): Date | null {
+  if (value == null || value === "") return null;
   if (typeof value === "string") {
     const parsed = Date.parse(value);
-    if (!Number.isNaN(parsed)) {
-      return new Date(parsed).toLocaleString();
-    }
-    return value;
+    return Number.isNaN(parsed) ? null : new Date(parsed);
   }
   if (value instanceof Timestamp) {
-    return value.toDate().toLocaleString();
+    return value.toDate();
   }
   if (
     typeof value === "object" &&
@@ -36,9 +36,28 @@ function formatLastUsed(value: unknown): string {
     "seconds" in value &&
     typeof (value as { seconds: number }).seconds === "number"
   ) {
-    return new Date((value as { seconds: number }).seconds * 1000).toLocaleString();
+    return new Date((value as { seconds: number }).seconds * 1000);
   }
-  return "-";
+  return null;
+}
+
+function formatLastUsedAbsolute(value: unknown): string {
+  const date = parseLastUsedDate(value);
+  return date ? date.toLocaleString() : "-";
+}
+
+function formatLastUsedRelative(date: Date | null): string {
+  if (!date) return "Not used yet";
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 0) return "Just now";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return date.toLocaleDateString();
 }
 
 function resolveApiCallCount(data: Record<string, unknown>): number {
@@ -71,9 +90,11 @@ const AccountSettings = () => {
   const [apiUsage, setApiUsage] = useState<{
     totalApiCalls: number;
     totalTokens: number;
-    lastUsed: string;
+    lastUsedAbsolute: string;
+    lastUsedAt: Date | null;
   } | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
+  const [isUsageDetailsOpen, setIsUsageDetailsOpen] = useState(false);
   const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
   const [isAdvancedPrivacyOpen, setIsAdvancedPrivacyOpen] = useState(false);
   const [privacyActionError, setPrivacyActionError] = useState("");
@@ -137,7 +158,8 @@ const AccountSettings = () => {
             totalApiCalls: resolveApiCallCount(data),
             totalTokens:
               typeof data.totalTokens === "number" ? data.totalTokens : 0,
-            lastUsed: formatLastUsed(data.lastUsed),
+            lastUsedAbsolute: formatLastUsedAbsolute(data.lastUsed),
+            lastUsedAt: parseLastUsedDate(data.lastUsed),
           });
           const profile = {
             firstName: data.firstName || "",
@@ -155,11 +177,21 @@ const AccountSettings = () => {
           localStorage.setItem("userData", JSON.stringify(data));
         } else {
           setUserType("free");
-          setApiUsage({ totalApiCalls: 0, totalTokens: 0, lastUsed: "-" });
+          setApiUsage({
+            totalApiCalls: 0,
+            totalTokens: 0,
+            lastUsedAbsolute: "-",
+            lastUsedAt: null,
+          });
         }
       } catch (e) {
         setUserType("free");
-        setApiUsage({ totalApiCalls: 0, totalTokens: 0, lastUsed: "-" });
+        setApiUsage({
+          totalApiCalls: 0,
+          totalTokens: 0,
+          lastUsedAbsolute: "-",
+          lastUsedAt: null,
+        });
       }
       setLoadingUsage(false);
     };
@@ -190,13 +222,22 @@ const AccountSettings = () => {
     setIsSavingProfile(true);
     setProfileSaveError("");
     try {
+      const state = formData.state.trim();
+      const zip = formData.zip.trim();
+      const resolved = await resolveUserLocationCoords({
+        zip,
+        state,
+        seed: user.uid,
+      });
+      const nextState = state || resolved.detectedState || "";
       const payload = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        state: formData.state.trim(),
-        zip: formData.zip.trim(),
+        state: nextState,
+        zip,
+        ...(resolved.location ? { location: resolved.location } : {}),
       };
       await updateDoc(doc(db, "users", user.uid), payload);
       setProfileBaseline(payload);
@@ -525,39 +566,119 @@ const AccountSettings = () => {
             )}
           </div>
 
-          {/* Account Usage Section */}
+          {/* AI Usage Section */}
           <div className={settingsCardClass}>
-            <h2 className={settingsHeadingClass}>Account Usage</h2>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4">
+              <div>
+                <h2 className={`${settingsHeadingClass} mb-1`}>AI usage</h2>
+                <p className="text-sm text-gray-500 dark:text-zinc-400">
+                  Resume AI, cover letters, ATS checks, Study from transcript,
+                  and podcasts.
+                </p>
+              </div>
+              {userType && (
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  {userType === "admin"
+                    ? "Admin"
+                    : userType === "pro"
+                    ? "Pro"
+                    : userType === "premium" || userType === "paid"
+                    ? "Premium"
+                    : "Free"}{" "}
+                  plan
+                </span>
+              )}
+            </div>
             {loadingUsage ? (
               <div className="text-gray-500 dark:text-zinc-400">
                 Loading usage data...
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 dark:bg-zinc-900/80 border border-transparent dark:border-zinc-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-500 dark:text-zinc-400">
-                    Total API Calls
+              <div className="space-y-5">
+                <div>
+                  <div className="flex items-baseline justify-between gap-3 mb-2">
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-zinc-400">
+                        AI actions used
+                      </p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-zinc-100 tabular-nums">
+                        {apiUsage?.totalApiCalls ?? 0}
+                        <span className="text-base font-medium text-zinc-400 dark:text-zinc-500">
+                          {" "}
+                          / {FREE_AI_ACTIONS_SOFT_LIMIT}
+                        </span>
+                      </p>
+                    </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 text-right">
+                      {Math.max(
+                        0,
+                        FREE_AI_ACTIONS_SOFT_LIMIT -
+                          (apiUsage?.totalApiCalls ?? 0)
+                      )}{" "}
+                      left
+                      <span className="block text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                        soft free guide
+                      </span>
+                    </p>
                   </div>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-green-500 to-yellow-500 dark:from-green-400 dark:to-yellow-400 text-transparent bg-clip-text">
-                    {apiUsage?.totalApiCalls ?? 0}
+                  <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#16aeac] transition-all"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            ((apiUsage?.totalApiCalls ?? 0) /
+                              FREE_AI_ACTIONS_SOFT_LIMIT) *
+                              100
+                          )
+                        )}%`,
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-zinc-900/80 border border-transparent dark:border-zinc-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-500 dark:text-zinc-400">
-                    Total Tokens Used
-                  </div>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-green-500 to-yellow-500 dark:from-green-400 dark:to-yellow-400 text-transparent bg-clip-text">
-                    {apiUsage?.totalTokens?.toLocaleString?.() ?? 0}
-                  </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
+                  <span className="text-gray-500 dark:text-zinc-400">
+                    Last AI use
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-zinc-100">
+                    {formatLastUsedRelative(apiUsage?.lastUsedAt ?? null)}
+                  </span>
                 </div>
-                <div className="bg-gray-50 dark:bg-zinc-900/80 border border-transparent dark:border-zinc-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-500 dark:text-zinc-400">
-                    Last Used
+
+                <button
+                  type="button"
+                  onClick={() => setIsUsageDetailsOpen((open) => !open)}
+                  className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline underline-offset-4 decoration-zinc-300 dark:decoration-zinc-600"
+                >
+                  {isUsageDetailsOpen ? "Hide details" : "Show details"}
+                </button>
+
+                {isUsageDetailsOpen && (
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/50 px-4 py-3 text-sm space-y-2">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        Tokens used
+                      </span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">
+                        {apiUsage?.totalTokens?.toLocaleString?.() ?? 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        Last used (exact)
+                      </span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100 text-right">
+                        {apiUsage?.lastUsedAbsolute ?? "-"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-500 pt-1">
+                      Totals are lifetime for now. Monthly resets come with
+                      billing plans later.
+                    </p>
                   </div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-zinc-100 break-words">
-                    {apiUsage?.lastUsed ?? "-"}
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -718,11 +839,18 @@ const AccountSettings = () => {
                     </li>
                     <li>
                       <span className="text-gray-800 dark:text-zinc-200">
+                        Podcasts
+                      </span>{" "}
+                      — teaching episodes you generate (scripts, audio, and
+                      voice settings) tied to your account.
+                    </li>
+                    <li>
+                      <span className="text-gray-800 dark:text-zinc-200">
                         AI usage
                       </span>{" "}
-                      — basic usage stats (such as how often you use AI tools)
-                      to run the product fairly and show activity on your
-                      account.
+                      — basic usage stats (such as how often you use AI tools,
+                      including podcasts) to run the product fairly and show
+                      activity on your account.
                     </li>
                     <li>
                       <span className="text-gray-800 dark:text-zinc-200">

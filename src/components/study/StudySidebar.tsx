@@ -1,9 +1,12 @@
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import {
   HomeIcon,
   RectangleStackIcon,
   GlobeAltIcon,
   ArrowDownTrayIcon,
+  MicrophoneIcon,
   FolderIcon,
   PlusIcon,
   ChartBarIcon,
@@ -11,6 +14,10 @@ import {
 import type { StudyFolder } from "../../types/study";
 import type { StudyFilter } from "../StudyWorkspaceNav";
 import { UNCATEGORIZED_FOLDER_ID } from "../../types/study";
+import {
+  studyFlowAccent,
+  type StudyFlowAccent,
+} from "../../constants/studyFlowAccent";
 import bunny1 from "../../bunny1.png";
 
 type StudySidebarProps = {
@@ -21,6 +28,7 @@ type StudySidebarProps = {
   onNewFolder: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  accent?: StudyFlowAccent;
 };
 
 const folderColors = [
@@ -43,22 +51,46 @@ export default function StudySidebar({
   onNewFolder,
   mobileOpen,
   onCloseMobile,
+  accent = "default",
 }: StudySidebarProps) {
   const location = useLocation();
   const path = location.pathname;
   const pathNorm = path.replace(/\/$/, "") || "/";
+  const flow = studyFlowAccent(accent);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCloseMobile();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen, onCloseMobile]);
 
   const isHome = pathNorm === "/study";
   const isLibrary = path.startsWith("/study/library");
+  const isPodcasts = pathNorm === "/podcast";
   const isPerformance = pathNorm === "/study/performance";
+  const podcastFolderId = isPodcasts
+    ? new URLSearchParams(location.search).get("folder")
+    : null;
   const activeFolderId = path.startsWith("/study/folder/")
     ? path.replace("/study/folder/", "").split("/")[0]
-    : null;
+    : podcastFolderId;
+
+  const navActiveClass =
+    accent === "rose"
+      ? "bg-rose-50 text-rose-900 dark:bg-rose-950/80 dark:text-rose-100"
+      : accent === "violet"
+        ? "bg-violet-50 text-violet-900 dark:bg-violet-950/80 dark:text-violet-100"
+        : accent === "indigo"
+          ? "bg-indigo-50 text-indigo-900 dark:bg-indigo-950/80 dark:text-indigo-100"
+          : "bg-sky-50 text-sky-900 dark:bg-sky-950/80 dark:text-sky-100";
 
   const navLinkClass = (active: boolean) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
       active
-        ? "bg-sky-50 text-sky-900 dark:bg-sky-950/80 dark:text-sky-100"
+        ? navActiveClass
         : "text-gray-700 hover:bg-gray-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
     }`;
 
@@ -72,7 +104,9 @@ export default function StudySidebar({
       >
         <img src={bunny1} alt="" className="h-10 w-10 shrink-0" />
         <div className="min-w-0">
-          <p className="text-lg font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent truncate">
+          <p
+            className={`text-lg font-bold ${flow.brandGradient} truncate`}
+          >
             Brightfolio
           </p>
           <p className="text-sm text-gray-500 dark:text-zinc-500">Study</p>
@@ -122,6 +156,14 @@ export default function StudySidebar({
           Borrowed
         </Link>
         <Link
+          to="/podcast"
+          onClick={onCloseMobile}
+          className={navLinkClass(isPodcasts)}
+        >
+          <MicrophoneIcon className="h-5 w-5 shrink-0" />
+          Podcasts
+        </Link>
+        <Link
           to="/study/performance"
           onClick={onCloseMobile}
           className={navLinkClass(isPerformance)}
@@ -139,7 +181,11 @@ export default function StudySidebar({
         {folders.map((folder, index) => (
           <Link
             key={folder.id}
-            to={`/study/folder/${folder.id}`}
+            to={
+              isPodcasts
+                ? `/podcast?folder=${folder.id}`
+                : `/study/folder/${folder.id}`
+            }
             onClick={onCloseMobile}
             className={navLinkClass(activeFolderId === folder.id)}
           >
@@ -154,7 +200,11 @@ export default function StudySidebar({
 
         {uncategorizedCount > 0 && (
           <Link
-            to={`/study/folder/${UNCATEGORIZED_FOLDER_ID}`}
+            to={
+              isPodcasts
+                ? `/podcast?folder=${UNCATEGORIZED_FOLDER_ID}`
+                : `/study/folder/${UNCATEGORIZED_FOLDER_ID}`
+            }
             onClick={onCloseMobile}
             className={navLinkClass(activeFolderId === UNCATEGORIZED_FOLDER_ID)}
           >
@@ -183,16 +233,19 @@ export default function StudySidebar({
 
   return (
     <>
-      {mobileOpen && (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
-          aria-label="Close menu"
-          onClick={onCloseMobile}
-        />
-      )}
+      {mobileOpen
+        ? createPortal(
+            <button
+              type="button"
+              className="fixed inset-0 z-[100] bg-black/30 lg:hidden"
+              aria-label="Close menu"
+              onClick={onCloseMobile}
+            />,
+            document.body
+          )
+        : null}
       <aside
-        className={`fixed lg:sticky top-0 z-50 lg:z-auto h-full lg:h-[calc(100vh-0px)] w-64 shrink-0 flex flex-col bg-gray-50 dark:bg-zinc-950 border-r border-gray-200 dark:border-zinc-800 transform transition-transform duration-200 ${
+        className={`fixed lg:sticky top-0 z-[110] lg:z-auto h-full lg:h-[calc(100vh-0px)] w-64 shrink-0 flex flex-col bg-gray-50 dark:bg-zinc-950 border-r border-gray-200 dark:border-zinc-800 transform transition-transform duration-200 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >

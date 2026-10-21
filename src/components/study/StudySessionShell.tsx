@@ -51,7 +51,9 @@ export default function StudySessionShell({
           timerIdlePaused={timerIdlePaused}
           idlePauseCountdownActive={idlePauseCountdownActive}
           idlePauseSecondsRemaining={idlePauseSecondsRemaining}
-          onMenuClick={onSidebarOpen}
+          onMenuClick={() =>
+            sidebarOpen ? onSidebarClose() : onSidebarOpen()
+          }
           onBackToStudy={onEndSession}
         />
         <main className="flex-1 flex flex-col min-h-0 overflow-y-auto px-4 py-6 lg:px-8">

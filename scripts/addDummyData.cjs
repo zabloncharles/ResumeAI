@@ -27,7 +27,7 @@ async function addDummyData() {
       lastName: "Johnson",
       createdAt: new Date(),
       location: "40.7128,-74.0060",
-      type: "paid",
+      type: "premium",
       state: "New York",
     },
     {

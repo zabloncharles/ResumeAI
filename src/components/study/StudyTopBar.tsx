@@ -7,6 +7,10 @@ import {
 } from "@heroicons/react/24/outline";
 import UserAccountMenu from "../UserAccountMenu";
 import bunny1 from "../../bunny1.png";
+import {
+  studyFlowAccent,
+  type StudyFlowAccent,
+} from "../../constants/studyFlowAccent";
 
 type StudyTopBarPageHeader = {
   title: string;
@@ -20,6 +24,7 @@ type StudyTopBarProps = {
   onCreateSet: () => void;
   onMenuClick: () => void;
   searchPlaceholder?: string;
+  accent?: StudyFlowAccent;
   pageHeader?: StudyTopBarPageHeader;
 };
 
@@ -29,9 +34,11 @@ export default function StudyTopBar({
   onCreateSet,
   onMenuClick,
   searchPlaceholder = "Search for flashcards",
+  accent = "default",
   pageHeader,
 }: StudyTopBarProps) {
   const focused = Boolean(pageHeader);
+  const flow = studyFlowAccent(accent);
 
   return (
     <header className="sticky top-0 z-30 flex h-[5.5rem] shrink-0 items-center gap-3 border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 px-4 lg:px-6">
@@ -77,7 +84,7 @@ export default function StudyTopBar({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full min-w-0 pl-10 pr-4 py-2 bg-gray-100 dark:bg-zinc-800 border-0 rounded-full text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-study-accent"
+            className={`w-full min-w-0 pl-10 pr-4 py-2 bg-gray-100 dark:bg-zinc-800 border border-solid border-[#d7d8d86e] dark:border-[#5e616124] rounded-[15px] text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 ${flow.searchRing}`}
             aria-label="Search"
           />
         </div>
@@ -92,7 +99,9 @@ export default function StudyTopBar({
           aria-label="Brightfolio home"
         >
           <img src={bunny1} alt="" className="h-9 w-9 shrink-0" />
-          <span className="hidden sm:inline text-base font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent truncate">
+          <span
+            className={`hidden sm:inline text-base font-bold ${flow.brandGradient} truncate`}
+          >
             Brightfolio
           </span>
         </Link>
@@ -101,8 +110,8 @@ export default function StudyTopBar({
           <button
             type="button"
             onClick={onCreateSet}
-            aria-label="Create set"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-study-accent hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-study-accent focus:ring-offset-2 dark:focus:ring-offset-zinc-950"
+            aria-label="Create"
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-950 ${flow.plus}`}
           >
             <PlusIcon className="h-6 w-6 shrink-0" strokeWidth={2.25} />
           </button>

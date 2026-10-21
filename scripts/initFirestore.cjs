@@ -61,12 +61,37 @@ async function main() {
     totalTokens: 100,
   });
 
-  // 3. Add a sample analytics document
+  // 3. Platform analytics rollups (Admin SDK writes only)
+  const now = new Date();
+  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
   await db.collection("analytics").doc("global").set({
     totalUsers: 1,
     totalResumes: 1,
-    resumesThisWeek: 1,
+    totalCoverLetters: 0,
+    totalApiCalls: 0,
+    totalTokens: 0,
+    usersFree: 1,
+    usersPremium: 0,
+    usersPro: 0,
+    updatedAt: now.toISOString(),
   });
+  await db
+    .collection("analytics")
+    .doc("monthly")
+    .collection("months")
+    .doc(monthKey)
+    .set({
+      monthKey,
+      users: 1,
+      resumes: 1,
+      coverLetters: 0,
+      apiCalls: 0,
+      tokens: 0,
+      usersFree: 1,
+      usersPremium: 0,
+      usersPro: 0,
+      updatedAt: now.toISOString(),
+    });
 
   console.log("Firestore initialized with sample data.");
 }

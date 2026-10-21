@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
-import Navbar from "./Navbar";
+import AdminShell from "./admin/AdminShell";
 import {
   BarChart,
   Bar,
@@ -15,6 +16,33 @@ import {
 } from "recharts";
 import Globe from "react-globe.gl";
 import { useNavigate } from "react-router-dom";
+import type { ComponentType, SVGProps } from "react";
+import {
+  UsersIcon,
+  DocumentTextIcon,
+  BoltIcon,
+  CircleStackIcon,
+  UserPlusIcon,
+} from "@heroicons/react/24/outline";
+import {
+  emptyMonthChart,
+  emptyPlanRegistrationChart,
+  fetchAnalyticsGlobal,
+  fetchAnalyticsMonthsForYear,
+  type AnalyticsGlobal,
+} from "../utils/analyticsFirestore";
+import {
+  ACCOUNT_PLAN_CHART_COLORS,
+  ACCOUNT_PLAN_LABELS,
+  ACCOUNT_PLANS,
+  isCustomerPlan,
+  normalizeAccountPlan,
+  type AccountPlan,
+  type AccountType,
+} from "../constants/accountPlans";
+import { coordsForUsState } from "../constants/usStateCentroids";
+
+type MetricIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 interface UserData {
   id: string;
@@ -27,641 +55,493 @@ interface UserData {
   totalApiCalls: number;
   totalTokens: number;
   location: string;
-  type: "admin" | "free" | "paid";
+  type: AccountType | "paid";
   state: string;
 }
 
 const Dashboard = () => {
   if (import.meta.env.DEV) console.log("Dashboard component rendered");
-  const { user } = useAuth(); // Use centralized auth context
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const chartTooltipStyles =
+    theme === "dark"
+      ? {
+          contentStyle: {
+            backgroundColor: "#09090b",
+            border: "1px solid #27272a",
+            borderRadius: 12,
+            fontSize: 14,
+            color: "#f4f4f5",
+            boxShadow: "0 8px 28px rgba(0, 0, 0, 0.45)",
+          } as const,
+          itemStyle: { color: "#e4e4e7" } as const,
+          labelStyle: { color: "#a1a1aa", marginBottom: 4 } as const,
+          cursor: { fill: "rgba(255,255,255,0.04)" } as const,
+        }
+      : {
+          contentStyle: {
+            backgroundColor: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            fontSize: 14,
+            color: "#111827",
+            boxShadow: "0 4px 24px 0 rgba(16, 30, 54, 0.12)",
+          } as const,
+          itemStyle: { color: "#374151" } as const,
+          labelStyle: { color: "#6b7280", marginBottom: 4 } as const,
+          cursor: { fill: "rgba(0,0,0,0.04)" } as const,
+        };
   const [recentUsers, setRecentUsers] = useState<UserData[]>([]);
   const [userLocations, setUserLocations] = useState<any[]>([]);
   const [locationArcs, setLocationArcs] = useState<any[]>([]);
   const [topStates, setTopStates] = useState<
     { state: string; count: number; percent: number }[]
   >([]);
+  const [platformStats, setPlatformStats] = useState<AnalyticsGlobal>({
+    totalUsers: 0,
+    totalResumes: 0,
+    totalCoverLetters: 0,
+    totalApiCalls: 0,
+    totalTokens: 0,
+    usersFree: 0,
+    usersPremium: 0,
+    usersPro: 0,
+  });
+  const [planCounts, setPlanCounts] = useState<Record<AccountPlan, number>>({
+    free: 0,
+    premium: 0,
+    pro: 0,
+  });
+  const [newUsersThisWeek, setNewUsersThisWeek] = useState(0);
+  const [currentMonthResumes, setCurrentMonthResumes] = useState(0);
+  const [currentMonthCoverLetters, setCurrentMonthCoverLetters] = useState(0);
   const globeRef = useRef<any>(null);
+  const globeContainerRef = useRef<HTMLDivElement>(null);
+  const [globeWidth, setGlobeWidth] = useState(480);
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Dynamic data for the chart
-  const [profileImpressionData, setProfileImpressionData] = useState([
-    { month: "Jan", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Feb", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Mar", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Apr", coverLetter: 0, resume: 0, users: 0 },
-    { month: "May", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Jun", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Jul", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Aug", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Sep", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Oct", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Nov", coverLetter: 0, resume: 0, users: 0 },
-    { month: "Dec", coverLetter: 0, resume: 0, users: 0 },
-  ]);
+  const [profileImpressionData, setProfileImpressionData] = useState(() =>
+    emptyMonthChart().map(({ month, coverLetter, resume, users }) => ({
+      month,
+      coverLetter,
+      resume,
+      users,
+      applications: 0,
+    }))
+  );
 
-  // State for API calls and tokens per month
-  const [apiTokenChartData, setApiTokenChartData] = useState([
-    { month: "Jan", apiCalls: 0, tokens: 0 },
-    { month: "Feb", apiCalls: 0, tokens: 0 },
-    { month: "Mar", apiCalls: 0, tokens: 0 },
-    { month: "Apr", apiCalls: 0, tokens: 0 },
-    { month: "May", apiCalls: 0, tokens: 0 },
-    { month: "Jun", apiCalls: 0, tokens: 0 },
-    { month: "Jul", apiCalls: 0, tokens: 0 },
-    { month: "Aug", apiCalls: 0, tokens: 0 },
-    { month: "Sep", apiCalls: 0, tokens: 0 },
-    { month: "Oct", apiCalls: 0, tokens: 0 },
-    { month: "Nov", apiCalls: 0, tokens: 0 },
-    { month: "Dec", apiCalls: 0, tokens: 0 },
-  ]);
+  const [apiTokenChartData, setApiTokenChartData] = useState(() =>
+    emptyMonthChart().map(({ month, apiCalls, tokens }) => ({
+      month,
+      apiCalls,
+      tokens,
+    }))
+  );
 
-  // Use centralized auth context - no duplicate listener needed
+  const [planRegistrationData, setPlanRegistrationData] = useState(() =>
+    emptyPlanRegistrationChart()
+  );
+
   useEffect(() => {
-    setIsLoading(false);
-  }, [user]);
-
-  // Redirect if user is not authenticated
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/");
+    if (!user) {
+      if (!isLoading) navigate("/");
+      return;
     }
-  }, [user, isLoading, navigate]);
 
-  useEffect(() => {
-    (async () => {
-      if (!user) return;
+    let cancelled = false;
 
-      const fetchUserData = async () => {
-        try {
-          const userRef = doc(db, "users", user.uid);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = {
-              id: user.uid,
-              email: user.email || "",
-              firstName: userSnap.data().firstName || "",
-              lastName: userSnap.data().lastName || "",
-              createdAt: userSnap.data().createdAt || "",
-              lastLogin: userSnap.data().lastLogin || "",
-              totalResumes: userSnap.data().totalResumes || 0,
-              totalApiCalls: userSnap.data().totalApiCalls || 0,
-              totalTokens: userSnap.data().totalTokens || 0,
-              location: userSnap.data().location || "",
-              type: userSnap.data().type || "free",
-              state: userSnap.data().state || "",
-            };
-            setUserData(userData);
-            localStorage.setItem("userData", JSON.stringify(userData));
-          }
-        } catch (error) {}
-      };
-      fetchUserData();
-    })();
-  }, [user]);
-
-  // Fetch all users once to populate dashboard stats
-  useEffect(() => {
-    const fetchAllUsers = async () => {
+    const loadDashboard = async () => {
       try {
-        const usersSnap = await getDocs(collection(db, "users"));
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          navigate("/");
+          return;
+        }
+
+        const data = userSnap.data();
+        const nextUser: UserData = {
+          id: user.uid,
+          email: user.email || "",
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          createdAt: data.createdAt || "",
+          lastLogin: data.lastLogin || "",
+          totalResumes: data.totalResumes || 0,
+          totalApiCalls: data.totalApiCalls || 0,
+          totalTokens: data.totalTokens || 0,
+          location: data.location || "",
+          type: normalizeAccountPlan(data.type),
+          state: data.state || "",
+        };
+        if (cancelled) return;
+        localStorage.setItem("userData", JSON.stringify(nextUser));
+
+        if (nextUser.type !== "admin") {
+          setIsAdmin(false);
+          navigate("/");
+          return;
+        }
+        setIsAdmin(true);
+
+        const year = new Date().getFullYear();
+        const [global, months, usersSnap] = await Promise.all([
+          fetchAnalyticsGlobal(),
+          fetchAnalyticsMonthsForYear(year),
+          getDocs(collection(db, "users")),
+        ]);
+
+        if (cancelled) return;
+
+        setPlatformStats(global);
+
+        const monthIndex = new Date().getMonth();
+        setCurrentMonthResumes(months[monthIndex]?.resumes ?? 0);
+        setCurrentMonthCoverLetters(months[monthIndex]?.coverLetters ?? 0);
+
+        setProfileImpressionData(
+          months.map((m) => ({
+            month: m.label,
+            coverLetter: m.coverLetters,
+            resume: m.resumes,
+            users: m.users,
+            applications: 0,
+          }))
+        );
+        setApiTokenChartData(
+          months.map((m) => ({
+            month: m.label,
+            apiCalls: m.apiCalls,
+            tokens: m.tokens,
+          }))
+        );
+
         const allUsers: UserData[] = [];
+        const livePlanCounts: Record<AccountPlan, number> = {
+          free: 0,
+          premium: 0,
+          pro: 0,
+        };
+        const planByMonth = emptyPlanRegistrationChart(year);
         usersSnap.forEach((d) => {
-          const data = d.data() as any;
+          const u = d.data() as Record<string, unknown>;
+          const plan = normalizeAccountPlan(u.type);
           allUsers.push({
             id: d.id,
-            email: data.email || "",
-            firstName: data.firstName || "",
-            lastName: data.lastName || "",
-            createdAt: data.createdAt || "",
-            lastLogin: data.lastLogin || "",
-            totalResumes: data.totalResumes || 0,
-            totalApiCalls: data.totalApiCalls || 0,
-            totalTokens: data.totalTokens || 0,
-            location: data.location || "",
-            type: data.type || "free",
-            state: data.state || "",
+            email: String(u.email || ""),
+            firstName: String(u.firstName || ""),
+            lastName: String(u.lastName || ""),
+            createdAt: String(u.createdAt || ""),
+            lastLogin: String(u.lastLogin || ""),
+            totalResumes: Number(u.totalResumes) || 0,
+            totalApiCalls: Number(u.totalApiCalls) || 0,
+            totalTokens: Number(u.totalTokens) || 0,
+            location: String(u.location || ""),
+            type: plan,
+            state: String(u.state || ""),
           });
+          if (isCustomerPlan(plan)) {
+            livePlanCounts[plan] += 1;
+            const created = new Date(String(u.createdAt || ""));
+            if (
+              !Number.isNaN(created.getTime()) &&
+              created.getFullYear() === year
+            ) {
+              planByMonth[created.getMonth()][plan] += 1;
+            }
+          }
         });
+        allUsers.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
         setRecentUsers(allUsers);
+        setPlanCounts(livePlanCounts);
 
-        // Build locations from "lat,lng" in location string if present
-        const locs: any[] = [];
+        const rollupHasPlanData = months.some(
+          (m) => m.usersFree + m.usersPremium + m.usersPro > 0
+        );
+        setPlanRegistrationData(
+          rollupHasPlanData
+            ? months.map((m) => ({
+                month: m.label,
+                monthKey: m.monthKey,
+                free: m.usersFree,
+                premium: m.usersPremium,
+                pro: m.usersPro,
+              }))
+            : planByMonth
+        );
+
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        setNewUsersThisWeek(
+          allUsers.filter((u) => new Date(u.createdAt).getTime() >= weekAgo)
+            .length
+        );
+
+        const locs: { lat: number; lng: number; name: string }[] = [];
         for (const u of allUsers) {
+          const displayName =
+            `${u.firstName} ${u.lastName}`.trim() || u.email || "User";
+          let lat: number | null = null;
+          let lng: number | null = null;
+
           if (
             u.location &&
             typeof u.location === "string" &&
             u.location.includes(",")
           ) {
             const [latStr, lngStr] = u.location.split(",");
-            const lat = parseFloat(latStr);
-            const lng = parseFloat(lngStr);
-            if (!isNaN(lat) && !isNaN(lng)) {
-              locs.push({
-                lat,
-                lng,
-                name:
-                  `${u.firstName} ${u.lastName}`.trim() || u.email || "User",
-              });
+            const parsedLat = parseFloat(latStr);
+            const parsedLng = parseFloat(lngStr);
+            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+              lat = parsedLat;
+              lng = parsedLng;
             }
+          }
+
+          if (lat == null || lng == null) {
+            const fromState = coordsForUsState(u.state, u.id || displayName);
+            if (fromState) {
+              lat = fromState.lat;
+              lng = fromState.lng;
+            }
+          }
+
+          if (lat != null && lng != null) {
+            locs.push({ lat, lng, name: displayName });
           }
         }
         setUserLocations(locs);
         setLocationArcs([]);
 
-        // Top states aggregation (top 3)
         const stateCounts: Record<string, number> = {};
         for (const u of allUsers) {
           if (u.state) stateCounts[u.state] = (stateCounts[u.state] || 0) + 1;
         }
-        const totalUsers = allUsers.length || 1;
-        const top = Object.entries(stateCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([state, count]) => ({
-            state,
-            count,
-            percent: Math.round((count / totalUsers) * 100),
-          }));
-        setTopStates(top);
-
-        // Aggregate API calls & tokens by month from user totals keyed by createdAt month
-        const months = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
-        const apiChart = months.map((m) => ({
-          month: m,
-          apiCalls: 0,
-          tokens: 0,
-        }));
-        const profileChart = months.map((m) => ({
-          month: m,
-          coverLetter: 0,
-          resume: 0,
-          users: 0,
-        }));
-
-        for (const u of allUsers) {
-          let createdAtDate: Date | null = null;
-          if (u.createdAt) {
-            const d = new Date(u.createdAt as string);
-            if (!isNaN(d.getTime())) createdAtDate = d;
-          }
-          const m = createdAtDate ? createdAtDate.getMonth() : 0;
-          apiChart[m].apiCalls += u.totalApiCalls || 0;
-          apiChart[m].tokens += u.totalTokens || 0;
-          profileChart[m].users += 1;
-          // If you track monthly resume/coverLetter counts per user, add here. Otherwise leave 0.
-        }
-        // Fetch resumes and aggregate by month
-        try {
-          const resumesSnap = await getDocs(collection(db, "resumes"));
-          const resumeCounts = new Array(12).fill(0) as number[];
-          resumesSnap.forEach((rd) => {
-            const data = rd.data() as any;
-            let date: Date | null = null;
-            const tryDate = (val: any) => {
-              if (!val) return null;
-              if (typeof val === "object" && typeof val.toDate === "function")
-                return val.toDate();
-              const d = new Date(val as string);
-              return isNaN(d.getTime()) ? null : d;
-            };
-            date = tryDate(data.createdAt) || tryDate(data.lastUpdated) || null;
-            const m = date ? date.getMonth() : 0;
-            resumeCounts[m] = (resumeCounts[m] || 0) + 1;
-          });
-          for (let i = 0; i < 12; i++) {
-            profileChart[i].resume = resumeCounts[i] || 0;
-          }
-        } catch {}
-
-        setApiTokenChartData(apiChart);
-        // Update users and resume series on profile impression chart
-        setProfileImpressionData(
-          (
-            prev: {
-              month: string;
-              coverLetter: number;
-              resume: number;
-              users: number;
-            }[]
-          ) =>
-            prev.map(
-              (
-                row: {
-                  month: string;
-                  coverLetter: number;
-                  resume: number;
-                  users: number;
-                },
-                idx: number
-              ) => ({
-                ...row,
-                users: profileChart[idx].users,
-                resume: profileChart[idx].resume,
-              })
-            )
+        const totalForStates = allUsers.length || 1;
+        setTopStates(
+          Object.entries(stateCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([state, count]) => ({
+              state,
+              count,
+              percent: Math.round((count / totalForStates) * 100),
+            }))
         );
       } catch (e) {
-        // Non-fatal; leave defaults
+        if (import.meta.env.DEV) console.error("Dashboard load failed", e);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
-    fetchAllUsers();
-  }, [db]);
+
+    setIsLoading(true);
+    void loadDashboard();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, navigate]);
+
+  const setGlobeOverview = () => {
+    const globe = globeRef.current;
+    if (!globe) return;
+    globe.pointOfView({ lat: 20, lng: -30, altitude: 2.4 }, 0);
+  };
 
   useEffect(() => {
-    if (globeRef.current) {
-      globeRef.current.pointOfView({ altitude: 10 }, 0);
-    }
-  }, []);
+    const el = globeContainerRef.current;
+    if (!el) return;
+    const updateWidth = () => {
+      const next = Math.max(Math.floor(el.clientWidth), 240);
+      setGlobeWidth(next);
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoading]);
 
-  // Aggregate API calls and tokens per month after users are loaded
-  useEffect(() => {
-    // You already have the users array in fetchUsers, so let's aggregate here
-    // We'll need to store the users array in state for this
-    // For now, let's use recentUsers as a proxy (since it's set to all users in fetchUsers)
-    const users = recentUsers.length > 0 ? recentUsers : [];
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    // Initialize chart data
-    const chartData = months.map((month) => ({
-      month,
-      apiCalls: 0,
-      tokens: 0,
-    }));
-    users.forEach((user) => {
-      // Use createdAt to determine the month
-      let createdAt;
-      if (
-        user.createdAt &&
-        typeof user.createdAt === "object" &&
-        user.createdAt !== null &&
-        typeof (user.createdAt as { toDate?: () => Date }).toDate === "function"
-      ) {
-        createdAt = (user.createdAt as { toDate: () => Date }).toDate();
-      } else {
-        createdAt = new Date(user.createdAt as string);
-      }
-      const m = createdAt.getMonth();
-      if (isNaN(m) || m < 0 || m > 11) return;
-      chartData[m].apiCalls += user.totalApiCalls || 0;
-      chartData[m].tokens += user.totalTokens || 0;
-    });
-    setApiTokenChartData(chartData);
-  }, [recentUsers]);
-
-  // Show loading state while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#16aeac]" />
       </div>
     );
   }
 
-  // Don't render anything if user is not authenticated (will redirect)
-  if (!user) {
+  if (!user || !isAdmin) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex pt-16">
-        {/* Sidebar */}
-        <div className="w-64 min-h-screen bg-white shadow-lg p-4 flex-shrink-0 sticky top-16 h-[calc(100vh-4rem)]">
-          <div className="space-y-2">
-            {/* Profile section */}
-            <div className="flex flex-col items-center gap-2 mb-8 mt-2">
-              <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-2xl font-bold shadow">
-                {userData?.firstName?.[0] || ""}
-                {userData?.lastName?.[0] || ""}
-              </div>
-              <div className="text-center">
-                <div className="text-base font-semibold text-gray-900">
-                  {userData
-                    ? `${userData.firstName} ${userData.lastName}`
-                    : "User"}
+    <AdminShell
+      title="Resume & Employment Analytics"
+      description="Platform adoption and AI usage at a glance."
+    >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+          {(
+            [
+              {
+                key: "users",
+                label: "Total users",
+                value: platformStats.totalUsers || recentUsers.length,
+                hint: "Platform-wide registered accounts",
+                Icon: UsersIcon,
+                tone: "bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300",
+              },
+              {
+                key: "resumes",
+                label: "Total resumes",
+                value: platformStats.totalResumes,
+                hint: "First cloud saves across all users",
+                Icon: DocumentTextIcon,
+                tone: "bg-[#16aeac]/10 text-[#16aeac] dark:bg-[#16aeac]/15",
+              },
+              {
+                key: "api",
+                label: "Total API calls",
+                value: platformStats.totalApiCalls,
+                hint: "All AI actions across the platform",
+                Icon: BoltIcon,
+                tone: "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300",
+              },
+              {
+                key: "tokens",
+                label: "Total tokens",
+                value: platformStats.totalTokens,
+                hint: "All tokens used across the platform",
+                Icon: CircleStackIcon,
+                tone: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+              },
+              {
+                key: "week",
+                label: "New users this week",
+                value: newUsersThisWeek,
+                hint: "Accounts created in the last 7 days",
+                Icon: UserPlusIcon,
+                tone: "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+              },
+            ] as Array<{
+              key: string;
+              label: string;
+              value: number;
+              hint: string;
+              Icon: MetricIcon;
+              tone: string;
+            }>
+          ).map(({ key, label, value, hint, Icon, tone }) => (
+            <div
+              key={key}
+              className="relative overflow-hidden rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 shadow-sm"
+            >
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[radial-gradient(ellipse_at_top,_rgba(22,174,172,0.1),_transparent_70%)]"
+                aria-hidden
+              />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    {label}
+                  </p>
+                  <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">
+                    {value.toLocaleString()}
+                  </p>
+                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500 leading-relaxed">
+                    {hint}
+                  </p>
                 </div>
-                {userData?.type === "admin" && (
-                  <div className="text-xs font-medium text-indigo-500 mt-1">
-                    Admin
-                  </div>
-                )}
-              </div>
-            </div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 pl-2 mt-6">
-              Menu
-            </h3>
-            <div className="space-y-2">
-              <button
-                className="w-full text-left px-4 py-2 rounded-lg bg-green-50 text-green-700"
-                onClick={() => navigate("/dashboard")}
-              >
-                Dashboard
-              </button>
-              <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-green-50 text-gray-700">
-                Analytics
-              </button>
-              <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-green-50 text-gray-700">
-                Schedules
-              </button>
-              <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-green-50 text-gray-700">
-                Communities
-              </button>
-              <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-green-50 text-gray-700">
-                Settings
-              </button>
-              <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-green-50 text-gray-700">
-                Archive
-              </button>
-              <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-green-50 text-gray-700">
-                Help
-              </button>
-              {/* Connected Accounts */}
-              <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="w-5 h-5 text-blue-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
-                    />
-                  </svg>
-                  <h3 className="text-sm font-semibold text-gray-900">
-                    Connected Accounts
-                  </h3>
-                </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Third-party services linked to your account
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 p-2 rounded-lg bg-blue-50">
-                    <svg
-                      className="w-6 h-6 text-blue-500"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                    </svg>
-                    <span className="text-sm font-medium text-blue-700">
-                      Firebase
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-3 p-2 rounded-lg bg-purple-50">
-                    <svg
-                      className="w-6 h-6 text-purple-500"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                    </svg>
-                    <span className="text-sm font-medium text-purple-700">
-                      Netlify
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {/* Log Out button directly below Connected Accounts */}
-              <div className="mt-10">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 pl-2">
-                  Log Out
-                </h3>
-                <button
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-base shadow transition-all duration-150"
-                  // TODO: Add actual log out logic here if not present
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1"
-                    />
-                  </svg>
-                  Log Out
-                </button>
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
               </div>
             </div>
+          ))}
+        </div>
+
+        <div className="mb-8">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
+              Account types
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-zinc-400">
+              Current mix of Free, Premium, and Pro accounts (admins excluded).
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {ACCOUNT_PLANS.map((plan) => {
+              const count = planCounts[plan];
+              const customerTotal =
+                planCounts.free + planCounts.premium + planCounts.pro || 1;
+              const percent = Math.round((count / customerTotal) * 100);
+              return (
+                <div
+                  key={plan}
+                  className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                      {ACCOUNT_PLAN_LABELS[plan]}
+                    </p>
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: ACCOUNT_PLAN_CHART_COLORS[plan] }}
+                      aria-hidden
+                    />
+                  </div>
+                  <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">
+                    {count.toLocaleString()}
+                  </p>
+                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
+                    {percent}% of customer accounts
+                  </p>
+                  <div className="mt-3 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${percent}%`,
+                        backgroundColor: ACCOUNT_PLAN_CHART_COLORS[plan],
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Main and Right Columns */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
-          {/* Middle/Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 flex flex-col gap-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Resume & Employment Analytics
-            </h1>
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-start">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="w-6 h-6 text-blue-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4V7a4 4 0 00-8 0v3m12 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h12a2 2 0 012 2z"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Total Users
-                  </h3>
-                </div>
-                <p className="text-3xl font-bold text-blue-600 mb-1">
-                  {recentUsers.length}
-                </p>
-                <p className="text-xs text-gray-500">
-                  All registered users on the platform
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-start">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="w-6 h-6 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Total Resumes
-                  </h3>
-                </div>
-                <p className="text-3xl font-bold text-green-600 mb-1">
-                  {profileImpressionData.reduce(
-                    (sum, month) => sum + month.resume,
-                    0
-                  )}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Resumes created by all users
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-start">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="w-6 h-6 text-indigo-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M13 16h-1v-4h-1m4 4h-1v-4h-1m-4 4h-1v-4H7"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Total API Calls
-                  </h3>
-                </div>
-                <p className="text-3xl font-bold text-indigo-600 mb-1">
-                  {userData?.totalApiCalls || 0}
-                </p>
-                <p className="text-xs text-gray-500">
-                  API requests made by all users
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-start">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="w-6 h-6 text-pink-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 10c-4.41 0-8-1.79-8-4V6c0-2.21 3.59-4 8-4s8 1.79 8 4v8c0 2.21-3.59 4-8 4z"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Total Tokens
-                  </h3>
-                </div>
-                <p className="text-3xl font-bold text-pink-600 mb-1">
-                  {userData?.totalTokens || 0}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Tokens used by all users
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-start">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="w-6 h-6 text-orange-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8 17l4 4 4-4m0-5V3m-8 4h8"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Resumes This Week
-                  </h3>
-                </div>
-                <p className="text-3xl font-bold text-orange-600 mb-1">
-                  {
-                    recentUsers.filter(
-                      (user) =>
-                        new Date(user.createdAt).getTime() >=
-                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
-                    ).length
-                  }
-                </p>
-                <p className="text-xs text-gray-500">
-                  New resumes created in the last 7 days
-                </p>
-              </div>
-            </div>
-
-            {/* Spinning Globe User Locations */}
-            <div className="bg-white rounded-xl shadow p-6 mb-2">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm p-6 mb-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 mb-4">
                 Job Seeker Locations
               </h2>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-zinc-400 mb-4">
                 Where are users creating resumes?
               </p>
               <div className="flex gap-8">
                 {/* Globe Section */}
                 <div className="w-1/2">
                   <div
-                    style={{
-                      width: "100%",
-                      height: 300,
-                      overflow: "hidden",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                    ref={globeContainerRef}
+                    className="w-full h-[300px] overflow-hidden flex items-center justify-center"
                   >
                     <Globe
                       ref={globeRef}
+                      width={globeWidth}
+                      height={300}
                       globeImageUrl="//unpkg.com/three-globe/example/img/earth-water.png"
                       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
                       pointsData={userLocations.map((loc) => ({
                         lat: loc.lat,
                         lng: loc.lng,
                         name: loc.name,
-                        color: "#ef4444", // Keep points red for consistency
+                        color: "#ef4444",
                         size: 0.8,
                         altitude: 0.1,
                       }))}
@@ -689,12 +569,13 @@ const Dashboard = () => {
                       pointAltitude="altitude"
                       pointRadius="size"
                       pointLabel="name"
-                      backgroundColor="#ffffff"
-                      animateIn={true}
+                      backgroundColor="rgba(0,0,0,0)"
+                      animateIn={false}
                       atmosphereColor="#6366f1"
                       atmosphereAltitude={0.1}
                       pointsMerge={false}
                       pointsTransitionDuration={1000}
+                      onGlobeReady={setGlobeOverview}
                       onPointClick={(point) => {
                         if (import.meta.env.DEV)
                           console.log("Clicked point:", point);
@@ -710,173 +591,77 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* User Stats Section */}
                 <div className="w-1/2">
-                  <div className="space-y-6 h-[300px] overflow-y-auto pr-2">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-sm font-medium text-gray-900 mb-2">
+                  <div className="space-y-4 h-[300px] overflow-y-auto pr-2">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-4">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-zinc-100 mb-2">
                         Total Active Users
                       </h3>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {recentUsers.length}
+                      <p className="text-2xl font-bold text-blue-600 dark:text-sky-400">
+                        {platformStats.totalUsers || recentUsers.length}
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
                         Across 6 continents
                       </p>
                     </div>
 
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                    <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-4">
+                      <div className="flex items-center gap-2 mb-2">
                         <svg
-                          className="w-4 h-4 text-blue-500"
+                          className="w-5 h-5 text-blue-500"
                           fill="none"
                           stroke="currentColor"
+                          strokeWidth={2}
                           viewBox="0 0 24 24"
                         >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
                             d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
                           />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
                         </svg>
-                        Top Locations
-                      </h3>
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {userLocations.map((location, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:border-blue-100"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-sm">
-                                <span className="text-sm font-medium text-blue-600">
-                                  {location.name?.split(" ")[1] || "U"}
-                                </span>
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900">
-                                  {location.name}
-                                </p>
-                                <p className="text-xs text-gray-500 flex items-center gap-1">
-                                  <svg
-                                    className="w-3 h-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                    />
-                                  </svg>
-                                  {location.lat.toFixed(2)}°N,{" "}
-                                  {location.lng.toFixed(2)}°E
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  1 user
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                        <h3 className="text-md font-semibold text-gray-900 dark:text-zinc-100">
+                          Top Locations
+                        </h3>
                       </div>
-                      {userLocations.length === 0 && (
-                        <div className="text-center text-gray-500 py-8 bg-gray-50 rounded-xl border border-gray-100">
-                          <svg
-                            className="w-12 h-12 mx-auto text-gray-400 mb-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                      <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3">
+                        States with the most active users
+                      </p>
+                      <div className="space-y-3">
+                        {topStates.map((item, idx) => (
+                          <div
+                            key={item.state}
+                            className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-2 last:border-b-0 last:pb-0"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                            />
-                          </svg>
-                          <p className="text-sm font-medium">
-                            No location data available
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Users haven't shared their locations yet
-                          </p>
-                        </div>
-                      )}
-                      {/* Top Locations (States) Section - moved here */}
-                      <div className="bg-white rounded-xl border border-gray-200 p-4 mt-6">
-                        <div className="flex items-center gap-2 mb-2">
-                          <svg
-                            className="w-5 h-5 text-blue-500"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                            />
-                          </svg>
-                          <h3 className="text-md font-semibold text-gray-900">
-                            Top Locations
-                          </h3>
-                        </div>
-                        <p className="text-xs text-gray-500 mb-3">
-                          States with the most active users
-                        </p>
-                        <div className="space-y-3">
-                          {topStates.map((item, idx) => (
                             <div
-                              key={item.state}
-                              className="flex items-center justify-between border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
+                              className={`h-7 w-7 rounded-full flex items-center justify-center ${
+                                idx === 0
+                                  ? "bg-blue-100 dark:bg-sky-950"
+                                  : idx === 1
+                                  ? "bg-green-100 dark:bg-emerald-950"
+                                  : "bg-yellow-100 dark:bg-amber-950"
+                              }`}
                             >
-                              <div
-                                className={`h-7 w-7 rounded-full flex items-center justify-center ${
+                              <span
+                                className={`text-xs font-medium ${
                                   idx === 0
-                                    ? "bg-blue-100"
+                                    ? "text-blue-600 dark:text-sky-400"
                                     : idx === 1
-                                    ? "bg-green-100"
-                                    : "bg-yellow-100"
+                                    ? "text-green-600 dark:text-emerald-400"
+                                    : "text-yellow-600 dark:text-amber-400"
                                 }`}
                               >
-                                <span
-                                  className={`text-xs font-medium ${
-                                    idx === 0
-                                      ? "text-blue-600"
-                                      : idx === 1
-                                      ? "text-green-600"
-                                      : "text-yellow-600"
-                                  }`}
-                                >
-                                  {item.state.slice(0, 2).toUpperCase()}
-                                </span>
-                              </div>
-                              <span className="text-xs font-medium text-gray-900 flex-1 ml-2">
-                                {item.state}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {item.percent}%
+                                {item.state.slice(0, 2).toUpperCase()}
                               </span>
                             </div>
-                          ))}
-                        </div>
+                            <span className="text-xs font-medium text-gray-900 dark:text-zinc-100 flex-1 ml-2">
+                              {item.state}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-zinc-400">
+                              {item.percent}%
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -885,7 +670,7 @@ const Dashboard = () => {
             </div>
 
             {/* Profile Impression Chart */}
-            <div className="bg-white rounded-xl border border-gray-200 p-8 mb-4">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-8 mb-4">
               <div className="flex items-center justify-between mb-2 relative z-10">
                 <div className="flex items-center space-x-6">
                   <span className="flex items-center space-x-2">
@@ -904,7 +689,7 @@ const Dashboard = () => {
                         />
                       </svg>
                     </span>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">
                       Resume Creations
                     </span>
                   </span>
@@ -924,28 +709,8 @@ const Dashboard = () => {
                         />
                       </svg>
                     </span>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">
                       Cover Letter Creations
-                    </span>
-                  </span>
-                  <span className="flex items-center space-x-2">
-                    <span className="inline-block w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center">
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2z"
-                        />
-                      </svg>
-                    </span>
-                    <span className="text-sm font-medium text-gray-700">
-                      Applications Sent
                     </span>
                   </span>
                   <span className="flex items-center space-x-2">
@@ -964,12 +729,12 @@ const Dashboard = () => {
                         />
                       </svg>
                     </span>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">
                       Users Created
                     </span>
                   </span>
                 </div>
-                <select className="text-sm border-gray-200 rounded-md bg-gray-50">
+                <select className="text-sm border-gray-200 dark:border-zinc-700 rounded-md bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-zinc-100">
                   <option>Past Year</option>
                   <option>Past 6 Months</option>
                   <option>Past Month</option>
@@ -1048,11 +813,10 @@ const Dashboard = () => {
                     />
                     <Tooltip
                       formatter={(value) => value.toLocaleString()}
-                      contentStyle={{
-                        borderRadius: 12,
-                        fontSize: 14,
-                        boxShadow: "0 4px 24px 0 rgba(16, 30, 54, 0.12)",
-                      }}
+                      contentStyle={chartTooltipStyles.contentStyle}
+                      itemStyle={chartTooltipStyles.itemStyle}
+                      labelStyle={chartTooltipStyles.labelStyle}
+                      cursor={chartTooltipStyles.cursor}
                     />
                     <Bar
                       dataKey="coverLetter"
@@ -1087,7 +851,7 @@ const Dashboard = () => {
             </div>
 
             {/* API Calls & Tokens Chart */}
-            <div className="bg-white rounded-xl border border-gray-200 p-8 mb-4 mt-6">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-8 mb-4 mt-6">
               <div className="flex items-center justify-between mb-2 relative z-10">
                 <div className="flex items-center gap-2">
                   <svg
@@ -1103,12 +867,12 @@ const Dashboard = () => {
                       d="M13 16h-1v-4h-1m4 4h-1v-4h-1m-4 4h-1v-4H7"
                     />
                   </svg>
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100">
                     API Calls & Tokens by Month
                   </h2>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-zinc-400 mb-4">
                 Monthly totals of API requests and tokens used by all users
               </p>
               <div className="relative z-10">
@@ -1185,11 +949,10 @@ const Dashboard = () => {
                     />
                     <Tooltip
                       formatter={(value) => value.toLocaleString()}
-                      contentStyle={{
-                        borderRadius: 12,
-                        fontSize: 14,
-                        boxShadow: "0 4px 24px 0 rgba(16, 30, 54, 0.12)",
-                      }}
+                      contentStyle={chartTooltipStyles.contentStyle}
+                      itemStyle={chartTooltipStyles.itemStyle}
+                      labelStyle={chartTooltipStyles.labelStyle}
+                      cursor={chartTooltipStyles.cursor}
                     />
                     <Bar
                       dataKey="apiCalls"
@@ -1216,85 +979,94 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Recent Users */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 mt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <svg
-                  className="w-5 h-5 text-indigo-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Recent Job Seekers
-                </h3>
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-8 mb-4 mt-2">
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100">
+                    Registrations by account type
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
+                    New signups each month across Free, Premium, and Pro
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mb-4">
-                Newest users creating resumes on the platform
-              </p>
-              <div className="space-y-4">
-                {recentUsers.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
+              <div className="relative z-10 mt-4">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={planRegistrationData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                    barCategoryGap={12}
+                    barGap={2}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="text-sm font-medium text-indigo-600">
-                          {user.firstName?.[0]}
-                          {user.lastName?.[0]}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.firstName} {user.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-gray-500">
-                        {(() => {
-                          let date: Date | null = null;
-                          if (user.createdAt) {
-                            if (
-                              typeof user.createdAt === "object" &&
-                              user.createdAt !== null &&
-                              typeof (user.createdAt as { toDate?: () => Date })
-                                .toDate === "function"
-                            ) {
-                              date = (
-                                user.createdAt as { toDate: () => Date }
-                              ).toDate();
-                            } else {
-                              const d = new Date(user.createdAt as string);
-                              if (!isNaN(d.getTime())) date = d;
-                            }
-                          }
-                          return date ? date.toLocaleDateString() : "N/A";
-                        })()}
-                      </span>
-                      <p className="text-xs text-gray-400">
-                        Views: {Math.floor(Math.random() * 100)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke={theme === "dark" ? "#27272a" : "#e5e7eb"}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{
+                        fontSize: 13,
+                        fill: theme === "dark" ? "#a1a1aa" : "#6b7280",
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{
+                        fontSize: 13,
+                        fill: theme === "dark" ? "#a1a1aa" : "#6b7280",
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      formatter={(value) => value.toLocaleString()}
+                      contentStyle={chartTooltipStyles.contentStyle}
+                      itemStyle={chartTooltipStyles.itemStyle}
+                      labelStyle={chartTooltipStyles.labelStyle}
+                      cursor={chartTooltipStyles.cursor}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: 14, paddingTop: 8 }}
+                      iconType="circle"
+                    />
+                    <Bar
+                      dataKey="free"
+                      name="Free"
+                      fill={ACCOUNT_PLAN_CHART_COLORS.free}
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive
+                      animationDuration={1000}
+                    />
+                    <Bar
+                      dataKey="premium"
+                      name="Premium"
+                      fill={ACCOUNT_PLAN_CHART_COLORS.premium}
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive
+                      animationDuration={1000}
+                    />
+                    <Bar
+                      dataKey="pro"
+                      name="Pro"
+                      fill={ACCOUNT_PLAN_CHART_COLORS.pro}
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive
+                      animationDuration={1000}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
+
           </div>
           {/* Right Column */}
           <div className="flex flex-col gap-8">
             {/* Regional Distribution */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
                 <svg
                   className="w-5 h-5 text-blue-500"
                   fill="none"
@@ -1310,7 +1082,7 @@ const Dashboard = () => {
                 </svg>
                 Recent Users
               </h3>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-zinc-400 mb-4">
                 Latest users who joined the platform
               </p>
               <div className="space-y-4">
@@ -1322,29 +1094,34 @@ const Dashboard = () => {
                     <div
                       className={`h-8 w-8 rounded-full flex items-center justify-center ${
                         idx === 0
-                          ? "bg-blue-100"
+                          ? "bg-blue-100 dark:bg-sky-950"
                           : idx === 1
-                          ? "bg-green-100"
-                          : "bg-yellow-100"
+                          ? "bg-green-100 dark:bg-emerald-950"
+                          : "bg-yellow-100 dark:bg-amber-950"
                       }`}
                     >
                       <span
                         className={`text-sm font-medium ${
                           idx === 0
-                            ? "text-blue-600"
+                            ? "text-blue-600 dark:text-sky-400"
                             : idx === 1
-                            ? "text-green-600"
-                            : "text-yellow-600"
+                            ? "text-green-600 dark:text-emerald-400"
+                            : "text-yellow-600 dark:text-amber-400"
                         }`}
                       >
                         {user.firstName?.[0]}
                         {user.lastName?.[0]}
                       </span>
                     </div>
-                    <span className="text-sm font-medium text-gray-900 flex-1 ml-2">
-                      {user.firstName} {user.lastName}
-                    </span>
-                    <span className="text-sm text-gray-500">
+                    <div className="flex-1 ml-2 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 truncate">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {ACCOUNT_PLAN_LABELS[normalizeAccountPlan(user.type)]}
+                      </p>
+                    </div>
+                    <span className="text-sm text-gray-500 dark:text-zinc-400">
                       {(() => {
                         let date: Date | null = null;
                         if (user.createdAt) {
@@ -1370,8 +1147,8 @@ const Dashboard = () => {
               </div>
             </div>
             {/* Meditation and Exercise Stats */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-1 border-b border-gray-100 pb-2 flex items-center gap-2">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-6 flex flex-col gap-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100 mb-1 border-b border-gray-100 dark:border-zinc-800 pb-2 flex items-center gap-2">
                 <svg
                   className="w-5 h-5 text-orange-400"
                   fill="none"
@@ -1388,10 +1165,10 @@ const Dashboard = () => {
                 Resume Activity Stats
               </h2>
               <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center justify-between rounded-lg bg-orange-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-orange-700">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
                     <svg
-                      className="w-4 h-4"
+                      className="w-4 h-4 text-orange-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={2}
@@ -1403,24 +1180,16 @@ const Dashboard = () => {
                         d="M12 4v16m8-8H4"
                       />
                     </svg>
-                    Resumes Created
+                    This Month
                   </span>
-                  <span className="text-xl font-bold text-orange-700">
-                    {
-                      recentUsers.filter(
-                        (user) =>
-                          new Date(user.createdAt).getTime() >=
-                          new Date(
-                            Date.now() - 7 * 24 * 60 * 60 * 1000
-                          ).getTime()
-                      ).length
-                    }
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/50 px-3 text-sm font-bold tabular-nums text-orange-700 dark:text-orange-300">
+                    {currentMonthResumes}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-blue-700">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
                     <svg
-                      className="w-4 h-4"
+                      className="w-4 h-4 text-blue-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={2}
@@ -1434,17 +1203,14 @@ const Dashboard = () => {
                     </svg>
                     Total Resumes
                   </span>
-                  <span className="text-xl font-bold text-blue-700">
-                    {profileImpressionData.reduce(
-                      (sum, month) => sum + month.resume,
-                      0
-                    )}
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-blue-50 dark:bg-sky-950/50 px-3 text-sm font-bold tabular-nums text-blue-700 dark:text-sky-300">
+                    {platformStats.totalResumes}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-purple-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
                     <svg
-                      className="w-4 h-4"
+                      className="w-4 h-4 text-purple-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={2}
@@ -1458,20 +1224,18 @@ const Dashboard = () => {
                     </svg>
                     Average per Month
                   </span>
-                  <span className="text-xl font-bold text-purple-700">
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-purple-50 dark:bg-violet-950/50 px-3 text-sm font-bold tabular-nums text-purple-700 dark:text-violet-300">
                     {(
-                      profileImpressionData.reduce(
-                        (sum, month) => sum + month.resume,
-                        0
-                      ) / 12
+                      platformStats.totalResumes /
+                      Math.max(new Date().getMonth() + 1, 1)
                     ).toFixed(1)}
                   </span>
                 </div>
               </div>
             </div>
             {/* Cover Letter Activity Stats */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-6 mt-4">
-              <h2 className="text-lg font-bold text-gray-900 mb-1 border-b border-gray-100 pb-2 flex items-center gap-2">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-6 flex flex-col gap-6 mt-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100 mb-1 border-b border-gray-100 dark:border-zinc-800 pb-2 flex items-center gap-2">
                 <svg
                   className="w-5 h-5 text-green-500"
                   fill="none"
@@ -1488,10 +1252,10 @@ const Dashboard = () => {
                 Cover Letter Activity Stats
               </h2>
               <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center justify-between rounded-lg bg-green-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-green-700">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
                     <svg
-                      className="w-4 h-4"
+                      className="w-4 h-4 text-green-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={2}
@@ -1503,19 +1267,16 @@ const Dashboard = () => {
                         d="M12 4v16m8-8H4"
                       />
                     </svg>
-                    Cover Letters Created
+                    This Month
                   </span>
-                  <span className="text-xl font-bold text-green-700">
-                    {profileImpressionData.reduce(
-                      (sum, month) => sum + month.coverLetter,
-                      0
-                    )}
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-green-50 dark:bg-emerald-950/50 px-3 text-sm font-bold tabular-nums text-green-700 dark:text-emerald-300">
+                    {currentMonthCoverLetters}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-blue-700">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
                     <svg
-                      className="w-4 h-4"
+                      className="w-4 h-4 text-blue-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={2}
@@ -1529,17 +1290,14 @@ const Dashboard = () => {
                     </svg>
                     Total Cover Letters
                   </span>
-                  <span className="text-xl font-bold text-blue-700">
-                    {profileImpressionData.reduce(
-                      (sum, month) => sum + month.coverLetter,
-                      0
-                    )}
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-blue-50 dark:bg-sky-950/50 px-3 text-sm font-bold tabular-nums text-blue-700 dark:text-sky-300">
+                    {platformStats.totalCoverLetters}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-purple-50 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
                     <svg
-                      className="w-4 h-4"
+                      className="w-4 h-4 text-purple-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={2}
@@ -1553,12 +1311,10 @@ const Dashboard = () => {
                     </svg>
                     Average per Month
                   </span>
-                  <span className="text-xl font-bold text-purple-700">
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-purple-50 dark:bg-violet-950/50 px-3 text-sm font-bold tabular-nums text-purple-700 dark:text-violet-300">
                     {(
-                      profileImpressionData.reduce(
-                        (sum, month) => sum + month.coverLetter,
-                        0
-                      ) / 12
+                      platformStats.totalCoverLetters /
+                      Math.max(new Date().getMonth() + 1, 1)
                     ).toFixed(1)}
                   </span>
                 </div>
@@ -1566,8 +1322,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AdminShell>
   );
 };
 

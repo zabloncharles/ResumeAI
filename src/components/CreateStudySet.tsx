@@ -34,6 +34,7 @@ import {
   saveStudySetDraft,
   type StudySetDraftStudySet,
 } from "../utils/studySetDraftStorage";
+import { invalidateStudySetsCache } from "../utils/studySetsCache";
 
 interface Flashcard {
   id?: string;
@@ -429,6 +430,7 @@ export default function CreateStudySet() {
         await Promise.all(addPromises);
 
         clearLocalDraft();
+        invalidateStudySetsCache(user.uid);
 
         navigate(
           folderId ? `/study/folder/${folderId}` : "/study"
@@ -468,6 +470,7 @@ export default function CreateStudySet() {
         }
 
         clearLocalDraft();
+        invalidateStudySetsCache(user.uid);
 
         navigate(
           folderId ? `/study/folder/${folderId}` : "/study"
@@ -481,7 +484,7 @@ export default function CreateStudySet() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
       </div>
     );
   }
@@ -503,6 +506,7 @@ export default function CreateStudySet() {
       sidebarOpen={sidebarOpen}
       onSidebarOpen={() => setSidebarOpen(true)}
       onSidebarClose={() => setSidebarOpen(false)}
+      accent="sky"
       pageHeader={{
         title: isEditMode ? "Edit Study Set" : "Create Study Set",
         description: isEditMode
@@ -513,7 +517,7 @@ export default function CreateStudySet() {
     >
         <div className="w-full">
           {hasUnsavedChanges && (
-            <p className="text-sm text-green-600 dark:text-green-500 mb-6 max-w-4xl">
+            <p className="text-sm text-sky-600 dark:text-sky-500 mb-6 max-w-4xl">
               Saved on this device. Click Done to save to your account.
             </p>
           )}
@@ -539,7 +543,7 @@ export default function CreateStudySet() {
                       onChange={(e) =>
                         setStudySet({ ...studySet, title: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200"
                       placeholder="Enter study set title..."
                       required
                     />
@@ -558,7 +562,7 @@ export default function CreateStudySet() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
                       rows={3}
                       placeholder="Describe what this study set covers..."
                     />
@@ -592,7 +596,7 @@ export default function CreateStudySet() {
                           }
                           setFolderId(next || null);
                         }}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100"
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent text-gray-900 dark:text-zinc-100"
                       >
                         <option value="">Uncategorized</option>
                         {folders.map((f) => (
@@ -617,7 +621,7 @@ export default function CreateStudySet() {
                         onChange={(e) =>
                           setStudySet({ ...studySet, isPublic: e.target.checked })
                         }
-                        className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-950 disabled:opacity-50"
+                        className="h-5 w-5 text-sky-500 focus:ring-sky-500 border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-950 disabled:opacity-50"
                       />
                       <label
                         htmlFor="isPublic"
@@ -657,7 +661,7 @@ export default function CreateStudySet() {
                         
                         <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-semibold text-green-700 mb-2">
+                            <label className="block text-sm font-semibold text-sky-700 mb-2">
                               Public Code
                             </label>
                             <div className="flex items-center space-x-2">
@@ -665,12 +669,12 @@ export default function CreateStudySet() {
                                 type="text"
                                 value={publicCredentials?.code || "Generate code..."}
                                 readOnly
-                                className="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg font-mono text-lg text-center text-green-800"
+                                className="flex-1 px-3 py-2 bg-white border border-sky-300 rounded-lg font-mono text-lg text-center text-sky-800"
                               />
                               {publicCredentials?.code && (
                                 <button
                                   onClick={() => navigator.clipboard.writeText(publicCredentials.code)}
-                                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                  className="px-3 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
                                 >
                                   Copy
                                 </button>
@@ -679,7 +683,7 @@ export default function CreateStudySet() {
                           </div>
                           
                           <div>
-                            <label className="block text-sm font-semibold text-green-700 mb-2">
+                            <label className="block text-sm font-semibold text-sky-700 mb-2">
                               Password
                             </label>
                             <div className="flex items-center space-x-2">
@@ -687,12 +691,12 @@ export default function CreateStudySet() {
                                 type="text"
                                 value={publicCredentials?.password || "Generate password..."}
                                 readOnly
-                                className="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg font-mono text-lg text-center text-green-800"
+                                className="flex-1 px-3 py-2 bg-white border border-sky-300 rounded-lg font-mono text-lg text-center text-sky-800"
                               />
                               {publicCredentials?.password && (
                                 <button
                                   onClick={() => navigator.clipboard.writeText(publicCredentials.password)}
-                                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                  className="px-3 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
                                 >
                                   Copy
                                 </button>
@@ -772,7 +776,7 @@ export default function CreateStudySet() {
                             back: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-4 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
+                        className="w-full px-4 py-4 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent text-gray-900 dark:text-zinc-100 placeholder-gray-500 transition-all duration-200 resize-none"
                         rows={4}
                         placeholder="Enter the answer here..."
                       />
@@ -787,7 +791,7 @@ export default function CreateStudySet() {
                     disabled={
                       !currentCard.front.trim() || !currentCard.back.trim()
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-gray-300 dark:border-zinc-600 text-gray-800 dark:text-zinc-200 bg-white dark:bg-zinc-900 hover:border-study-accent hover:text-study-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-gray-300 dark:border-zinc-600 text-gray-800 dark:text-zinc-200 bg-white dark:bg-zinc-900 hover:border-sky-500 hover:text-sky-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <PlusIcon className="h-4 w-4 shrink-0" strokeWidth={2.25} />
                     Add a card
@@ -796,7 +800,7 @@ export default function CreateStudySet() {
                     type="button"
                     onClick={createStudySet}
                     disabled={saveDisabled}
-                    className="shrink-0 px-5 py-2.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="shrink-0 px-5 py-2.5 text-sm font-semibold rounded-lg bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Done
                   </button>

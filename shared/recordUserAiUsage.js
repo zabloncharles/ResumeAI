@@ -1,3 +1,5 @@
+import { incrementAnalyticsRollups } from "./analyticsRollups.js";
+
 export async function recordUserAiUsage(admin, uid, totalTokens) {
   if (!uid) return;
 
@@ -12,5 +14,14 @@ export async function recordUserAiUsage(admin, uid, totalTokens) {
     });
   } catch (e) {
     console.error("Failed to record AI usage for user", uid, e?.message || e);
+  }
+
+  try {
+    await incrementAnalyticsRollups(admin, {
+      apiCalls: 1,
+      tokens: tokenIncrement,
+    });
+  } catch (e) {
+    console.error("Failed to record analytics rollups", e?.message || e);
   }
 }

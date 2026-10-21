@@ -2,6 +2,7 @@ import type { Plugin } from "vite";
 import type { IncomingMessage, ServerResponse } from "http";
 import { join } from "path";
 import { pathToFileURL } from "url";
+import { statSync } from "fs";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -16,6 +17,10 @@ const DEV_FUNCTIONS = new Set([
   "generateResume",
   "parseResume",
   "atsCheckResume",
+  "generateStudyCardsFromTranscript",
+  "generatePodcastScript",
+  "generatePodcastAudio",
+  "recordAnalyticsEvent",
 ]);
 
 export function netlifyFunctionsDev(): Plugin {
@@ -55,9 +60,13 @@ export function netlifyFunctionsDev(): Plugin {
               headers[key] = value[0];
           }
 
-          const modulePath = pathToFileURL(
-            join(process.cwd(), "netlify/functions", `${fnName}.js`)
-          ).href;
+          const filePath = join(
+            process.cwd(),
+            "netlify/functions",
+            `${fnName}.js`
+          );
+          const mtime = statSync(filePath).mtimeMs;
+          const modulePath = `${pathToFileURL(filePath).href}?t=${mtime}`;
           const mod = await import(modulePath);
           const result = await mod.handler(
             { httpMethod: "POST", headers, body, path: pathname },
