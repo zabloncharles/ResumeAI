@@ -1,4 +1,4 @@
-# Codemagic CI/CD for Brightfolio (Capacitor)
+# Codemagic CI/CD for Brightfolio
 #
 # Before running the iOS workflow, connect an App Store Connect API key in
 # Codemagic and enable automatic iOS signing for com.brightfolio.app.
@@ -19,32 +19,24 @@ workflows:
       groups:
         - brightfolio-production
       vars:
-        XCODE_PROJECT: ios/App/App.xcodeproj
-        XCODE_SCHEME: App
+        XCODE_PROJECT: native-ios/Brightfolio.xcodeproj
+        XCODE_SCHEME: Brightfolio
         APP_STORE_APPLE_ID: "6826103999"
       node: 22
       xcode: latest
     scripts:
-      - name: Install JavaScript dependencies
-        script: npm install
-      - name: Install Capacitor build dependencies
+      - name: Generate native SwiftUI Xcode project
         script: |
-          npm install --no-save \
-            @capacitor/core@8.5.3 \
-            @capacitor/cli@8.5.3 \
-            @capacitor/ios@8.5.3 \
-            @capacitor/app@8.1.2 \
-            @capacitor/splash-screen@8.0.2
-      - name: Build web app and create iOS project
-        script: |
-          npm run build
-          npx cap add ios
-          npx cap sync ios
+          if ! command -v xcodegen >/dev/null 2>&1; then brew install xcodegen; fi
+          cd "$CM_BUILD_DIR/native-ios"
+          xcodegen generate
       - name: Apply iOS signing settings
-        script: xcode-project use-profiles
+        script: |
+          cd "$CM_BUILD_DIR/native-ios"
+          xcode-project use-profiles
       - name: Increment iOS build number
         script: |
-          cd "$CM_BUILD_DIR/ios/App"
+          cd "$CM_BUILD_DIR/native-ios"
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || true)
           if [ -z "$LATEST_BUILD_NUMBER" ]; then
             LATEST_BUILD_NUMBER=0
@@ -75,19 +67,15 @@ workflows:
       node: 22
       xcode: latest
     scripts:
-      - name: Install JavaScript dependencies
-        script: npm install
-      - name: Install Capacitor build dependencies
-        script: npm install --no-save @capacitor/core@8.5.3 @capacitor/cli@8.5.3 @capacitor/ios@8.5.3 @capacitor/app@8.1.2 @capacitor/splash-screen@8.0.2
-      - name: Build web app and create iOS project
+      - name: Generate native SwiftUI Xcode project
         script: |
-          npm run build
-          npx cap add ios
-          npx cap sync ios
+          if ! command -v xcodegen >/dev/null 2>&1; then brew install xcodegen; fi
+          cd "$CM_BUILD_DIR/native-ios"
+          xcodegen generate
       - name: Build iOS Simulator app
-        script: xcodebuild build -project "$CM_BUILD_DIR/ios/App/App.xcodeproj" -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$CM_BUILD_DIR/build/ios/simulator"
+        script: xcodebuild build -project "$CM_BUILD_DIR/native-ios/Brightfolio.xcodeproj" -scheme Brightfolio -sdk iphonesimulator -configuration Debug -derivedDataPath "$CM_BUILD_DIR/build/ios/simulator"
     artifacts:
-      - build/ios/simulator/Build/Products/Debug-iphonesimulator/App.app
+      - build/ios/simulator/Build/Products/Debug-iphonesimulator/Brightfolio.app
 
   android-release:
     name: Brightfolio Android Release
