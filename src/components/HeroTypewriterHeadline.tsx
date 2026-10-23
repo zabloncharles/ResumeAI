@@ -55,18 +55,15 @@ export default function HeroTypewriterHeadline() {
   }, [text, deleting, phraseIndex, motionOk]);
 
   return (
-    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 dark:text-zinc-100 mb-8 px-2">
+    <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 dark:text-zinc-100 mb-8 px-2">
       <span className="block">Create Your Future,</span>
-      <span className="mt-2 block whitespace-nowrap">
+      <span className="mt-2 block">
         <span className="inline">Build Your Perfect </span>
-        <span className="inline-grid align-bottom text-left">
-          <span
-            className="invisible col-start-1 row-start-1 whitespace-nowrap"
-            aria-hidden
-          >
+        <span className="inline-grid align-bottom text-left whitespace-nowrap">
+          <span className="invisible col-start-1 row-start-1" aria-hidden>
             {LONGEST_SUFFIX}
           </span>
-          <span className="col-start-1 row-start-1 whitespace-nowrap">
+          <span className="col-start-1 row-start-1">
             <span className="bg-gradient-to-r from-[#16aeac] to-green-600 dark:from-teal-300 dark:to-green-400 bg-clip-text text-transparent">
               {text}
             </span>

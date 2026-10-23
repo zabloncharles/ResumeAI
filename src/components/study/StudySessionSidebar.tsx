@@ -4,9 +4,15 @@ import { Link } from "react-router-dom";
 import {
   RectangleStackIcon,
   QuestionMarkCircleIcon,
+  Squares2X2Icon,
+  HomeModernIcon,
 } from "@heroicons/react/24/outline";
 import type { StudyMode } from "../StudyWorkspaceNav";
-import bunny1 from "../../bunny1.png";
+import {
+  studyFlowAccent,
+  type StudyFlowAccent,
+} from "../../constants/studyFlowAccent";
+import BrandLogo from "../BrandLogo";
 
 type StudySessionSidebarProps = {
   setTitle: string;
@@ -14,6 +20,7 @@ type StudySessionSidebarProps = {
   onStudyModeChange: (mode: StudyMode) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  accent?: StudyFlowAccent;
 };
 
 export default function StudySessionSidebar({
@@ -22,7 +29,9 @@ export default function StudySessionSidebar({
   onStudyModeChange,
   mobileOpen,
   onCloseMobile,
+  accent = "default",
 }: StudySessionSidebarProps) {
+  const flow = studyFlowAccent(accent);
   useEffect(() => {
     if (!mobileOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -32,10 +41,17 @@ export default function StudySessionSidebar({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [mobileOpen, onCloseMobile]);
 
+  const activeModeClass =
+    accent === "violet"
+      ? "bg-violet-50 text-violet-900 dark:bg-violet-950/80 dark:text-violet-100"
+      : accent === "rose"
+        ? "bg-rose-50 text-rose-900 dark:bg-rose-950/80 dark:text-rose-100"
+        : "bg-sky-50 text-sky-900 dark:bg-sky-950/80 dark:text-sky-100";
+
   const modeLinkClass = (active: boolean) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-left ${
       active
-        ? "bg-sky-50 text-sky-900 dark:bg-sky-950/80 dark:text-sky-100"
+        ? activeModeClass
         : "text-gray-700 hover:bg-gray-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
     }`;
 
@@ -47,9 +63,9 @@ export default function StudySessionSidebar({
         className="flex h-[5.5rem] shrink-0 items-center gap-3 px-4 border-b border-gray-100 dark:border-zinc-800 min-w-0 hover:opacity-90 transition-opacity"
         aria-label="Brightfolio home"
       >
-        <img src={bunny1} alt="" className="h-10 w-10 shrink-0" />
+        <BrandLogo accent={accent} className="h-10 w-auto shrink-0" alt="" />
         <div className="min-w-0">
-          <p className="text-lg font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent truncate">
+          <p className={`text-lg font-bold ${flow.brandGradient} truncate`}>
             Brightfolio
           </p>
           <p className="text-sm text-gray-500 dark:text-zinc-500">Study</p>
@@ -90,6 +106,28 @@ export default function StudySessionSidebar({
         >
           <QuestionMarkCircleIcon className="h-5 w-5 shrink-0" />
           Quiz
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onStudyModeChange("match");
+            onCloseMobile();
+          }}
+          className={modeLinkClass(studyMode === "match")}
+        >
+          <Squares2X2Icon className="h-5 w-5 shrink-0" />
+          Match
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onStudyModeChange("farm");
+            onCloseMobile();
+          }}
+          className={modeLinkClass(studyMode === "farm")}
+        >
+          <HomeModernIcon className="h-5 w-5 shrink-0" />
+          Farm
         </button>
       </nav>
     </>

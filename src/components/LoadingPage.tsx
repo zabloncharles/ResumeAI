@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import bunny1 from "../bunny1.png";
+import BrandLogo from "./BrandLogo";
 
 const quotes = [
   {
@@ -87,11 +87,7 @@ const LoadingPage = () => {
       <div className="w-full max-w-md mx-auto px-4">
         <div className="flex flex-col items-center space-y-8">
           <div className="relative flex justify-center">
-            <img
-              src={bunny1}
-              alt="Brightfolio"
-              className="h-16 w-16 object-contain animate-pulse"
-            />
+            <BrandLogo className="h-16 w-auto animate-pulse" />
           </div>
 
           <div className="w-full bg-gray-200 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">

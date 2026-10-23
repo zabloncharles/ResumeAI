@@ -3,6 +3,10 @@ import {
   DocumentTextIcon,
   AcademicCapIcon,
   EnvelopeIcon,
+  PencilSquareIcon,
+  SparklesIcon,
+  BriefcaseIcon,
+  ArrowRightIcon,
 } from "@heroicons/react/24/outline";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
@@ -144,22 +148,27 @@ const LandingPage = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
           {/* Hero Section */}
           <div className="pt-32 pb-16 text-center">
-            <div className="flex items-center justify-center space-x-2 mb-8">
-              <span>📝</span>
-              <span>→</span>
-              <img
-                src="https://ui-avatars.com/api/?name=AI&background=0D8ABC&color=fff"
-                alt="AI"
-                className="w-8 h-8 rounded-full"
-              />
-              <span>→</span>
-              <span>💼</span>
+            <div
+              className="flex items-center justify-center gap-2 sm:gap-3 mb-8 text-zinc-500 dark:text-zinc-400"
+              aria-label="Document to AI to career"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-950/70">
+                <PencilSquareIcon className="h-5 w-5" aria-hidden />
+              </span>
+              <ArrowRightIcon className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-teal-200 dark:border-teal-800 bg-teal-50/90 dark:bg-teal-950/50 text-[#16aeac] dark:text-teal-300">
+                <SparklesIcon className="h-5 w-5" aria-hidden />
+              </span>
+              <ArrowRightIcon className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-950/70">
+                <BriefcaseIcon className="h-5 w-5" aria-hidden />
+              </span>
             </div>
             <HeroTypewriterHeadline />
             <p className="text-xl text-gray-600 dark:text-zinc-400 max-w-3xl mx-auto mb-12">
-              Transform your career journey with AI-powered resume creation. We
-              specialize in crafting professional resumes that stand out and get
-              you noticed.
+              Build ATS-friendly resumes, tailored cover letters, and study sets
+              in one place — with AI that helps you write clearly and apply with
+              confidence.
             </p>
             <div className="mt-8 flex justify-center">
               <a
@@ -363,7 +372,7 @@ const LandingPage = () => {
       </section>
 
       {/* Templates */}
-      <section className="border-y border-zinc-200/80 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/80 py-20">
+      <section className="border-t border-zinc-200/80 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/80 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div
             className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10"
@@ -491,7 +500,7 @@ const LandingPage = () => {
       </section>
 
       {/* Steps */}
-      <section className="border-y border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 py-20">
+      <section className="border-t border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div
             className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12"
@@ -545,62 +554,78 @@ const LandingPage = () => {
       </section>
 
       {/* Testimonials */}
-      <div className="max-w-7xl mx-auto px-4 py-20 space-y-6">
-        <div
-          className="bg-gradient-to-br from-black via-zinc-950 to-zinc-900 text-white rounded-2xl p-12 relative overflow-hidden border border-zinc-800 shadow-2xl"
-          data-aos="fade-up"
-          data-aos-duration="1200"
-        >
-          <div className="max-w-3xl relative z-10">
-            <p className="text-xl mb-8">
-              "Using Brightfolio was a game-changer in my job search. The AI
-              suggestions helped me highlight my achievements better, and I
-              landed interviews at my dream companies within weeks."
-            </p>
-            <div className="flex items-center gap-4">
-              <img
-                src="https://avatars.githubusercontent.com/u/74889517?s=128&v=4"
-                alt="Zablon Charles"
-                className="w-12 h-12 rounded-full border border-gray-500 object-cover"
-              />
-              <div>
-                <div className="font-medium">Zablon Charles</div>
-                <div className="text-gray-400">
-                  Computer Science at Saint Peter's University
-                </div>
-              </div>
-            </div>
-          </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="max-w-xl mb-12" data-aos="fade-up">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-zinc-100 mb-3 tracking-tight">
+            Students who turned applications into interviews
+          </h2>
+          <p className="text-gray-600 dark:text-zinc-400 text-lg">
+            Real feedback from people who used Brightfolio to sharpen their
+            resume, pass ATS checks, and apply with confidence.
+          </p>
         </div>
 
-        <div
-          className="bg-gradient-to-bl from-black via-zinc-950 to-zinc-900 text-white rounded-2xl p-12 relative overflow-hidden border border-zinc-800 shadow-2xl"
-          data-aos="fade-up"
-          data-aos-duration="1200"
-          data-aos-delay="100"
-        >
-          <div className="max-w-3xl ml-auto relative z-10 text-right">
-            <p className="text-xl mb-8">
-              "The ATS check caught gaps I would have missed, and building my
-              cover letter in the same place saved me hours. I finally feel like
-              my applications look as sharp as my coursework."
-            </p>
-            <div className="flex items-center justify-end gap-4">
-              <div>
-                <div className="font-medium">Maya Okoro</div>
-                <div className="text-gray-400">
-                  Biology & Pre-Med at Rutgers University
+        <div className="space-y-6">
+          <div
+            className="bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-zinc-950 dark:via-black dark:to-zinc-900 text-gray-900 dark:text-white rounded-2xl p-8 sm:p-12 relative overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-2xl"
+            data-aos="fade-up"
+            data-aos-duration="1200"
+          >
+            <div className="max-w-3xl relative z-10">
+              <p className="text-xl mb-8 text-gray-800 dark:text-zinc-100">
+                "Using Brightfolio was a game-changer in my job search. The AI
+                suggestions helped me highlight my achievements better, and I
+                landed interviews at my dream companies within weeks."
+              </p>
+              <div className="flex items-center gap-4">
+                <img
+                  src="https://avatars.githubusercontent.com/u/74889517?s=128&v=4"
+                  alt="Zablon Charles"
+                  className="w-12 h-12 rounded-full border border-zinc-300 dark:border-zinc-600 object-cover"
+                />
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-zinc-100">
+                    Zablon Charles
+                  </div>
+                  <div className="text-gray-500 dark:text-zinc-400">
+                    Computer Science at Saint Peter's University
+                  </div>
                 </div>
               </div>
-              <img
-                src="/images/test2.jpeg"
-                alt="Maya Okoro"
-                className="w-12 h-12 rounded-full border border-gray-500 object-cover"
-              />
+            </div>
+          </div>
+
+          <div
+            className="bg-gradient-to-bl from-zinc-50 via-white to-zinc-100 dark:from-zinc-950 dark:via-black dark:to-zinc-900 text-gray-900 dark:text-white rounded-2xl p-8 sm:p-12 relative overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-2xl"
+            data-aos="fade-up"
+            data-aos-duration="1200"
+            data-aos-delay="100"
+          >
+            <div className="max-w-3xl ml-auto relative z-10 text-right">
+              <p className="text-xl mb-8 text-gray-800 dark:text-zinc-100">
+                "The ATS check caught gaps I would have missed, and building my
+                cover letter in the same place saved me hours. I finally feel like
+                my applications look as sharp as my coursework."
+              </p>
+              <div className="flex items-center justify-end gap-4">
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-zinc-100">
+                    Maya Okoro
+                  </div>
+                  <div className="text-gray-500 dark:text-zinc-400">
+                    Biology & Pre-Med at Rutgers University
+                  </div>
+                </div>
+                <img
+                  src="/images/test2.jpeg"
+                  alt="Maya Okoro"
+                  className="w-12 h-12 rounded-full border border-zinc-300 dark:border-zinc-600 object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* FAQ */}
       <div className="max-w-7xl mx-auto px-4 py-20">
@@ -659,49 +684,23 @@ const LandingPage = () => {
       </div>
 
       {/* CTA */}
-      <div className="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 py-32 relative overflow-hidden border-t border-b border-green-200/80 dark:border-zinc-800">
-        <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:75px_75px]"></div>
+      <section className="border-t border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 py-24 sm:py-28">
         <div
-          className="max-w-7xl mx-auto px-4 text-center relative"
-          data-aos="zoom-in"
-          data-aos-duration="1000"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          data-aos="fade-up"
         >
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-40 h-40 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-full blur-3xl"></div>
-
-          <span
-            className="inline-flex items-center rounded-full px-4 py-1 text-sm font-medium bg-blue-50 dark:bg-sky-950 text-blue-700 dark:text-sky-300 ring-2 ring-inset ring-blue-300 dark:ring-sky-800 mb-8 border border-blue-200 dark:border-sky-800"
-            data-aos="fade-up"
-            data-aos-delay="100"
-          >
-            Ready to start? 🚀
-          </span>
-
-          <h2
-            className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-zinc-100 mb-6 max-w-3xl mx-auto leading-tight"
-            data-aos="fade-up"
-            data-aos-delay="200"
-          >
-            Start building your professional resume today
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-zinc-100 mb-4 max-w-3xl mx-auto tracking-tight leading-tight">
+            Build a resume you are ready to send
           </h2>
-
-          <p
-            className="text-xl text-gray-600 dark:text-zinc-400 mb-10 max-w-2xl mx-auto"
-            data-aos="fade-up"
-            data-aos-delay="300"
-          >
-            Join thousands of job seekers who have successfully landed their
-            dream jobs using ResumeAI
+          <p className="text-lg sm:text-xl text-gray-600 dark:text-zinc-400 mb-10 max-w-2xl mx-auto">
+            Pick a template, let Brightfolio help with wording and ATS checks,
+            and apply with a cleaner application package.
           </p>
 
-          <div
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            data-aos="fade-up"
-            data-aos-delay="400"
-          >
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               to="/loading"
-              className="px-8 py-4 bg-gradient-to-r from-black to-gray-800 dark:from-zinc-100 dark:to-zinc-200 dark:text-zinc-900 text-white rounded-full hover:from-gray-800 hover:to-gray-900 dark:hover:from-white dark:hover:to-zinc-100 transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl flex items-center group border border-gray-700 dark:border-zinc-600"
+              className="px-8 py-3.5 bg-gray-900 dark:bg-zinc-100 dark:text-zinc-900 text-white rounded-full hover:bg-gray-800 dark:hover:bg-white transition-all text-sm sm:text-base font-semibold inline-flex items-center group"
             >
               Create Your Resume
               <svg
@@ -720,81 +719,25 @@ const LandingPage = () => {
             </Link>
             <Link
               to="/templates"
-              className="px-8 py-4 bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 rounded-full hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all border border-gray-300 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-sky-500 shadow-lg hover:shadow-xl flex items-center"
+              className="px-8 py-3.5 bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 rounded-full border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 transition-all text-sm sm:text-base font-semibold"
             >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                />
-              </svg>
               View Templates
             </Link>
           </div>
 
-          <div
-            className="mt-16 flex items-center justify-center gap-8"
-            data-aos="fade-up"
-            data-aos-delay="500"
-          >
-            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-green-200 dark:border-green-900 shadow-sm">
-              <svg
-                className="w-5 h-5 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span className="text-gray-600 dark:text-zinc-400">Free Templates</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-blue-200 dark:border-sky-900 shadow-sm">
-              <svg
-                className="w-5 h-5 text-blue-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span className="text-gray-600 dark:text-zinc-400">AI Powered</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-purple-200 dark:border-purple-900 shadow-sm">
-              <svg
-                className="w-5 h-5 text-purple-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span className="text-gray-600 dark:text-zinc-400">ATS Friendly</span>
-            </div>
-          </div>
+          <p className="mt-10 text-sm text-zinc-500 dark:text-zinc-500">
+            Free templates
+            <span className="mx-2.5 text-zinc-300 dark:text-zinc-600" aria-hidden>
+              ·
+            </span>
+            AI writing help
+            <span className="mx-2.5 text-zinc-300 dark:text-zinc-600" aria-hidden>
+              ·
+            </span>
+            ATS-friendly formats
+          </p>
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
       <Footer />

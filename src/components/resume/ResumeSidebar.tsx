@@ -5,7 +5,7 @@ import {
   HomeIcon,
   EnvelopeIcon,
 } from "@heroicons/react/24/outline";
-import bunny1 from "../../bunny1.png";
+import BrandLogo from "../BrandLogo";
 
 export type ResumeWorkspaceTab = "home" | "help" | "editor" | "coverLetter";
 
@@ -38,7 +38,7 @@ export default function ResumeSidebar({
         className="flex h-[5.5rem] shrink-0 items-center gap-3 px-4 border-b border-gray-100 dark:border-zinc-800 min-w-0 hover:opacity-90 transition-opacity"
         aria-label="Brightfolio home"
       >
-        <img src={bunny1} alt="" className="h-10 w-10 shrink-0" />
+        <BrandLogo className="h-10 w-auto" alt="" />
         <div className="min-w-0">
           <p className="text-lg font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent truncate">
             Brightfolio

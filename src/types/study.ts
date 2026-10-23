@@ -54,6 +54,7 @@ export interface StudySet {
   borrowedFrom?: string; // UID of original creator
   isBorrowed?: boolean; // True if borrowed from another user
   originalSetId?: string; // Reference to original set
+  podcastId?: string | null;
   progress?: "not_started" | "started" | "completed";
   totalStudyTime: number; // in seconds
   totalSessions: number;

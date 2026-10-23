@@ -18,7 +18,7 @@ import {
   studyFlowAccent,
   type StudyFlowAccent,
 } from "../../constants/studyFlowAccent";
-import bunny1 from "../../bunny1.png";
+import BrandLogo from "../BrandLogo";
 
 type StudySidebarProps = {
   folders: StudyFolder[];
@@ -102,7 +102,7 @@ export default function StudySidebar({
         className="flex h-[5.5rem] shrink-0 items-center gap-3 px-4 border-b border-gray-100 dark:border-zinc-800 min-w-0 hover:opacity-90 transition-opacity"
         aria-label="Brightfolio home"
       >
-        <img src={bunny1} alt="" className="h-10 w-10 shrink-0" />
+        <BrandLogo accent={accent} className="h-10 w-auto" alt="" />
         <div className="min-w-0">
           <p
             className={`text-lg font-bold ${flow.brandGradient} truncate`}
@@ -121,6 +121,14 @@ export default function StudySidebar({
         >
           <HomeIcon className="h-5 w-5 shrink-0" />
           Study hub
+        </Link>
+        <Link
+          to="/podcast"
+          onClick={onCloseMobile}
+          className={navLinkClass(isPodcasts)}
+        >
+          <MicrophoneIcon className="h-5 w-5 shrink-0" />
+          Podcasts
         </Link>
         <Link
           to="/study/library"
@@ -154,14 +162,6 @@ export default function StudySidebar({
         >
           <ArrowDownTrayIcon className="h-5 w-5 shrink-0" />
           Borrowed
-        </Link>
-        <Link
-          to="/podcast"
-          onClick={onCloseMobile}
-          className={navLinkClass(isPodcasts)}
-        >
-          <MicrophoneIcon className="h-5 w-5 shrink-0" />
-          Podcasts
         </Link>
         <Link
           to="/study/performance"

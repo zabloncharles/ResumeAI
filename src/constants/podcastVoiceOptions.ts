@@ -13,7 +13,11 @@ export type PodcastMannerism =
   | "friend"
   | "coach"
   | "storyteller"
-  | "professor";
+  | "professor"
+  | "urban"
+  | "caveman";
+
+export type PodcastVoiceId = "Vindemiatrix" | "Sadachbia";
 
 export type PodcastVoiceOption<T extends string> = {
   id: T;
@@ -36,6 +40,16 @@ export const PODCAST_EMOTIONS: PodcastVoiceOption<PodcastEmotion>[] = [
 ];
 
 export const PODCAST_MANNERISMS: PodcastVoiceOption<PodcastMannerism>[] = [
+  {
+    id: "urban",
+    label: "Urban",
+    hint: "Uses slang, can curse, teaches like you are clueless.",
+  },
+  {
+    id: "caveman",
+    label: "Caveman",
+    hint: "Keeps real terms. Explains them like you are 5.",
+  },
   {
     id: "like-im-5",
     label: "Teach me like I'm 5",
@@ -68,11 +82,31 @@ export const PODCAST_MANNERISMS: PodcastVoiceOption<PodcastMannerism>[] = [
   },
 ];
 
+export const PODCAST_VOICES: PodcastVoiceOption<PodcastVoiceId>[] = [
+  {
+    id: "Vindemiatrix",
+    label: "Elara",
+    hint: "Gentle, clear female host.",
+  },
+  {
+    id: "Sadachbia",
+    label: "Orin",
+    hint: "Lively, energetic male host.",
+  },
+];
+
+const PODCAST_VOICE_AVATARS: Record<PodcastVoiceId, string> = {
+  Vindemiatrix: "/images/Elara.png",
+  Sadachbia: "/images/Orin.png",
+};
+
 export const DEFAULT_PODCAST_EMOTION: PodcastEmotion = "warm";
-export const DEFAULT_PODCAST_MANNERISM: PodcastMannerism = "chill";
+export const DEFAULT_PODCAST_MANNERISM: PodcastMannerism = "urban";
+export const DEFAULT_PODCAST_VOICE: PodcastVoiceId = "Vindemiatrix";
 
 const emotionIds = new Set(PODCAST_EMOTIONS.map((e) => e.id));
 const mannerismIds = new Set(PODCAST_MANNERISMS.map((m) => m.id));
+const voiceIds = new Set(PODCAST_VOICES.map((v) => v.id));
 
 export function normalizePodcastEmotion(value: unknown): PodcastEmotion {
   if (typeof value !== "string") return DEFAULT_PODCAST_EMOTION;
@@ -90,6 +124,18 @@ export function normalizePodcastMannerism(value: unknown): PodcastMannerism {
     : DEFAULT_PODCAST_MANNERISM;
 }
 
+export function normalizePodcastVoice(value: unknown): PodcastVoiceId {
+  if (typeof value !== "string") return DEFAULT_PODCAST_VOICE;
+  const trimmed = value.trim();
+  if (voiceIds.has(trimmed as PodcastVoiceId)) {
+    return trimmed as PodcastVoiceId;
+  }
+  const match = PODCAST_VOICES.find(
+    (v) => v.id.toLowerCase() === trimmed.toLowerCase()
+  );
+  return match?.id ?? DEFAULT_PODCAST_VOICE;
+}
+
 export function podcastEmotionLabel(id: string): string {
   const emotion = normalizePodcastEmotion(id);
   return PODCAST_EMOTIONS.find((e) => e.id === emotion)?.label ?? "Warm";
@@ -97,5 +143,29 @@ export function podcastEmotionLabel(id: string): string {
 
 export function podcastMannerismLabel(id: string): string {
   const mannerism = normalizePodcastMannerism(id);
-  return PODCAST_MANNERISMS.find((m) => m.id === mannerism)?.label ?? "Be chill";
+  return PODCAST_MANNERISMS.find((m) => m.id === mannerism)?.label ?? "Urban";
+}
+
+export function podcastVoiceLabel(id: string): string {
+  const voice = normalizePodcastVoice(id);
+  return PODCAST_VOICES.find((v) => v.id === voice)?.label ?? "Elara";
+}
+
+export function podcastVoiceAvatar(id: string): string {
+  return PODCAST_VOICE_AVATARS[normalizePodcastVoice(id)];
+}
+
+export function podcastEmotionHint(id: string): string {
+  const emotion = normalizePodcastEmotion(id);
+  return PODCAST_EMOTIONS.find((e) => e.id === emotion)?.hint ?? "";
+}
+
+export function podcastMannerismHint(id: string): string {
+  const mannerism = normalizePodcastMannerism(id);
+  return PODCAST_MANNERISMS.find((m) => m.id === mannerism)?.hint ?? "";
+}
+
+export function podcastVoiceHint(id: string): string {
+  const voice = normalizePodcastVoice(id);
+  return PODCAST_VOICES.find((v) => v.id === voice)?.hint ?? "";
 }

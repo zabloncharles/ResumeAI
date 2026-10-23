@@ -6,11 +6,11 @@ import {
   ChevronLeftIcon,
 } from "@heroicons/react/24/outline";
 import UserAccountMenu from "../UserAccountMenu";
-import bunny1 from "../../bunny1.png";
 import {
   studyFlowAccent,
   type StudyFlowAccent,
 } from "../../constants/studyFlowAccent";
+import BrandMark from "../BrandMark";
 
 type StudyTopBarPageHeader = {
   title: string;
@@ -95,15 +95,14 @@ export default function StudyTopBar({
       <div className="flex items-center gap-2 shrink-0 ml-auto">
         <Link
           to="/"
-          className="lg:hidden flex items-center gap-2 shrink-0 min-w-0 rounded-lg hover:opacity-90 transition-opacity"
+          className="lg:hidden flex items-center shrink-0 rounded-lg hover:opacity-90 transition-opacity"
           aria-label="Brightfolio home"
         >
-          <img src={bunny1} alt="" className="h-9 w-9 shrink-0" />
-          <span
-            className={`hidden sm:inline text-base font-bold ${flow.brandGradient} truncate`}
-          >
-            Brightfolio
-          </span>
+          <BrandMark
+            accent={accent}
+            logoClassName="h-9 w-auto"
+            nameClassName="text-base hidden sm:inline"
+          />
         </Link>
 
         {!focused ? (

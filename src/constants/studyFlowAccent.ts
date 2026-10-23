@@ -7,6 +7,8 @@ export type StudyFlowAccent =
 
 const BRAND_START =
   "bg-gradient-to-r from-[#16aeac] bg-clip-text text-transparent";
+const BRAND_START_MODE =
+  "bg-gradient-to-r from-[#16aeac] dark:from-[#fdffff] bg-clip-text text-transparent";
 
 export type StudyFlowAccentClasses = {
   brandGradient: string;
@@ -51,11 +53,11 @@ export const STUDY_FLOW_ACCENTS: Record<
     ...skyChrome,
   },
   sky: {
-    brandGradient: `${BRAND_START} to-sky-600 dark:to-sky-400`,
+    brandGradient: `${BRAND_START_MODE} to-sky-600 dark:to-sky-400`,
     ...skyChrome,
   },
   rose: {
-    brandGradient: `${BRAND_START} to-rose-600 dark:to-rose-400`,
+    brandGradient: `${BRAND_START_MODE} to-rose-600 dark:to-rose-400`,
     plus: "text-rose-600 dark:text-rose-400 focus:ring-rose-500",
     searchRing: "focus:ring-rose-500",
     btn: "bg-rose-600 text-white rounded-study hover:bg-rose-700 transition-colors",
@@ -73,7 +75,7 @@ export const STUDY_FLOW_ACCENTS: Record<
     eqBar: "bg-rose-500",
   },
   violet: {
-    brandGradient: `${BRAND_START} to-violet-600 dark:to-violet-400`,
+    brandGradient: `${BRAND_START_MODE} to-violet-600 dark:to-violet-400`,
     plus: "text-violet-600 dark:text-violet-400 focus:ring-violet-500",
     searchRing: "focus:ring-violet-500",
     btn: "bg-violet-600 text-white rounded-study hover:bg-violet-700 transition-colors",
@@ -91,7 +93,7 @@ export const STUDY_FLOW_ACCENTS: Record<
     eqBar: "bg-violet-500",
   },
   indigo: {
-    brandGradient: `${BRAND_START} to-indigo-600 dark:to-indigo-400`,
+    brandGradient: `${BRAND_START_MODE} to-indigo-600 dark:to-indigo-400`,
     plus: "text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500",
     searchRing: "focus:ring-indigo-500",
     btn: "bg-indigo-600 text-white rounded-study hover:bg-indigo-700 transition-colors",

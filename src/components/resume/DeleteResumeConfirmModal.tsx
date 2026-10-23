@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import bunny1 from "../../bunny1.png";
+import BrandLogo from "../BrandLogo";
 
 type DeleteResumeConfirmModalProps = {
   isOpen: boolean;
@@ -57,11 +57,7 @@ export default function DeleteResumeConfirmModal({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center">
-            <img
-              src={bunny1}
-              alt=""
-              className="h-12 w-12 mx-auto mb-4"
-            />
+            <BrandLogo className="h-12 w-auto mx-auto mb-4" alt="" />
             <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40">
               <ExclamationTriangleIcon
                 className="h-6 w-6 text-red-600 dark:text-red-400"

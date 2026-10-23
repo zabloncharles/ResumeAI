@@ -1,0 +1,469 @@
+<svg id="farmlandSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1000" class="study-farmland-svg">
+          <defs>
+            <!-- Edge Vignette Soft Blend Gradient -->
+            <linearGradient id="topGrassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#52c234" />
+              <stop offset="45%" stop-color="#2c9a29" />
+              <stop offset="100%" stop-color="#196118" />
+            </linearGradient>
+
+            <linearGradient id="soilCutLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#3d2109" />
+              <stop offset="35%" stop-color="#2b1604" />
+              <stop offset="70%" stop-color="#180c02" />
+              <stop offset="100%" stop-color="#09090b" />
+            </linearGradient>
+
+            <linearGradient id="soilCutRight" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#522d0d" />
+              <stop offset="35%" stop-color="#381e08" />
+              <stop offset="70%" stop-color="#211204" />
+              <stop offset="100%" stop-color="#09090b" />
+            </linearGradient>
+
+            <linearGradient id="rockLayer" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#27272a" />
+              <stop offset="50%" stop-color="#3f3f46" />
+              <stop offset="100%" stop-color="#18181b" />
+            </linearGradient>
+
+            <linearGradient id="cropDirtGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6e370c" />
+              <stop offset="100%" stop-color="#3d1d04" />
+            </linearGradient>
+
+            <!-- Metallic Silo Sheen Gradient -->
+            <linearGradient id="siloMetalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#94a3b8" />
+              <stop offset="25%" stop-color="#f8fafc" />
+              <stop offset="50%" stop-color="#cbd5e1" />
+              <stop offset="75%" stop-color="#64748b" />
+              <stop offset="100%" stop-color="#334155" />
+            </linearGradient>
+
+            <linearGradient id="pondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8" />
+              <stop offset="50%" stop-color="#0284c7" />
+              <stop offset="100%" stop-color="#0369a1" />
+            </linearGradient>
+
+            <linearGradient id="woodPlankGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#f1f5f9" />
+              <stop offset="100%" stop-color="#cbd5e1" />
+            </linearGradient>
+
+            <!-- Repeatable Wood Siding Pattern -->
+            <pattern id="clapboardPattern" width="10" height="6" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="5" x2="10" y2="5" stroke="#94a3b8" stroke-width="0.75" />
+            </pattern>
+
+            <!-- Corrugated Metal Roof Pattern -->
+            <pattern id="tinRoofPattern" width="4" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+              <line x1="2" y1="0" x2="2" y2="20" stroke="#000000" stroke-width="0.8" opacity="0.3" />
+            </pattern>
+
+            <!-- Ambient Cast Shadow Filter -->
+            <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="-10" dy="18" stdDeviation="7" flood-color="#021c15" flood-opacity="0.55" />
+            </filter>
+
+            <filter id="blockShadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="30" />
+              <feOffset dx="0" dy="42" />
+              <feComponentTransfer><feFuncA type="linear" slope="0.75"/></feComponentTransfer>
+              <feMerge> 
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <!-- Upgraded miniature-world textures -->
+            <filter id="microTexture" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="11" result="noise"/>
+              <feColorMatrix in="noise" type="saturate" values="0" result="mono"/>
+              <feComponentTransfer in="mono" result="faded"><feFuncA type="table" tableValues="0 0.12"/></feComponentTransfer>
+              <feBlend in="SourceGraphic" in2="faded" mode="soft-light"/>
+            </filter>
+            <linearGradient id="fieldGreen" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#65a30d"/><stop offset=".55" stop-color="#3f8f24"/><stop offset="1" stop-color="#27651e"/>
+            </linearGradient>
+            <linearGradient id="wheatGold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#fde68a"/><stop offset=".45" stop-color="#eab308"/><stop offset="1" stop-color="#a16207"/>
+            </linearGradient>
+            <linearGradient id="roadEarth" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#b7793f"/><stop offset=".5" stop-color="#8b572a"/><stop offset="1" stop-color="#5b351b"/>
+            </linearGradient>
+            <filter id="objectShadow" x="-50%" y="-50%" width="200%" height="220%">
+              <feDropShadow dx="-7" dy="12" stdDeviation="5" flood-color="#07130b" flood-opacity=".48"/>
+            </filter>
+          </defs>
+
+          <!-- Outer Dark Canvas Background -->
+          <rect id="svgCanvasBg" width="1400" height="1000" fill="#09090b" />
+
+          <!-- LAYER 1: SUBSURFACE GEOLOGY CUTAWAY -->
+          <g id="layerSubsurface">
+            <!-- Left Side Subsurface Earth Block -->
+            <polygon points="700,770 200,490 200,640 700,920" fill="url(#soilCutLeft)" />
+            <!-- Right Side Subsurface Earth Block -->
+            <polygon points="700,770 1200,490 1200,640 700,920" fill="url(#soilCutRight)" />
+
+            <!-- Subterranean Rock Strata Details -->
+            <polygon points="300,570 480,660 480,682 300,592" fill="url(#rockLayer)" opacity="0.7" />
+            <polygon points="500,695 650,770 650,790 500,715" fill="url(#rockLayer)" opacity="0.4" />
+            <polygon points="780,785 980,685 980,705 780,805" fill="url(#rockLayer)" opacity="0.55" />
+            
+            <!-- Underground Groundwater Table Glow -->
+            <polygon points="860,625 1120,495 1120,512 860,642" fill="#0284c7" opacity="0.35" />
+
+            <!-- Tree Root Systems -->
+            <path d="M 360,570 Q 350,605 320,625 M 360,570 Q 375,595 390,620" stroke="#2b1604" stroke-width="3" stroke-linecap="round" fill="none" />
+            <path d="M 1030,520 Q 1040,550 1060,575" stroke="#381e08" stroke-width="3" stroke-linecap="round" fill="none" />
+          </g>
+
+          <!-- LAYER 2: TOP SURFACE GRASS LANDMASS -->
+          <g id="layerSurface">
+            <!-- Main Isometric Diamond Grass Surface -->
+            <polygon points="700,220 1200,490 700,770 200,490" fill="url(#topGrassGrad)"/>
+            <!-- subtle pasture patches -->
+            <path d="M285 470 Q390 375 525 390 Q600 430 545 495 Q430 545 315 510Z" fill="#76a83d" opacity=".22"/>
+            <path d="M875 335 Q1010 365 1120 455 Q1080 500 995 485 Q900 430 850 385Z" fill="#9bcf57" opacity=".14"/>
+            <!-- Edge Highlight -->
+            <polyline points="200,490 700,770 1200,490" stroke="#a7f3d0" stroke-width="3" fill="none" opacity="0.48" />
+
+            <!-- Winding Dirt Farm Roads with shoulders + wheel tracks -->
+            <path d="M 405,337 Q 575,420 682,451 T 935,528 L 969,507 Q 825,424 662,405 T 430,316 Z" fill="#4b2c18" opacity=".45"/>
+            <path d="M 420,345 Q 580,425 680,455 T 920,530 L 960,510 Q 820,435 660,415 T 440,325 Z" fill="url(#roadEarth)" />
+            <path d="M 680,455 Q 610,515 510,565 L 485,545 Q 580,495 660,415 Z" fill="#7a4927"/>
+            <path d="M445 336 Q590 408 686 440 T925 516" fill="none" stroke="#d6a06b" stroke-width="3" opacity=".28"/>
+            <path d="M455 348 Q590 420 680 452 T910 526" fill="none" stroke="#3f2818" stroke-width="2" opacity=".3"/>
+            <!-- scattered stones / grass tufts -->
+            <g fill="#b7c9a0" opacity=".65">
+              <ellipse cx="335" cy="520" rx="5" ry="2.4"/><ellipse cx="1090" cy="505" rx="6" ry="3"/><ellipse cx="625" cy="675" rx="5" ry="2"/>
+            </g>
+          </g>
+
+          <!-- LAYER 3: ISOMETRIC GRID GUIDE -->
+          <g id="layerGrid" opacity="0.1">
+            <path d="M 350,410 L 850,680 M 450,355 L 950,625 M 550,300 L 1050,570 M 650,245 L 1150,515" stroke="#ffffff" stroke-width="1.5" />
+            <path d="M 1050,410 L 550,680 M 950,355 L 450,625 M 850,300 L 350,570 M 750,245 L 250,515" stroke="#ffffff" stroke-width="1.5" />
+          </g>
+
+          <!-- LAYER 4: POND, STREAM & WATERWAY -->
+          <g id="layerWater">
+            <path d="M 870,415 C 970,455 1030,525 950,575 C 880,620 790,565 770,525 C 750,485 790,385 870,415 Z" fill="url(#pondGrad)" />
+            <path d="M 880,425 C 950,460 1000,520 940,563 C 880,603 805,553 785,520 C 770,485 808,403 880,425 Z" fill="#7dd3fc" opacity="0.38" />
+            <!-- Water Lilies -->
+            <ellipse cx="835" cy="495" rx="14" ry="7" fill="#15803d" />
+            <ellipse cx="865" cy="520" rx="18" ry="9" fill="#166534" />
+            <!-- Small Stream Outlet -->
+            <path d="M 770,525 Q 730,550 680,570 L 690,580 Q 740,560 780,532 Z" fill="#0284c7" opacity="0.8" />
+          </g>
+
+          <!-- LAYER 5: FLOURISHING CROPS & ORCHARDS -->
+          <g id="layerCrops" filter="url(#objectShadow)">
+            <!-- dense vegetable field -->
+            <g transform="translate(350 300)">
+              <polygon points="100,0 255,80 145,137 -10,57" fill="#4a2d16"/>
+              <g stroke="#27180e" stroke-width="5" opacity=".55">
+                <path d="M20 54L148 118"/><path d="M42 43L170 107"/><path d="M64 32L192 96"/><path d="M86 21L214 85"/><path d="M108 10L236 74"/>
+              </g>
+              <g fill="#4ade80" stroke="#166534" stroke-width="1">
+                <circle cx="42" cy="57" r="7"/><circle cx="66" cy="69" r="7"/><circle cx="90" cy="81" r="7"/><circle cx="114" cy="93" r="7"/><circle cx="138" cy="105" r="7"/>
+                <circle cx="67" cy="44" r="7"/><circle cx="91" cy="56" r="7"/><circle cx="115" cy="68" r="7"/><circle cx="139" cy="80" r="7"/><circle cx="163" cy="92" r="7"/>
+                <circle cx="92" cy="31" r="7"/><circle cx="116" cy="43" r="7"/><circle cx="140" cy="55" r="7"/><circle cx="164" cy="67" r="7"/><circle cx="188" cy="79" r="7"/>
+              </g>
+              <g fill="#ef4444"><circle cx="44" cy="55" r="2.4"/><circle cx="92" cy="79" r="2.4"/><circle cx="141" cy="79" r="2.4"/><circle cx="164" cy="65" r="2.4"/><circle cx="189" cy="77" r="2.4"/></g>
+            </g>
+            <!-- wheat field: many parallel crop bands -->
+            <g transform="translate(230 410)">
+              <polygon points="110,-10 265,70 145,132 -10,52" fill="#6b431c"/>
+              <g fill="none" stroke="url(#wheatGold)" stroke-width="8" stroke-linecap="round">
+                <path d="M18 53L125 107"/><path d="M38 43L145 97"/><path d="M58 33L165 87"/><path d="M78 23L185 77"/><path d="M98 13L205 67"/><path d="M118 3L225 57"/>
+              </g>
+              <g stroke="#fef3c7" stroke-width="1.5" opacity=".65"><path d="M18 49L125 103"/><path d="M58 29L165 83"/><path d="M98 9L205 63"/></g>
+            </g>
+            <!-- orchard with repeated shaded trees -->
+            <g transform="translate(455 505)">
+              <polygon points="95,-8 225,58 125,110 -5,44" fill="#5b3419"/>
+              <g>
+                <g transform="translate(42 35)"><ellipse cy="8" rx="16" ry="7" fill="#17220f" opacity=".3"/><rect x="-3" y="-3" width="6" height="17" fill="#633b1d"/><circle cy="-17" r="17" fill="#237a35"/><circle cx="-7" cy="-22" r="10" fill="#3fa34d"/><circle cx="6" cy="-14" r="10" fill="#2d8c3c"/><g fill="#dc2626"><circle cx="-7" cy="-20" r="2.5"/><circle cx="6" cy="-11" r="2.5"/></g></g>
+                <g transform="translate(92 60)"><ellipse cy="8" rx="16" ry="7" fill="#17220f" opacity=".3"/><rect x="-3" y="-3" width="6" height="17" fill="#633b1d"/><circle cy="-17" r="17" fill="#237a35"/><circle cx="-7" cy="-22" r="10" fill="#4caf50"/><circle cx="6" cy="-14" r="10" fill="#2d8c3c"/></g>
+                <g transform="translate(98 20)"><ellipse cy="8" rx="16" ry="7" fill="#17220f" opacity=".3"/><rect x="-3" y="-3" width="6" height="17" fill="#633b1d"/><circle cy="-17" r="17" fill="#237a35"/><circle cx="-7" cy="-22" r="10" fill="#3fa34d"/><circle cx="6" cy="-14" r="10" fill="#2d8c3c"/></g>
+                <g transform="translate(148 45)"><ellipse cy="8" rx="16" ry="7" fill="#17220f" opacity=".3"/><rect x="-3" y="-3" width="6" height="17" fill="#633b1d"/><circle cy="-17" r="17" fill="#237a35"/><circle cx="-7" cy="-22" r="10" fill="#4caf50"/><circle cx="6" cy="-14" r="10" fill="#2d8c3c"/></g>
+              </g>
+            </g>
+          </g>
+
+          <!-- LAYER 6: HIGH-FIDELITY REALISTIC ARCHITECTURE -->
+          <g id="layerStructures" filter="url(#softShadow)">
+
+            <!-- 1. REALISTIC AMERICAN RED BARN -->
+            <g id="realisticBarn" transform="translate(710, 270)">
+              <!-- Cast Ground Shadow -->
+              <polygon points="-15,75 85,125 155,90 55,40" fill="#09090b" opacity="0.45" />
+
+              <!-- Left Wall (Red Wood Siding) -->
+              <polygon points="0,50 60,80 60,20 0,-10" fill="#881337" />
+              <!-- Vertical Wood Siding Slats (Left Wall) -->
+              <g stroke="#4c0519" stroke-width="1.2" opacity="0.6">
+                <line x1="10" y1="55" x2="10" y2="-5" />
+                <line x1="20" y1="60" x2="20" y2="0" />
+                <line x1="30" y1="65" x2="30" y2="5" />
+                <line x1="40" y1="70" x2="40" y2="10" />
+                <line x1="50" y1="75" x2="50" y2="15" />
+              </g>
+
+              <!-- Right Wall (Red Wood Siding) -->
+              <polygon points="60,80 130,45 130,-15 60,20" fill="#9f1239" />
+              <!-- Vertical Wood Siding Slats (Right Wall) -->
+              <g stroke="#4c0519" stroke-width="1.2" opacity="0.6">
+                <line x1="74" y1="73" x2="74" y2="13" />
+                <line x1="88" y1="66" x2="88" y2="6" />
+                <line x1="102" y1="59" x2="102" y2="-1" />
+                <line x1="116" y1="52" x2="116" y2="-8" />
+              </g>
+
+              <!-- Barn Gable Front Cross Beams (White Trim) -->
+              <polygon points="60,20 130,-15 130,-22 60,13" fill="#be123c" />
+              <polyline points="60,20 95,-15 130,-15" stroke="#ffffff" stroke-width="2.5" fill="none" />
+
+              <!-- Gambrel Tin Roof (Left Slopes) -->
+              <polygon points="0,-10 60,20 60,-15 0,-45" fill="#e2e8f0" />
+              <polygon points="0,-45 60,-15 60,-35 0,-65" fill="#cbd5e1" />
+              <!-- Corrugated Tin Overlay -->
+              <polygon points="0,-10 60,20 60,-35 0,-65" fill="url(#tinRoofPattern)" opacity="0.7" />
+
+              <!-- Gambrel Tin Roof (Right Slopes) -->
+              <polygon points="60,20 130,-15 130,-50 60,-20" fill="#cbd5e1" />
+              <polygon points="60,-20 130,-50 130,-70 60,-40" fill="#94a3b8" />
+              <polygon points="60,20 130,-15 130,-70 60,-40" fill="url(#tinRoofPattern)" opacity="0.7" />
+
+              <!-- White Roof Trim / Fascia Overhangs -->
+              <polyline points="0,-10 60,20 130,-15" stroke="#ffffff" stroke-width="3" fill="none" />
+              <polyline points="0,-45 60,-15 130,-50" stroke="#ffffff" stroke-width="2.5" fill="none" />
+
+              <!-- Sliding Timber Barn Doors -->
+              <g id="barnDoors">
+                <!-- Door Frame Hole -->
+                <polygon points="20,60 45,72 45,32 20,20" fill="#180d0e" />
+                <!-- Left Sliding Door -->
+                <polygon points="12,56 28,64 28,24 12,16" fill="#701a2b" stroke="#ffffff" stroke-width="1.5" />
+                <!-- X-Brace on Left Door -->
+                <line x1="12" y1="56" x2="28" y2="24" stroke="#ffffff" stroke-width="1.5" />
+                <line x1="12" y1="16" x2="28" y2="64" stroke="#ffffff" stroke-width="1.5" />
+
+                <!-- Right Sliding Door -->
+                <polygon points="32,66 48,74 48,34 32,26" fill="#881337" stroke="#ffffff" stroke-width="1.5" />
+                <!-- X-Brace on Right Door -->
+                <line x1="32" y1="66" x2="48" y2="34" stroke="#ffffff" stroke-width="1.5" />
+                <line x1="32" y1="26" x2="48" y2="74" stroke="#ffffff" stroke-width="1.5" />
+                <!-- Door Top Metal Rail -->
+                <line x1="8" y1="19" x2="52" y2="41" stroke="#334155" stroke-width="2.5" />
+              </g>
+
+              <!-- Upper Loft Glass Window -->
+              <polygon points="85,15 105,5 105,-8 85,2" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" opacity="0.85" />
+              <line x1="95" y1="10" x2="95" y2="-3" stroke="#ffffff" stroke-width="1" />
+              <line x1="85" y1="3.5" x2="105" y2="-6.5" stroke="#ffffff" stroke-width="1" />
+
+              <!-- Cupola Tower & Weather Vane -->
+              <g id="cupola" transform="translate(60, -42)">
+                <polygon points="-8,4 8,12 8,0 -8,-8" fill="#cbd5e1" />
+                <polygon points="8,12 18,7 18,-5 8,0" fill="#94a3b8" />
+                <polygon points="-10,-8 8,0 18,-5 0,-13" fill="#881337" stroke="#ffffff" stroke-width="1" />
+                <!-- Weather Vane Rod & Arrow -->
+                <line x1="4" y1="-5" x2="4" y2="-22" stroke="#1e293b" stroke-width="1.5" />
+                <polygon points="0,-18 10,-20 4,-24" fill="#f59e0b" />
+              </g>
+            </g>
+
+            <!-- 2. METALLIC GRAIN SILO -->
+            <g id="realisticSilo" transform="translate(850, 250)">
+              <!-- Base Shadow -->
+              <ellipse cx="0" cy="45" rx="20" ry="10" fill="#09090b" opacity="0.4" />
+              <!-- Metallic Cylindrical Body -->
+              <path d="M -20,0 L -20,45 A 20 10 0 0 0 20,45 L 20,0 Z" fill="url(#siloMetalGrad)" />
+              <!-- Corrugated Rings -->
+              <g stroke="#475569" stroke-width="1" fill="none" opacity="0.5">
+                <path d="M -20,10 A 20 10 0 0 0 20,10" />
+                <path d="M -20,20 A 20 10 0 0 0 20,20" />
+                <path d="M -20,30 A 20 10 0 0 0 20,30" />
+              </g>
+              <!-- Metal Top Cap/Dome -->
+              <ellipse cx="0" cy="0" rx="20" ry="10" fill="#e2e8f0" />
+              <path d="M -20,0 A 20 20 0 0 1 20,0 Z" fill="url(#siloMetalGrad)" />
+              <!-- Silo Service Ladder -->
+              <g stroke="#1e293b" stroke-width="1.5">
+                <line x1="-12" y1="-5" x2="-12" y2="48" />
+                <line x1="-7" y1="-5" x2="-7" y2="48" />
+                <line x1="-12" y1="5" x2="-7" y2="5" />
+                <line x1="-12" y1="15" x2="-7" y2="15" />
+                <line x1="-12" y1="25" x2="-7" y2="25" />
+                <line x1="-12" y1="35" x2="-7" y2="35" />
+              </g>
+            </g>
+
+            <!-- 4. TRACTOR SHELTER & OUTBUILDING -->
+            <g id="tractorShed" transform="translate(480, 360)">
+              <!-- Posts & Open Frame -->
+              <line x1="0" y1="15" x2="0" y2="-5" stroke="#78350f" stroke-width="3" />
+              <line x1="25" y1="27" x2="25" y2="7" stroke="#78350f" stroke-width="3" />
+              <line x1="50" y1="15" x2="50" y2="-5" stroke="#78350f" stroke-width="3" />
+              <!-- Tin Roof Cover -->
+              <polygon points="-5,-5 25,7 55,-5 25,-17" fill="#64748b" stroke="#f8fafc" stroke-width="1" />
+            </g>
+
+          </g>
+
+          <!-- LAYER 6B: STANDALONE FARMHOUSE -->
+          <g id="layerFarmhouse" filter="url(#softShadow)">
+            <g id="realisticFarmhouse" transform="translate(570, 400)">
+              <!-- Ground shadow -->
+              <polygon points="-28,58 48,96 122,59 46,21" fill="#020617" opacity="0.42"/>
+
+              <!-- Stone foundation -->
+              <polygon points="0,47 48,71 48,56 0,32" fill="#57534e"/>
+              <polygon points="48,71 104,43 104,28 48,56" fill="#44403c"/>
+
+              <!-- Main two-storey walls -->
+              <polygon points="0,32 48,56 48,-18 0,-42" fill="#fafaf9"/>
+              <polygon points="48,56 104,28 104,-46 48,-18" fill="#e7e5e4"/>
+              <polygon points="0,32 48,56 48,-18 0,-42" fill="url(#clapboardPattern)" opacity="0.52"/>
+              <polygon points="48,56 104,28 104,-46 48,-18" fill="url(#clapboardPattern)" opacity="0.42"/>
+
+              <!-- Proper gable end: wall rises to a centered ridge -->
+              <polygon points="0,-42 24,-66 48,-18" fill="#f5f5f4"/>
+              <polyline points="0,-42 24,-66 48,-18" fill="none" stroke="#d6d3d1" stroke-width="1.5"/>
+
+              <!-- Main pitched roof. Ridge runs back in the same isometric axis as the house. -->
+              <!-- near/left roof plane -->
+              <polygon points="-8,-43 24,-72 112,-50 48,-14" fill="#374151"/>
+              <!-- far/right roof plane -->
+              <polygon points="24,-72 112,-50 112,-61 27,-82" fill="#1f2937"/>
+              <!-- roof edge thickness / fascia -->
+              <polyline points="-8,-43 48,-14 112,-50" fill="none" stroke="#111827" stroke-width="4" stroke-linejoin="round"/>
+              <line x1="24" y1="-72" x2="112" y2="-50" stroke="#111827" stroke-width="3"/>
+              <line x1="-8" y1="-43" x2="24" y2="-72" stroke="#111827" stroke-width="2.5"/>
+              <!-- subtle shingle courses -->
+              <g stroke="#64748b" stroke-width="1" opacity="0.42">
+                <line x1="0" y1="-46" x2="53" y2="-20"/><line x1="7" y1="-53" x2="65" y2="-24"/>
+                <line x1="14" y1="-60" x2="78" y2="-28"/><line x1="21" y1="-67" x2="91" y2="-32"/>
+              </g>
+
+              <!-- Chimney now emerges through rear roof plane -->
+              <g id="chimney" transform="translate(77,-63)">
+                <polygon points="0,12 9,16 9,-12 0,-16" fill="#9f1239"/>
+                <polygon points="9,16 16,12 16,-16 9,-12" fill="#7f1d1d"/>
+                <polygon points="0,-16 9,-12 16,-16 7,-21" fill="#be123c"/>
+                <polygon points="-1,-17 9,-12 17,-16 7,-22" fill="none" stroke="#fecaca" stroke-width="1" opacity="0.45"/>
+              </g>
+
+              <!-- Front porch, attached as its own smaller roof volume -->
+              <g id="porch">
+                <polygon points="-10,35 34,57 50,49 6,27" fill="#854d0e"/>
+                <polygon points="-12,11 34,34 52,25 6,2" fill="#475569"/>
+                <polyline points="-12,11 34,34 52,25" fill="none" stroke="#1f2937" stroke-width="2"/>
+                <g stroke="#f8fafc" stroke-width="2">
+                  <line x1="-7" y1="34" x2="-7" y2="13"/><line x1="13" y1="44" x2="13" y2="23"/><line x1="33" y1="54" x2="33" y2="33"/>
+                </g>
+                <g stroke="#e7e5e4" stroke-width="1.2">
+                  <line x1="-7" y1="25" x2="13" y2="35"/><line x1="13" y1="35" x2="33" y2="45"/>
+                </g>
+              </g>
+
+              <!-- Front facade openings -->
+              <polygon points="8,23 19,28 19,8 8,3" fill="#60a5fa" stroke="#f8fafc" stroke-width="1.6"/>
+              <line x1="13.5" y1="25.5" x2="13.5" y2="5.5" stroke="#f8fafc"/>
+              <line x1="8" y1="15.5" x2="19" y2="21" stroke="#f8fafc"/>
+              <polygon points="27,34 39,40 39,13 27,7" fill="#92400e" stroke="#f8fafc" stroke-width="1.3"/>
+              <circle cx="36" cy="29" r="1" fill="#fbbf24"/>
+              <polygon points="10,-12 22,-6 22,-25 10,-31" fill="#7dd3fc" stroke="#f8fafc" stroke-width="1.5"/>
+              <line x1="16" y1="-9" x2="16" y2="-28" stroke="#f8fafc"/>
+
+              <!-- Side windows -->
+              <polygon points="65,21 77,15 77,-4 65,2" fill="#60a5fa" stroke="#f8fafc" stroke-width="1.5"/>
+              <polygon points="86,10 97,4 97,-15 86,-9" fill="#60a5fa" stroke="#f8fafc" stroke-width="1.5"/>
+              <polygon points="65,-17 77,-23 77,-40 65,-34" fill="#7dd3fc" stroke="#f8fafc" stroke-width="1.5"/>
+
+              <!-- Steps -->
+              <polygon points="16,55 34,64 44,59 26,50" fill="#78716c"/>
+              <polygon points="19,60 34,68 41,64 26,56" fill="#57534e"/>
+            </g>
+          </g>
+
+          <!-- LAYER 7: LIVESTOCK & ANIMALS -->
+          <g id="layerLivestock" filter="url(#objectShadow)">
+            <!-- Pasture Timber Fencing -->
+            <g stroke="#78350f" stroke-width="2.5" stroke-linecap="round">
+              <line x1="720" y1="465" x2="840" y2="525" />
+              <line x1="840" y1="525" x2="760" y2="565" />
+              <line x1="760" y1="565" x2="640" y2="505" />
+              <!-- Fence Posts -->
+              <line x1="720" y1="465" x2="720" y2="475" stroke-width="3" />
+              <line x1="780" y1="495" x2="780" y2="505" stroke-width="3" />
+              <line x1="840" y1="525" x2="840" y2="535" stroke-width="3" />
+            </g>
+
+            <g stroke="#a66a32" stroke-width="2" opacity=".9"><line x1="650" y1="500" x2="770" y2="560"/><line x1="710" y1="470" x2="830" y2="530"/></g>
+            <!-- Holstein Cow 1 (Grazing East) -->
+            <g transform="translate(730, 495)">
+              <ellipse cx="0" cy="0" rx="14" ry="9" fill="#f8fafc" />
+              <path d="M -6,-4 Q -2,-8 2,-4 Q 0,2 -6,0 Z" fill="#09090b" />
+              <path d="M 4,1 Q 8,-2 10,4 Q 4,6 4,1 Z" fill="#09090b" />
+              <circle cx="14" cy="-5" r="5" fill="#f8fafc" />
+              <circle cx="16" cy="-4" r="2.5" fill="#f43f5e" />
+              <line x1="-8" y1="6" x2="-8" y2="14" stroke="#09090b" stroke-width="2" />
+              <line x1="-3" y1="7" x2="-3" y2="15" stroke="#09090b" stroke-width="2" />
+              <line x1="5" y1="7" x2="5" y2="15" stroke="#09090b" stroke-width="2" />
+              <line x1="10" y1="6" x2="10" y2="14" stroke="#09090b" stroke-width="2" />
+            </g>
+
+            <!-- Holstein Cow 2 (Resting West) -->
+            <g transform="translate(780, 520)">
+              <ellipse cx="0" cy="0" rx="15" ry="10" fill="#f8fafc" />
+              <path d="M -4,-5 Q 4,-9 6,0 Q -2,4 -4,-5 Z" fill="#09090b" />
+              <circle cx="-13" cy="-4" r="5.5" fill="#f8fafc" />
+              <line x1="-10" y1="7" x2="-10" y2="13" stroke="#09090b" stroke-width="2" />
+              <line x1="4" y1="8" x2="4" y2="14" stroke="#09090b" stroke-width="2" />
+            </g>
+
+            <!-- Grazing Sheep -->
+            <g transform="translate(500, 460)">
+              <ellipse cx="0" cy="0" rx="10" ry="8" fill="#f1f5f9" />
+              <circle cx="-4" cy="-3" r="5" fill="#ffffff" />
+              <circle cx="4" cy="-2" r="5" fill="#ffffff" />
+              <circle cx="8" cy="-3" r="3.5" fill="#1e293b" />
+              <line x1="-5" y1="5" x2="-5" y2="11" stroke="#1e293b" stroke-width="2" />
+              <line x1="3" y1="5" x2="3" y2="11" stroke="#1e293b" stroke-width="2" />
+            </g>
+
+            <!-- Roaming Chickens -->
+            <g transform="translate(635, 465)">
+              <ellipse cx="0" cy="0" rx="4" ry="3" fill="#ffffff" />
+              <circle cx="3" cy="-2" r="2" fill="#ffffff" />
+              <polygon points="4,-2 7,-1 4,0" fill="#f97316" />
+            </g>
+          </g>
+
+          <!-- LAYER 8: TREES & FOLIAGE -->
+          <g id="layerTrees" filter="url(#objectShadow)">
+            <!-- layered forest belt -->
+            <g transform="translate(985 365)">
+              <g transform="translate(-55 15)"><rect x="-4" y="-5" width="8" height="28" fill="#5b371b"/><polygon points="0,-75 -31,-22 31,-22" fill="#0f5132"/><polygon points="0,-58 -26,-10 26,-10" fill="#167044"/><polygon points="0,-40 -21,4 21,4" fill="#238a50"/></g>
+              <g transform="translate(0 0)"><rect x="-4" y="-5" width="8" height="31" fill="#5b371b"/><polygon points="0,-88 -35,-27 35,-27" fill="#0b442b"/><polygon points="0,-68 -29,-13 29,-13" fill="#146c43"/><polygon points="0,-48 -23,2 23,2" fill="#1e8b50"/></g>
+              <g transform="translate(58 28)"><rect x="-4" y="-5" width="8" height="26" fill="#5b371b"/><polygon points="0,-78 -31,-24 31,-24" fill="#0d4b2f"/><polygon points="0,-59 -26,-11 26,-11" fill="#176d42"/><polygon points="0,-41 -21,3 21,3" fill="#249352"/></g>
+              <g transform="translate(105 42) scale(.82)"><rect x="-4" y="-5" width="8" height="26" fill="#5b371b"/><polygon points="0,-78 -31,-24 31,-24" fill="#0d4b2f"/><polygon points="0,-59 -26,-11 26,-11" fill="#176d42"/><polygon points="0,-41 -21,3 21,3" fill="#249352"/></g>
+            </g>
+            <!-- hero deciduous tree -->
+            <g transform="translate(690 650)">
+              <ellipse cx="8" cy="8" rx="45" ry="17" fill="#0b1c10" opacity=".28"/>
+              <path d="M-5 8 C-3-18 -12-34 -18-46 M2-12 C16-29 20-43 25-55 M0-5 C-18-22-28-31-37-38" fill="none" stroke="#69401f" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="-22" cy="-53" r="27" fill="#267a3c"/><circle cx="8" cy="-61" r="32" fill="#2f9347"/><circle cx="32" cy="-45" r="26" fill="#237538"/><circle cx="-3" cy="-38" r="31" fill="#3fa34f"/><circle cx="18" cy="-70" r="18" fill="#55b85f"/>
+            </g>
+            <!-- hedges and grass clumps -->
+            <g fill="#2f8a43" opacity=".9"><ellipse cx="555" cy="335" rx="24" ry="9"/><ellipse cx="590" cy="350" rx="28" ry="10"/><ellipse cx="910" cy="600" rx="30" ry="10"/></g>
+            <g stroke="#8fbc66" stroke-width="2" opacity=".8"><path d="M320 555l-5-15m5 15l6-17m-6 17l14-9M1080 455l-4-17m4 17l8-16m-8 16l13-8M600 625l-5-15m5 15l8-14"/></g>
+          </g>
+
+        </svg>

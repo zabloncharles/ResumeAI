@@ -23,12 +23,15 @@ import {
   BoltIcon,
   CircleStackIcon,
   UserPlusIcon,
+  MicrophoneIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import {
   emptyMonthChart,
   emptyPlanRegistrationChart,
   fetchAnalyticsGlobal,
   fetchAnalyticsMonthsForYear,
+  podcastMinutesFromSeconds,
   type AnalyticsGlobal,
 } from "../utils/analyticsFirestore";
 import {
@@ -101,6 +104,8 @@ const Dashboard = () => {
     totalUsers: 0,
     totalResumes: 0,
     totalCoverLetters: 0,
+    totalPodcasts: 0,
+    totalPodcastSeconds: 0,
     totalApiCalls: 0,
     totalTokens: 0,
     usersFree: 0,
@@ -115,6 +120,9 @@ const Dashboard = () => {
   const [newUsersThisWeek, setNewUsersThisWeek] = useState(0);
   const [currentMonthResumes, setCurrentMonthResumes] = useState(0);
   const [currentMonthCoverLetters, setCurrentMonthCoverLetters] = useState(0);
+  const [currentMonthPodcasts, setCurrentMonthPodcasts] = useState(0);
+  const [currentMonthPodcastSeconds, setCurrentMonthPodcastSeconds] =
+    useState(0);
   const globeRef = useRef<any>(null);
   const globeContainerRef = useRef<HTMLDivElement>(null);
   const [globeWidth, setGlobeWidth] = useState(480);
@@ -123,10 +131,11 @@ const Dashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [profileImpressionData, setProfileImpressionData] = useState(() =>
-    emptyMonthChart().map(({ month, coverLetter, resume, users }) => ({
+    emptyMonthChart().map(({ month, coverLetter, resume, podcast, users }) => ({
       month,
       coverLetter,
       resume,
+      podcast,
       users,
       applications: 0,
     }))
@@ -200,12 +209,15 @@ const Dashboard = () => {
         const monthIndex = new Date().getMonth();
         setCurrentMonthResumes(months[monthIndex]?.resumes ?? 0);
         setCurrentMonthCoverLetters(months[monthIndex]?.coverLetters ?? 0);
+        setCurrentMonthPodcasts(months[monthIndex]?.podcasts ?? 0);
+        setCurrentMonthPodcastSeconds(months[monthIndex]?.podcastSeconds ?? 0);
 
         setProfileImpressionData(
           months.map((m) => ({
             month: m.label,
             coverLetter: m.coverLetters,
             resume: m.resumes,
+            podcast: m.podcasts,
             users: m.users,
             applications: 0,
           }))
@@ -382,7 +394,7 @@ const Dashboard = () => {
       title="Resume & Employment Analytics"
       description="Platform adoption and AI usage at a glance."
     >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
           {(
             [
               {
@@ -400,6 +412,24 @@ const Dashboard = () => {
                 hint: "First cloud saves across all users",
                 Icon: DocumentTextIcon,
                 tone: "bg-[#16aeac]/10 text-[#16aeac] dark:bg-[#16aeac]/15",
+              },
+              {
+                key: "podcasts",
+                label: "Total podcasts",
+                value: platformStats.totalPodcasts,
+                hint: "Episodes generated across all users",
+                Icon: MicrophoneIcon,
+                tone: "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300",
+              },
+              {
+                key: "podcastMinutes",
+                label: "Podcast minutes",
+                value: podcastMinutesFromSeconds(
+                  platformStats.totalPodcastSeconds
+                ),
+                hint: "Total generated audio length",
+                Icon: ClockIcon,
+                tone: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300",
               },
               {
                 key: "api",
@@ -714,6 +744,14 @@ const Dashboard = () => {
                     </span>
                   </span>
                   <span className="flex items-center space-x-2">
+                    <span className="inline-block w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center">
+                      <MicrophoneIcon className="w-3 h-3 text-white" />
+                    </span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">
+                      Podcast Creations
+                    </span>
+                  </span>
+                  <span className="flex items-center space-x-2">
                     <span className="inline-block w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center">
                       <svg
                         className="w-3 h-3 text-white"
@@ -767,6 +805,16 @@ const Dashboard = () => {
                       >
                         <stop offset="0%" stopColor="#6ee7b7" />
                         <stop offset="100%" stopColor="#22c55e" />
+                      </linearGradient>
+                      <linearGradient
+                        id="podcastGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor="#c4b5fd" />
+                        <stop offset="100%" stopColor="#8b5cf6" />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -832,6 +880,15 @@ const Dashboard = () => {
                       stackId="a"
                       name="Resume"
                       fill="url(#resumeGradient)"
+                      isAnimationActive={true}
+                      animationDuration={1200}
+                      yAxisId="left"
+                    />
+                    <Bar
+                      dataKey="podcast"
+                      stackId="a"
+                      name="Podcast"
+                      fill="url(#podcastGradient)"
                       isAnimationActive={true}
                       animationDuration={1200}
                       yAxisId="left"
@@ -1316,6 +1373,52 @@ const Dashboard = () => {
                       platformStats.totalCoverLetters /
                       Math.max(new Date().getMonth() + 1, 1)
                     ).toFixed(1)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 p-6 flex flex-col gap-6 mt-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100 mb-1 border-b border-gray-100 dark:border-zinc-800 pb-2 flex items-center gap-2">
+                <MicrophoneIcon className="w-5 h-5 text-violet-500" />
+                Podcast Activity Stats
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    <MicrophoneIcon className="w-4 h-4 text-violet-500" />
+                    This Month
+                  </span>
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-violet-50 dark:bg-violet-950/50 px-3 text-sm font-bold tabular-nums text-violet-700 dark:text-violet-300">
+                    {currentMonthPodcasts}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    <ClockIcon className="w-4 h-4 text-fuchsia-500" />
+                    Minutes this month
+                  </span>
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-fuchsia-50 dark:bg-fuchsia-950/40 px-3 text-sm font-bold tabular-nums text-fuchsia-700 dark:text-fuchsia-300">
+                    {podcastMinutesFromSeconds(currentMonthPodcastSeconds)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    <MicrophoneIcon className="w-4 h-4 text-blue-500" />
+                    Total Podcasts
+                  </span>
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-blue-50 dark:bg-sky-950/50 px-3 text-sm font-bold tabular-nums text-blue-700 dark:text-sky-300">
+                    {platformStats.totalPodcasts}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-1 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    <ClockIcon className="w-4 h-4 text-purple-500" />
+                    Total minutes
+                  </span>
+                  <span className="inline-flex min-w-10 h-10 items-center justify-center rounded-full bg-purple-50 dark:bg-violet-950/50 px-3 text-sm font-bold tabular-nums text-purple-700 dark:text-violet-300">
+                    {podcastMinutesFromSeconds(
+                      platformStats.totalPodcastSeconds
+                    )}
                   </span>
                 </div>
               </div>

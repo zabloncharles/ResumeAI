@@ -28,6 +28,8 @@ function planField(plan) {
  *   tokens?: number,
  *   resumes?: number,
  *   coverLetters?: number,
+ *   podcasts?: number,
+ *   podcastSeconds?: number,
  *   users?: number,
  *   plan?: string,
  *   at?: Date,
@@ -38,6 +40,8 @@ export async function incrementAnalyticsRollups(admin, deltas = {}) {
   const tokens = Math.max(0, Number(deltas.tokens) || 0);
   const resumes = Math.max(0, Number(deltas.resumes) || 0);
   const coverLetters = Math.max(0, Number(deltas.coverLetters) || 0);
+  const podcasts = Math.max(0, Number(deltas.podcasts) || 0);
+  const podcastSeconds = Math.max(0, Math.round(Number(deltas.podcastSeconds) || 0));
   const users = Math.max(0, Number(deltas.users) || 0);
   const plan = deltas.plan ? normalizeAccountPlan(deltas.plan) : null;
   const planKey = plan && isCustomerPlan(plan) ? planField(plan) : null;
@@ -47,6 +51,8 @@ export async function incrementAnalyticsRollups(admin, deltas = {}) {
     tokens === 0 &&
     resumes === 0 &&
     coverLetters === 0 &&
+    podcasts === 0 &&
+    podcastSeconds === 0 &&
     users === 0 &&
     !planKey
   ) {
@@ -80,6 +86,14 @@ export async function incrementAnalyticsRollups(admin, deltas = {}) {
   if (coverLetters) {
     globalPatch.totalCoverLetters = FieldValue.increment(coverLetters);
     monthPatch.coverLetters = FieldValue.increment(coverLetters);
+  }
+  if (podcasts) {
+    globalPatch.totalPodcasts = FieldValue.increment(podcasts);
+    monthPatch.podcasts = FieldValue.increment(podcasts);
+  }
+  if (podcastSeconds) {
+    globalPatch.totalPodcastSeconds = FieldValue.increment(podcastSeconds);
+    monthPatch.podcastSeconds = FieldValue.increment(podcastSeconds);
   }
   if (users) {
     globalPatch.totalUsers = FieldValue.increment(users);

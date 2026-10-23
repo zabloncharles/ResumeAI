@@ -13,7 +13,7 @@ import { sanitize } from "../utils/sanitize";
 import { createRateLimitedActions } from "../utils/rateLimit";
 import { recordAnalyticsEvent } from "../utils/analyticsEvents";
 import { resolveUserLocationCoords } from "../utils/userLocation";
-import bunny1 from "../bunny1.png";
+import BrandLogo from "./BrandLogo";
 
 type AuthModalMode = "signIn" | "register";
 
@@ -444,11 +444,7 @@ const SignInModal = ({
         >
         <div>
           <div className="mt-1 text-center sm:mt-2">
-            <img
-              src={bunny1}
-              alt="Brightfolio"
-              className="h-12 w-12 mx-auto mb-4"
-            />
+            <BrandLogo className="h-12 w-auto mx-auto mb-4" />
             <h3 className="text-2xl font-semibold leading-6 text-zinc-900 dark:text-zinc-100 pb-2">
               {isRegistering ? "Create an account" : "Sign in"}
             </h3>

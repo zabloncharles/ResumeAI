@@ -13,16 +13,20 @@ import { resolveStudyCategoryId } from "../constants/studyCategories";
 import type {
   PodcastEmotion,
   PodcastMannerism,
+  PodcastVoiceId,
 } from "../constants/podcastVoiceOptions";
 import {
   DEFAULT_PODCAST_EMOTION,
   DEFAULT_PODCAST_MANNERISM,
+  DEFAULT_PODCAST_VOICE,
   normalizePodcastEmotion,
   normalizePodcastMannerism,
+  normalizePodcastVoice,
 } from "../constants/podcastVoiceOptions";
 import { chunkPodcastScript } from "./podcastScriptChunks";
+import { pcmToWavBlob } from "./pcmToWav";
 
-export type { PodcastEmotion, PodcastMannerism };
+export type { PodcastEmotion, PodcastMannerism, PodcastVoiceId };
 
 type GenerateResumePayload = {
   prompt: string;
@@ -317,19 +321,34 @@ export async function postGeneratePodcastAudioChunk(
     text: string;
     emotion?: PodcastEmotion;
     mannerism?: PodcastMannerism;
+    voice?: PodcastVoiceId;
   }
-): Promise<ArrayBuffer> {
+): Promise<{
+  pcm: ArrayBuffer;
+  sampleRate: number;
+  channels: number;
+  bitDepth: number;
+}> {
   const response = await fetch(generatePodcastAudioUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      voice: normalizePodcastVoice(payload.voice ?? DEFAULT_PODCAST_VOICE),
+    }),
   });
 
   const raw = await response.text();
-  let data: { error?: string; audioBase64?: string } = {};
+  let data: {
+    error?: string;
+    audioBase64?: string;
+    sampleRate?: number;
+    channels?: number;
+    bitDepth?: number;
+  } = {};
   try {
     data = raw ? JSON.parse(raw) : {};
   } catch {
@@ -358,7 +377,13 @@ export async function postGeneratePodcastAudioChunk(
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes.buffer;
+
+  return {
+    pcm: bytes.buffer,
+    sampleRate: data.sampleRate || 24000,
+    channels: data.channels || 1,
+    bitDepth: data.bitDepth || 16,
+  };
 }
 
 export async function postGeneratePodcastAudio(
@@ -368,6 +393,7 @@ export async function postGeneratePodcastAudio(
   style: {
     emotion?: PodcastEmotion;
     mannerism?: PodcastMannerism;
+    voice?: PodcastVoiceId;
   } = {}
 ): Promise<Blob> {
   const chunks = chunkPodcastScript(script);
@@ -381,20 +407,28 @@ export async function postGeneratePodcastAudio(
   const mannerism = normalizePodcastMannerism(
     style.mannerism ?? DEFAULT_PODCAST_MANNERISM
   );
+  const voice = normalizePodcastVoice(style.voice ?? DEFAULT_PODCAST_VOICE);
 
-  const parts: ArrayBuffer[] = [];
+  const pcmParts: ArrayBuffer[] = [];
+  let sampleRate = 24000;
+  let channels = 1;
+  let bitDepth = 16;
+
   for (let i = 0; i < chunks.length; i++) {
     onProgress?.(i + 1, chunks.length);
-    parts.push(
-      await postGeneratePodcastAudioChunk(token, {
-        text: chunks[i],
-        emotion,
-        mannerism,
-      })
-    );
+    const part = await postGeneratePodcastAudioChunk(token, {
+      text: chunks[i],
+      emotion,
+      mannerism,
+      voice,
+    });
+    pcmParts.push(part.pcm);
+    sampleRate = part.sampleRate;
+    channels = part.channels;
+    bitDepth = part.bitDepth;
   }
 
-  return new Blob(parts, { type: "audio/mpeg" });
+  return pcmToWavBlob(pcmParts, { sampleRate, channels, bitDepth });
 }
 
 export async function postGenerateResume(

@@ -17,7 +17,7 @@ import {
   chunkTranscript,
   TRANSCRIPT_MAX_CHARS,
 } from "../utils/transcriptChunks";
-import bunny1 from "../bunny1.png";
+import BrandLogo from "./BrandLogo";
 
 const flow = studyFlowAccent("rose");
 
@@ -183,10 +183,10 @@ export default function CreateStudySetFromTranscript() {
         {isGenerating ? (
           <div className="study-round border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6 py-12 sm:px-10">
             <div className="max-w-md mx-auto flex flex-col items-center space-y-8">
-              <img
-                src={bunny1}
+              <BrandLogo
+                accent="rose"
                 alt=""
-                className="h-14 w-14 object-contain animate-pulse"
+                className="h-14 w-auto animate-pulse"
               />
               <div className="w-full">
                 <div className="w-full bg-gray-200 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">

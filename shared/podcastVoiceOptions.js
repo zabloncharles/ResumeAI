@@ -10,6 +10,16 @@ export const PODCAST_EMOTIONS = [
 
 export const PODCAST_MANNERISMS = [
   {
+    id: "urban",
+    label: "Urban",
+    hint: "Uses slang, can curse, teaches like you are clueless.",
+  },
+  {
+    id: "caveman",
+    label: "Caveman",
+    hint: "Keeps real terms. Explains them like you are 5.",
+  },
+  {
     id: "like-im-5",
     label: "Teach me like I'm 5",
     hint: "Simple words, vivid analogies.",
@@ -41,11 +51,26 @@ export const PODCAST_MANNERISMS = [
   },
 ];
 
+export const PODCAST_VOICES = [
+  {
+    id: "Vindemiatrix",
+    label: "Elara",
+    hint: "Gentle, clear female host.",
+  },
+  {
+    id: "Sadachbia",
+    label: "Orin",
+    hint: "Lively, energetic male host.",
+  },
+];
+
 export const DEFAULT_PODCAST_EMOTION = "warm";
-export const DEFAULT_PODCAST_MANNERISM = "chill";
+export const DEFAULT_PODCAST_MANNERISM = "urban";
+export const DEFAULT_PODCAST_VOICE = "Vindemiatrix";
 
 const emotionIds = new Set(PODCAST_EMOTIONS.map((e) => e.id));
 const mannerismIds = new Set(PODCAST_MANNERISMS.map((m) => m.id));
+const voiceIds = new Set(PODCAST_VOICES.map((v) => v.id));
 
 export function normalizePodcastEmotion(value) {
   if (typeof value !== "string") return DEFAULT_PODCAST_EMOTION;
@@ -57,6 +82,16 @@ export function normalizePodcastMannerism(value) {
   if (typeof value !== "string") return DEFAULT_PODCAST_MANNERISM;
   const id = value.trim().toLowerCase();
   return mannerismIds.has(id) ? id : DEFAULT_PODCAST_MANNERISM;
+}
+
+export function normalizePodcastVoice(value) {
+  if (typeof value !== "string") return DEFAULT_PODCAST_VOICE;
+  const trimmed = value.trim();
+  if (voiceIds.has(trimmed)) return trimmed;
+  const match = PODCAST_VOICES.find(
+    (v) => v.id.toLowerCase() === trimmed.toLowerCase()
+  );
+  return match?.id || DEFAULT_PODCAST_VOICE;
 }
 
 export function podcastEmotionLabel(id) {
@@ -73,6 +108,14 @@ export function podcastMannerismLabel(id) {
   );
 }
 
+export function podcastVoiceLabel(id) {
+  const voice = normalizePodcastVoice(id);
+  return (
+    PODCAST_VOICES.find((v) => v.id === voice)?.label ||
+    PODCAST_VOICES.find((v) => v.id === DEFAULT_PODCAST_VOICE).label
+  );
+}
+
 export function podcastEmotionHint(id) {
   const emotion = normalizePodcastEmotion(id);
   return PODCAST_EMOTIONS.find((e) => e.id === emotion)?.hint || "";
@@ -81,4 +124,9 @@ export function podcastEmotionHint(id) {
 export function podcastMannerismHint(id) {
   const mannerism = normalizePodcastMannerism(id);
   return PODCAST_MANNERISMS.find((m) => m.id === mannerism)?.hint || "";
+}
+
+export function podcastVoiceHint(id) {
+  const voice = normalizePodcastVoice(id);
+  return PODCAST_VOICES.find((v) => v.id === voice)?.hint || "";
 }

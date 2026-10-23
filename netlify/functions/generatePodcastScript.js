@@ -4,14 +4,7 @@ import {
   normalizeStudyCategoryId,
   studyCategoryIdsPromptList,
 } from "../../shared/studyCategoryIds.js";
-import {
-  normalizePodcastEmotion,
-  normalizePodcastMannerism,
-  podcastEmotionHint,
-  podcastMannerismHint,
-  podcastEmotionLabel,
-  podcastMannerismLabel,
-} from "../../shared/podcastVoiceOptions.js";
+import { loadPodcastVoiceOptions } from "../../shared/loadPodcastVoiceOptions.js";
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -72,13 +65,41 @@ function extractJsonObject(raw) {
   }
 }
 
-function voiceStyleInstructions(emotion, mannerism) {
-  return [
+function voiceStyleInstructions(voiceOptions, emotion, mannerism) {
+  const {
+    podcastEmotionLabel,
+    podcastEmotionHint,
+    podcastMannerismLabel,
+    podcastMannerismHint,
+  } = voiceOptions;
+
+  const base = [
     `Emotion: ${podcastEmotionLabel(emotion)}. ${podcastEmotionHint(emotion)}`,
     `Mannerism: ${podcastMannerismLabel(mannerism)}. ${podcastMannerismHint(mannerism)}`,
     "Write the script so wording and pacing match that emotion and mannerism.",
     "Do not name the emotion or mannerism out loud in the script.",
-  ].join(" ");
+  ];
+
+  if (mannerism === "urban") {
+    base.push(
+      "Urban mode: use modern slang and street-casual phrasing.",
+      "You may swear when it fits the vibe (keep it natural, not constant).",
+      "Teach like the listener is clueless: blunt, roasting, over-explain the basics, then make the idea stick.",
+      "Still teach accurate facts from the source. Do not invent facts."
+    );
+  }
+
+  if (mannerism === "caveman") {
+    base.push(
+      "Caveman mode: write caveman style telegraphic English.",
+      "Short primitive sentences. Broken grammar. Repetitive phrasing. Prefer third person (like Hulk speak).",
+      "Keep the real concepts, feature names, and important terms from the source. Do not drop them or invent softer replacements that lose the real idea.",
+      "Say the real name first, then define it with tiny words a 5 year old understands. Example: Photosynthesis. That mean plant make food from sun light.",
+      "Teach every real feature and idea from the source this way. Keep facts true. No big unexplained words left hanging."
+    );
+  }
+
+  return base.join(" ");
 }
 
 export const handler = async function (event) {
@@ -106,6 +127,9 @@ export const handler = async function (event) {
       body: JSON.stringify({ error: "Invalid request body" }),
     };
   }
+
+  const voiceOptions = await loadPodcastVoiceOptions();
+  const { normalizePodcastEmotion, normalizePodcastMannerism } = voiceOptions;
 
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   const emotion = normalizePodcastEmotion(body?.emotion ?? body?.manner);
@@ -148,20 +172,38 @@ export const handler = async function (event) {
 
   const categoryIds = studyCategoryIdsPromptList();
 
+  const urban = mannerism === "urban";
+  const caveman = mannerism === "caveman";
   const system = [
     "You write a single-voice teaching podcast script for text-to-speech.",
-    "One host speaks to the listener (use “you”).",
-    "Write plain conversational speech: short sentences, contractions, everyday words.",
+    caveman
+      ? "One host teaches the listener in third person caveman speak when it fits."
+      : "One host speaks to the listener (use “you”).",
+    caveman
+      ? "Speak in caveman style telegraphic English. Short broken sentences. Third person. Repeat ideas. Keep real concept names and feature names from the source. Always say the real name, then explain it with tiny 5 year old words so nothing important is lost. Example: Photosynthesis. That mean plant make food from sun light. Plant eat light. Plant grow big."
+      : urban
+        ? "Write like a blunt urban tutor: slang, contractions, short punches, occasional swearing OK."
+        : "Write plain conversational speech: short sentences, contractions, everyday words.",
     "Skip radio-host greetings and hype openers. Start in a natural way, then teach.",
-    "Do not use ellipses, em dashes for drama, or stagey filler like “so…” and “anyway…”.",
-    "Use normal periods and commas only. One idea per sentence when possible.",
+    urban || caveman
+      ? "Punctuation can be punchy, but no stage directions, speaker labels, markdown, or pause tags."
+      : "Do not use ellipses, em dashes for drama, or stagey filler like “so…” and “anyway…”.",
+    "Use normal periods and commas. One idea per sentence when possible.",
     "Separate thoughts with paragraph breaks (blank lines), not gimmicky punctuation.",
-    "No stage directions, speaker labels, markdown, or pause tags.",
+    urban || caveman
+      ? null
+      : "No stage directions, speaker labels, markdown, or pause tags.",
     "Do not invent facts beyond the source. If the source is thin, stay high-level.",
     "Also pick the single best subject categoryId for the source material from the allowed list only.",
-    voiceStyleInstructions(emotion, mannerism),
+    voiceStyleInstructions(voiceOptions, emotion, mannerism),
     "Return JSON only.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const scriptShape = caveman
+    ? "spoken script in caveman style telegraphic English that keeps real concept names then defines them in tiny 5 year old words"
+    : "spoken script for one host, plain and conversational";
 
   const userPrompt = `Create a podcast teaching script from this material.
 
@@ -172,7 +214,7 @@ Return JSON:
 {
   "title": "short episode title",
   "categoryId": "one allowed id from the list above",
-  "script": "spoken script for one host, plain and conversational"
+  "script": "${scriptShape}"
 }
 
 Source material:

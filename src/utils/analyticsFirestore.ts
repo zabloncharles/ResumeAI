@@ -5,6 +5,8 @@ export type AnalyticsGlobal = {
   totalUsers: number;
   totalResumes: number;
   totalCoverLetters: number;
+  totalPodcasts: number;
+  totalPodcastSeconds: number;
   totalApiCalls: number;
   totalTokens: number;
   usersFree: number;
@@ -18,12 +20,19 @@ export type AnalyticsMonth = {
   users: number;
   resumes: number;
   coverLetters: number;
+  podcasts: number;
+  podcastSeconds: number;
   apiCalls: number;
   tokens: number;
   usersFree: number;
   usersPremium: number;
   usersPro: number;
 };
+
+export function podcastMinutesFromSeconds(seconds: number): number {
+  const s = Math.max(0, Number(seconds) || 0);
+  return Math.round((s / 60) * 10) / 10;
+}
 
 const MONTH_LABELS: string[] = [
   "Jan",
@@ -52,6 +61,8 @@ export async function fetchAnalyticsGlobal(): Promise<AnalyticsGlobal> {
     totalUsers: num(data.totalUsers),
     totalResumes: num(data.totalResumes),
     totalCoverLetters: num(data.totalCoverLetters),
+    totalPodcasts: num(data.totalPodcasts),
+    totalPodcastSeconds: num(data.totalPodcastSeconds),
     totalApiCalls: num(data.totalApiCalls),
     totalTokens: num(data.totalTokens),
     usersFree: num(data.usersFree),
@@ -79,6 +90,8 @@ export async function fetchAnalyticsMonthsForYear(
       users: num(data.users),
       resumes: num(data.resumes),
       coverLetters: num(data.coverLetters),
+      podcasts: num(data.podcasts),
+      podcastSeconds: num(data.podcastSeconds),
       apiCalls: num(data.apiCalls),
       tokens: num(data.tokens),
       usersFree: num(data.usersFree),
@@ -94,6 +107,7 @@ export function emptyMonthChart(year = new Date().getFullYear()) {
     monthKey: `${year}-${String(index + 1).padStart(2, "0")}`,
     coverLetter: 0,
     resume: 0,
+    podcast: 0,
     users: 0,
     applications: 0,
     apiCalls: 0,

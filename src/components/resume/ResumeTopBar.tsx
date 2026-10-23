@@ -6,8 +6,8 @@ import {
   ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 import UserAccountMenu from "../UserAccountMenu";
-import bunny1 from "../../bunny1.png";
 import type { ResumeWorkspaceTab } from "./ResumeSidebar";
+import BrandMark from "../BrandMark";
 
 export type ResumeShellMode = "home" | "help" | "editor" | "coverLetter";
 
@@ -66,13 +66,13 @@ export default function ResumeTopBar({
 
         <Link
           to="/"
-          className="lg:hidden flex items-center gap-2 shrink-0 min-w-0 rounded-lg hover:opacity-90 transition-opacity"
+          className="lg:hidden flex items-center shrink-0 rounded-lg hover:opacity-90 transition-opacity"
           aria-label="Brightfolio home"
         >
-          <img src={bunny1} alt="" className="h-9 w-9 shrink-0" />
-          <span className="text-base font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent truncate">
-            Brightfolio
-          </span>
+          <BrandMark
+            logoClassName="h-9 w-auto"
+            nameClassName="text-base"
+          />
         </Link>
       </div>
 

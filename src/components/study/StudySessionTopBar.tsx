@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Bars3Icon, ClockIcon } from "@heroicons/react/24/outline";
 import UserAccountMenu from "../UserAccountMenu";
-import bunny1 from "../../bunny1.png";
+import type { StudyFlowAccent } from "../../constants/studyFlowAccent";
+import BrandMark from "../BrandMark";
 
 type StudySessionTopBarProps = {
   setTitle: string;
@@ -12,6 +13,7 @@ type StudySessionTopBarProps = {
   idlePauseSecondsRemaining?: number;
   onMenuClick: () => void;
   onBackToStudy: () => void;
+  accent?: StudyFlowAccent;
 };
 
 function formatPauseCountdown(totalSeconds: number) {
@@ -29,6 +31,7 @@ export default function StudySessionTopBar({
   idlePauseSecondsRemaining = 60,
   onMenuClick,
   onBackToStudy,
+  accent = "default",
 }: StudySessionTopBarProps) {
   const timerColorClass = timerIdlePaused
     ? "text-amber-600"
@@ -63,24 +66,23 @@ export default function StudySessionTopBar({
 
       <Link
         to="/"
-        className="lg:hidden flex items-center gap-2 shrink-0 min-w-0 rounded-lg hover:opacity-90 transition-opacity"
+        className="flex items-center shrink-0 rounded-lg hover:opacity-90 transition-opacity"
         aria-label="Brightfolio home"
       >
-        <img src={bunny1} alt="" className="h-9 w-9 shrink-0" />
-        <span className="text-base font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent truncate">
-          Brightfolio
-        </span>
+        <BrandMark
+          accent={accent}
+          logoClassName="h-9 w-auto"
+          nameClassName="text-base hidden sm:inline"
+        />
       </Link>
 
-      <div className="min-w-0 flex-1 lg:hidden">
-        <p className="text-xs text-gray-500 dark:text-zinc-500 truncate">{cardLabel}</p>
-      </div>
-
-      <div className="hidden lg:flex min-w-0 flex-1 flex-col items-center justify-center px-4">
+      <div className="min-w-0 flex-1 flex flex-col items-center justify-center px-2 sm:px-4">
         <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 truncate max-w-md text-center">
           {setTitle}
         </p>
-        <p className="text-xs text-gray-500 dark:text-zinc-500">{cardLabel}</p>
+        <p className="text-xs text-gray-500 dark:text-zinc-500 truncate">
+          {cardLabel}
+        </p>
       </div>
 
       <div className="flex items-center gap-2 shrink-0 ml-auto">

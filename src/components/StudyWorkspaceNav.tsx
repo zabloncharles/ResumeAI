@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import bunny1 from "../bunny1.png";
 import UserAccountMenu from "./UserAccountMenu";
+import BrandMark from "./BrandMark";
 
 export type StudyFilter = "all" | "my" | "public" | "borrowed";
-export type StudyMode = "flashcards" | "quiz";
+export type StudyMode = "flashcards" | "quiz" | "match" | "farm";
 
 type HubProps = {
   variant: "hub";
@@ -76,10 +76,7 @@ function BrandRow({
   return (
     <>
       {backControl}
-      <img src={bunny1} alt="Brightfolio" className="h-8 w-8 mr-2" />
-      <h1 className="text-xl font-bold bg-gradient-to-r from-[#16aeac] to-black dark:to-white bg-clip-text text-transparent mr-4 sm:mr-6">
-        Brightfolio
-      </h1>
+      <BrandMark className="mr-4 sm:mr-6" />
     </>
   );
 }
@@ -170,6 +167,18 @@ export default function StudyWorkspaceNav(props: StudyWorkspaceNavProps) {
                     onClick={() => props.onStudyModeChange("quiz")}
                   >
                     Quiz
+                  </TabButton>
+                  <TabButton
+                    active={props.studyMode === "match"}
+                    onClick={() => props.onStudyModeChange("match")}
+                  >
+                    Match
+                  </TabButton>
+                  <TabButton
+                    active={props.studyMode === "farm"}
+                    onClick={() => props.onStudyModeChange("farm")}
+                  >
+                    Farm
                   </TabButton>
                 </nav>
               )}

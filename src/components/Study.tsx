@@ -70,11 +70,21 @@ import {
 } from "./study/StudyHubSections";
 import StudyShell from "./study/StudyShell";
 import StudySessionShell from "./study/StudySessionShell";
+import StudyPodcastPlayer from "./study/StudyPodcastPlayer";
+import StudyMatchMode from "./study/StudyMatchMode";
+import StudyFarmMode from "./study/StudyFarmMode";
+import type { StudyMode } from "./StudyWorkspaceNav";
+import {
+  buildStudyQueue,
+  masteryAfterGrade,
+  type StudyGrade,
+} from "../utils/studyQueue";
 import StudyFolderView, {
   getSetsForFolderId,
 } from "./study/StudyFolderView";
 import StudyLibraryView from "./study/StudyLibraryView";
 import NewFolderModal from "./study/NewFolderModal";
+import DeleteStudySetConfirmModal from "./study/DeleteStudySetConfirmModal";
 import StudyPerformanceView from "./study/StudyPerformanceView";
 import StudyCategorySelect from "./study/StudyCategorySelect";
 import {
@@ -113,9 +123,7 @@ const Study = () => {
   const [currentSet, setCurrentSet] = useState<StudySet | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyMode, setStudyMode] = useState<"flashcards" | "quiz">(
-    "flashcards"
-  );
+  const [studyMode, setStudyMode] = useState<StudyMode>("flashcards");
   const [isStudying, setIsStudying] = useState(false);
 
   // Quiz mode state
@@ -151,6 +159,10 @@ const Study = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessionSidebarOpen, setSessionSidebarOpen] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [setPendingDelete, setSetPendingDelete] = useState<StudySet | null>(
+    null
+  );
+  const [deletingStudySet, setDeletingStudySet] = useState(false);
   // const [isEditingSet, setIsEditingSet] = useState(false);
   // const [editingSet, setEditingSet] = useState<StudySet | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
@@ -460,6 +472,9 @@ const Study = () => {
     loadStudySets();
   }, [memoizedUser, memoizedFilter, setsRefreshKey]);
 
+  const openedSetFromQueryRef = useRef<string | null>(null);
+  const setQueryRefreshAttemptedRef = useRef<string | null>(null);
+
   // Debounced user stats loading to prevent excessive calls
   const loadUserStats = useCallback(async () => {
     if (!memoizedUser) return;
@@ -651,13 +666,17 @@ const Study = () => {
     const startTime = new Date();
     setSessionStartTime(startTime);
 
+    const queuedSet: StudySet = {
+      ...set,
+      flashcards: buildStudyQueue(set.flashcards),
+    };
+
     setStudyMode("flashcards");
     setSessionSidebarOpen(false);
-    setCurrentSet(set);
+    setCurrentSet(queuedSet);
     setCurrentCardIndex(0);
     setIsFlipped(false);
     setIsStudying(true);
-    // setShowAnswer(false);
     setScore({ correct: 0, total: 0 });
     setTimer(0);
     setIsTimerRunning(true);
@@ -668,18 +687,7 @@ const Study = () => {
     sessionContinuousRef.current = 0;
     sessionContinuousBestRef.current = 0;
 
-    // Clear any pending card updates from previous session
     setPendingCardUpdates([]);
-
-    // Initialize quiz mode if selected
-    if (studyMode === "quiz") {
-      const firstCard = set.flashcards[0];
-      if (firstCard) {
-        // Only use answers from the current study set
-        const currentSetAnswers = set.flashcards.map((c) => c.back);
-        setQuizOptions(generateQuizOptions(firstCard.back, currentSetAnswers));
-      }
-    }
 
     // Scroll to top when study session starts
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -714,6 +722,39 @@ const Study = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const setId = searchParams.get("set");
+    if (!setId || isStudying) return;
+    if (openedSetFromQueryRef.current === setId) return;
+    const match = studySets.find((s) => s.id === setId);
+    if (!match) {
+      if (
+        !isLoading &&
+        setQueryRefreshAttemptedRef.current !== setId
+      ) {
+        setQueryRefreshAttemptedRef.current = setId;
+        setSetsRefreshKey((key) => key + 1);
+      }
+      return;
+    }
+    openedSetFromQueryRef.current = setId;
+    void startStudySession(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete("set");
+    const search = next.toString();
+    navigate(
+      { pathname: location.pathname, search: search ? `?${search}` : "" },
+      { replace: true }
+    );
+  }, [
+    searchParams,
+    studySets,
+    isStudying,
+    isLoading,
+    location.pathname,
+    navigate,
+  ]);
 
   const endStudySession = async () => {
     if (currentSet && currentSession && sessionStartTime) {
@@ -842,7 +883,7 @@ const Study = () => {
   >([]);
 
   const markCard = (
-    difficulty: "easy" | "medium" | "hard",
+    grade: StudyGrade,
     options?: { advance?: boolean }
   ) => {
     if (!currentSet || !memoizedUser) return;
@@ -850,14 +891,9 @@ const Study = () => {
     const currentCard = currentSet.flashcards[currentCardIndex];
     if (!currentCard) return;
 
-    let newMastery = currentCard.mastery;
-    if (difficulty === "easy")
-      newMastery = Math.min(100, currentCard.mastery + 10);
-    else if (difficulty === "medium")
-      newMastery = Math.min(100, currentCard.mastery + 5);
-    else newMastery = Math.max(0, currentCard.mastery - 5);
+    const newMastery = masteryAfterGrade(currentCard.mastery, grade);
 
-    const isCorrect = difficulty === "easy" || difficulty === "medium";
+    const isCorrect = grade === "easy" || grade === "medium";
     setScore((prev) => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
       total: prev.total + 1,
@@ -870,6 +906,14 @@ const Study = () => {
       mastery: newMastery,
       lastReviewed: new Date(),
     });
+    setPendingCardUpdates((prev) => [
+      ...prev.filter((u) => u.cardId !== currentCard.id),
+      {
+        cardId: currentCard.id,
+        mastery: newMastery,
+        lastReviewed: new Date(),
+      },
+    ]);
 
     setCurrentSet((prev) => {
       if (!prev) return prev;
@@ -1097,21 +1141,70 @@ const Study = () => {
     if (!memoizedUser) return;
 
     try {
-      // Delete all flashcards first
       const flashcardsSnapshot = await getDocs(
         collection(db, "studySets", setId, "flashcards")
       );
-      const deletePromises = flashcardsSnapshot.docs.map((doc) =>
-        deleteDoc(doc.ref)
+      const deletePromises = flashcardsSnapshot.docs.map((flashcardDoc) =>
+        deleteDoc(flashcardDoc.ref)
       );
       await Promise.all(deletePromises);
 
-      // Delete the study set
       await deleteDoc(doc(db, "studySets", setId));
       invalidateStudySetsCache(memoizedUser.uid);
       setStudySets((prev) => prev.filter((set) => set.id !== setId));
     } catch (error) {
       console.error("Error deleting study set:", error);
+      throw error;
+    }
+  };
+
+  const requestDeleteStudySet = (set: StudySet) => {
+    setSetPendingDelete(set);
+  };
+
+  const closeDeleteStudySetModal = () => {
+    if (deletingStudySet) return;
+    setSetPendingDelete(null);
+  };
+
+  const confirmDeleteStudySet = async () => {
+    if (!setPendingDelete) return;
+    setDeletingStudySet(true);
+    try {
+      await deleteStudySet(setPendingDelete.id);
+      setSetPendingDelete(null);
+    } catch {
+      alert("Could not delete this study set. Please try again.");
+    } finally {
+      setDeletingStudySet(false);
+    }
+  };
+
+  const moveStudySetToFolder = async (
+    set: StudySet,
+    nextFolderId: string | null
+  ) => {
+    if (!memoizedUser) return;
+    if (set.createdBy !== memoizedUser.uid) return;
+
+    const previousFolderId = set.folderId ?? null;
+    if (previousFolderId === nextFolderId) return;
+
+    try {
+      await updateDoc(doc(db, "studySets", set.id), {
+        folderId: nextFolderId,
+      });
+      setStudySets((prev) =>
+        prev.map((item) =>
+          item.id === set.id ? { ...item, folderId: nextFolderId } : item
+        )
+      );
+      invalidateStudySetsCache(memoizedUser.uid);
+      await touchFolder(previousFolderId);
+      await touchFolder(nextFolderId);
+    } catch (error) {
+      console.error("Error moving study set:", error);
+      alert("Could not move this study set. Please try again.");
     }
   };
 
@@ -1150,18 +1243,58 @@ const Study = () => {
     return options.sort(() => Math.random() - 0.5);
   };
 
-  const changeStudyMode = (mode: "flashcards" | "quiz") => {
+  const changeStudyMode = (mode: StudyMode) => {
     setStudyMode(mode);
+    setIsFlipped(false);
+    setSelectedAnswer(null);
+    setIsAnswerCorrect(null);
     if (mode === "quiz" && currentSet?.flashcards.length) {
       const card = currentSet.flashcards[currentCardIndex];
       if (card) {
         const answers = currentSet.flashcards.map((c) => c.back);
         setQuizOptions(generateQuizOptions(card.back, answers));
       }
-      setIsFlipped(false);
-      setSelectedAnswer(null);
-      setIsAnswerCorrect(null);
     }
+  };
+
+  const markCardById = (cardId: string, grade: StudyGrade) => {
+    if (!currentSet || !memoizedUser) return;
+    const card = currentSet.flashcards.find((c) => c.id === cardId);
+    if (!card) return;
+
+    const newMastery = masteryAfterGrade(card.mastery, grade);
+
+    const isCorrect = grade === "easy" || grade === "medium";
+    setScore((prev) => ({
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1,
+    }));
+
+    addPendingUpdate({
+      type: "card",
+      setId: currentSet.id,
+      cardId: card.id,
+      mastery: newMastery,
+      lastReviewed: new Date(),
+    });
+    setPendingCardUpdates((prev) => [
+      ...prev.filter((u) => u.cardId !== card.id),
+      {
+        cardId: card.id,
+        mastery: newMastery,
+        lastReviewed: new Date(),
+      },
+    ]);
+
+    setCurrentSet((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        flashcards: prev.flashcards.map((c) =>
+          c.id === card.id ? { ...c, mastery: newMastery } : c
+        ),
+      };
+    });
   };
 
   const handleQuizAnswerSelect = (selectedOption: string) => {
@@ -1173,9 +1306,9 @@ const Study = () => {
     setIsAnswerCorrect(correct);
 
     if (correct) {
-      markCard("easy", { advance: false });
+      markCard("medium", { advance: false });
     } else {
-      markCard("hard", { advance: false });
+      markCard("incorrect", { advance: false });
     }
   };
 
@@ -1466,6 +1599,11 @@ const Study = () => {
             sidebarOpen={sessionSidebarOpen}
             onSidebarOpen={() => setSessionSidebarOpen(true)}
             onSidebarClose={() => setSessionSidebarOpen(false)}
+            accent={
+              typeof currentSet.podcastId === "string" && currentSet.podcastId
+                ? "violet"
+                : "default"
+            }
           >
             <div className="text-center py-12">
               <p className="text-gray-600 dark:text-zinc-400 mb-6">
@@ -1489,6 +1627,10 @@ const Study = () => {
     const idlePauseCountdownActive =
       !isTimerIdlePaused &&
       idlePauseSecondsRemaining < STUDY_IDLE_MS / 1000;
+    const isPodcastSet = Boolean(
+      typeof currentSet.podcastId === "string" && currentSet.podcastId
+    );
+    const sessionAccent = isPodcastSet ? "violet" : "default";
 
     return (
       <>
@@ -1506,34 +1648,55 @@ const Study = () => {
           sidebarOpen={sessionSidebarOpen}
           onSidebarOpen={() => setSessionSidebarOpen(true)}
           onSidebarClose={() => setSessionSidebarOpen(false)}
+          accent={sessionAccent}
         >
-          <div className="mb-8">
-            <div className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">
-                  Progress
-                </span>
-                <span className="text-sm text-gray-500 dark:text-zinc-500">
-                  {Math.round(getProgressPercentage())}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2">
-                <div
-                  className="bg-blue-600 dark:bg-sky-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${getProgressPercentage()}%` }}
-                ></div>
+          {isPodcastSet ? (
+            <StudyPodcastPlayer
+              podcastId={currentSet.podcastId as string}
+              cardIndex={currentCardIndex}
+              cardTotal={currentSet.flashcards.length}
+              onInteract={() => {
+                lastStudyActivityRef.current = Date.now();
+                if (isTimerIdlePaused) {
+                  setIsTimerIdlePaused(false);
+                  timerIdlePausedRef.current = false;
+                  setIsTimerRunning(true);
+                }
+              }}
+            />
+          ) : (
+            <div className="mb-8">
+              <div className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    Progress
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-zinc-500">
+                    {Math.round(getProgressPercentage())}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 dark:bg-sky-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${getProgressPercentage()}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Study Interface - Conditional Rendering for Flashcards vs Quiz */}
           {studyMode === "flashcards" ? (
-            /* Flashcard Mode */
             <div className="w-full mb-8">
               <div className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 w-full">
                 <div className="p-8">
                   <div className="text-center mb-6">
-                    <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-sky-950 text-blue-800 dark:text-sky-200 rounded-full text-sm font-medium">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        isPodcastSet
+                          ? "bg-violet-100 dark:bg-violet-950 text-violet-800 dark:text-violet-200"
+                          : "bg-blue-100 dark:bg-sky-950 text-blue-800 dark:text-sky-200"
+                      }`}
+                    >
                       {currentCard?.category || "General"}
                     </span>
                   </div>
@@ -1572,8 +1735,20 @@ const Study = () => {
                           Tap to reveal answer
                         </p>
                       </div>
-                      <div className="study-flip-face study-flip-face-back absolute inset-0 flex flex-col items-center justify-center rounded-xl border border-sky-200 dark:border-zinc-600 bg-gradient-to-br from-sky-50 to-white dark:from-zinc-800 dark:to-zinc-900 px-6 py-10 text-center shadow-sm dark:shadow-none">
-                        <span className="mb-3 text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                      <div
+                        className={`study-flip-face study-flip-face-back absolute inset-0 flex flex-col items-center justify-center rounded-xl border px-6 py-10 text-center shadow-sm dark:shadow-none dark:border-zinc-600 dark:from-zinc-800 dark:to-zinc-900 bg-gradient-to-br to-white ${
+                          isPodcastSet
+                            ? "border-violet-200 from-violet-50"
+                            : "border-sky-200 from-sky-50"
+                        }`}
+                      >
+                        <span
+                          className={`mb-3 text-xs font-semibold uppercase tracking-wide ${
+                            isPodcastSet
+                              ? "text-violet-700 dark:text-violet-300"
+                              : "text-sky-700 dark:text-sky-300"
+                          }`}
+                        >
                           Definition
                         </span>
                         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-4">
@@ -1586,7 +1761,6 @@ const Study = () => {
                     </div>
                   </div>
 
-                  {/* Mastery Level */}
                   <div className="mt-6 text-center">
                     <div className="flex items-center justify-center space-x-2">
                       <span className="text-sm text-gray-600 dark:text-zinc-400">Mastery:</span>
@@ -1602,8 +1776,7 @@ const Study = () => {
                 </div>
               </div>
             </div>
-          ) : (
-            /* Quiz Mode */
+          ) : studyMode === "quiz" ? (
             <div className="w-full mb-8">
               <div className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 overflow-hidden w-full">
                 <div className="p-8">
@@ -1693,6 +1866,37 @@ const Study = () => {
                 </div>
               </div>
             </div>
+          ) : studyMode === "match" ? (
+            <StudyMatchMode
+              key={`${currentSet.id}-match`}
+              cards={currentSet.flashcards}
+              accent={isPodcastSet ? "violet" : "default"}
+              onCorrect={(cardId) => markCardById(cardId, "medium")}
+              onIncorrect={(cardId) => markCardById(cardId, "incorrect")}
+              onProgress={(matchedCount, total) => {
+                if (total <= 0) return;
+                setCurrentCardIndex(
+                  Math.min(Math.max(matchedCount, 1), total) - 1
+                );
+              }}
+              onComplete={endStudySession}
+              onInteract={() => {
+                lastStudyActivityRef.current = Date.now();
+                if (isTimerIdlePaused) {
+                  setIsTimerIdlePaused(false);
+                  timerIdlePausedRef.current = false;
+                  setIsTimerRunning(true);
+                }
+              }}
+            />
+          ) : (
+            <StudyFarmMode
+              key={`${currentSet.id}-farm`}
+              cards={currentSet.flashcards}
+              accent={isPodcastSet ? "violet" : "default"}
+              onStudyFlashcards={() => changeStudyMode("flashcards")}
+              onStudyMatch={() => changeStudyMode("match")}
+            />
           )}
 
           {/* Navigation and Difficulty Buttons - Only for Flashcard Mode */}
@@ -1746,7 +1950,7 @@ const Study = () => {
             </div>
           )}
 
-          {/* Quizlet-style Question/Answer List */}
+          {studyMode !== "farm" ? (
           <div className="w-full mt-8">
             <div className="study-round bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 p-6 w-full">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 mb-4">
@@ -1758,7 +1962,9 @@ const Study = () => {
                     key={card.id}
                     className={`p-4 rounded-study border transition-all cursor-pointer ${
                       index === currentCardIndex
-                        ? "border-blue-500 dark:border-sky-500 bg-blue-50 dark:bg-sky-950/40"
+                        ? isPodcastSet
+                          ? "border-violet-500 dark:border-violet-500 bg-violet-50 dark:bg-violet-950/40"
+                          : "border-blue-500 dark:border-sky-500 bg-blue-50 dark:bg-sky-950/40"
                         : "border-gray-200 dark:border-zinc-800 bg-transparent dark:bg-zinc-950/40 hover:border-gray-300 dark:hover:border-zinc-600"
                     }`}
                     onClick={() => goToCardIndex(index)}
@@ -1818,6 +2024,7 @@ const Study = () => {
               </div>
             </div>
           </div>
+          ) : null}
         </StudySessionShell>
       </>
     );
@@ -1856,6 +2063,13 @@ const Study = () => {
         onClose={() => setShowNewFolderModal(false)}
         onCreate={handleCreateFolder}
       />
+      <DeleteStudySetConfirmModal
+        isOpen={Boolean(setPendingDelete)}
+        setTitle={setPendingDelete?.title ?? ""}
+        confirming={deletingStudySet}
+        onClose={closeDeleteStudySetModal}
+        onConfirm={confirmDeleteStudySet}
+      />
     </>
   );
 
@@ -1872,8 +2086,12 @@ const Study = () => {
           folder={activeFolder}
           isUncategorized={isUncategorized}
           sets={folderPageSets}
+          folders={folders}
+          currentUserId={memoizedUser?.uid}
           onStartSet={(set) => startStudySession(set)}
           onCreateInFolder={() => goCreateSet(folderId)}
+          onDeleteSet={requestDeleteStudySet}
+          onMoveSet={moveStudySetToFolder}
         />
       )
     );
@@ -1884,7 +2102,11 @@ const Study = () => {
       <StudyLibraryView
         filter={filter}
         sets={libraryPageSets}
+        folders={folders}
+        currentUserId={memoizedUser?.uid}
         onStartSet={(set) => startStudySession(set)}
+        onDeleteSet={requestDeleteStudySet}
+        onMoveSet={moveStudySetToFolder}
       />
     );
   }
@@ -1941,79 +2163,85 @@ const Study = () => {
     </div>
   );
 
+  const isSearching = Boolean(searchQuery.trim());
+
   return shellWrapper(
     <>
     <div className="flex w-full flex-col flex-1 min-h-0">
-        <StudyHubQuickActions
-          onCreateSet={() => goCreateSet()}
-          fromTranscriptTo={
-            folderId && folderId !== UNCATEGORIZED_FOLDER_ID
-              ? `/create/from-transcript?folder=${folderId}`
-              : "/create/from-transcript"
-          }
-          podcastTo={
-            folderId && folderId !== UNCATEGORIZED_FOLDER_ID
-              ? `/podcast?folder=${folderId}`
-              : "/podcast"
-          }
-          onAddPublicSet={() => setShowImportPublicModal(true)}
-        />
-
-        {jumpBackSet && (
-          <StudyHubJumpBack
-            set={jumpBackSet}
-            onContinue={() => startStudySession(jumpBackSet)}
-          />
-        )}
-
-        <StudyHubRecents
-          sets={recentSets}
-          onOpenSet={(set) => startStudySession(set)}
-        />
-
-        <Link
-          to="/study/performance"
-          className="study-round flex items-center gap-4 w-full max-w-4xl self-start mb-10 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 px-5 py-4 shadow-sm hover:border-sky-200 dark:hover:border-sky-800 transition-colors"
-        >
-          <div className="min-w-0 flex-1 text-left">
-            <StudySectionHeader
-              title="Performance"
-              description="Charts, streaks, heatmaps, and your full session history."
+        {!isSearching && (
+          <>
+            <StudyHubQuickActions
+              onCreateSet={() => goCreateSet()}
+              fromTranscriptTo={
+                folderId && folderId !== UNCATEGORIZED_FOLDER_ID
+                  ? `/create/from-transcript?folder=${folderId}`
+                  : "/create/from-transcript"
+              }
+              podcastTo={
+                folderId && folderId !== UNCATEGORIZED_FOLDER_ID
+                  ? `/podcast?folder=${folderId}`
+                  : "/podcast"
+              }
+              onAddPublicSet={() => setShowImportPublicModal(true)}
             />
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2">
-              {userStats.currentStreak} day streak · {userStats.totalSessions}{" "}
-              sessions · Level {userStats.level}
-            </p>
-          </div>
-          <div
-            className="hidden sm:grid shrink-0 grid-cols-7 gap-1"
-            aria-hidden
-          >
-            {[
-              0, 1, 0, 2, 1, 0, 3, 2, 0, 1, 4, 2, 0, 1, 3, 4, 1, 0, 2, 3, 1, 0,
-              4, 2, 1, 0, 3, 2, 0, 1, 2, 4, 3, 1, 0,
-            ].map((level, i) => (
-              <span
-                key={i}
-                className={`h-2.5 w-2.5 rounded-sm ${
-                  level === 0
-                    ? "bg-gray-200 dark:bg-zinc-800"
-                    : level === 1
-                      ? "bg-sky-200 dark:bg-sky-950"
-                      : level === 2
-                        ? "bg-sky-300 dark:bg-sky-800"
-                        : level === 3
-                          ? "bg-sky-500 dark:bg-sky-600"
-                          : "bg-sky-600 dark:bg-sky-400"
-                }`}
+
+            {jumpBackSet && (
+              <StudyHubJumpBack
+                set={jumpBackSet}
+                onContinue={() => startStudySession(jumpBackSet)}
               />
-            ))}
-          </div>
-          <ChevronDownIcon
-            className="h-5 w-5 shrink-0 text-gray-400 rotate-[-90deg]"
-            aria-hidden
-          />
-        </Link>
+            )}
+
+            <StudyHubRecents
+              sets={recentSets}
+              onOpenSet={(set) => startStudySession(set)}
+            />
+
+            <Link
+              to="/study/performance"
+              className="study-round flex items-center gap-4 w-full max-w-4xl self-start mb-10 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 px-5 py-4 shadow-sm hover:border-sky-200 dark:hover:border-sky-800 transition-colors"
+            >
+              <div className="min-w-0 flex-1 text-left">
+                <StudySectionHeader
+                  title="Performance"
+                  description="Charts, streaks, heatmaps, and your full session history."
+                />
+                <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2">
+                  {userStats.currentStreak} day streak ·{" "}
+                  {userStats.totalSessions} sessions · Level {userStats.level}
+                </p>
+              </div>
+              <div
+                className="hidden sm:grid shrink-0 grid-cols-7 gap-1"
+                aria-hidden
+              >
+                {[
+                  0, 1, 0, 2, 1, 0, 3, 2, 0, 1, 4, 2, 0, 1, 3, 4, 1, 0, 2, 3, 1,
+                  0, 4, 2, 1, 0, 3, 2, 0, 1, 2, 4, 3, 1, 0,
+                ].map((level, i) => (
+                  <span
+                    key={i}
+                    className={`h-2.5 w-2.5 rounded-sm ${
+                      level === 0
+                        ? "bg-gray-200 dark:bg-zinc-800"
+                        : level === 1
+                          ? "bg-sky-200 dark:bg-sky-950"
+                          : level === 2
+                            ? "bg-sky-300 dark:bg-sky-800"
+                            : level === 3
+                              ? "bg-sky-500 dark:bg-sky-600"
+                              : "bg-sky-600 dark:bg-sky-400"
+                    }`}
+                  />
+                ))}
+              </div>
+              <ChevronDownIcon
+                className="h-5 w-5 shrink-0 text-gray-400 rotate-[-90deg]"
+                aria-hidden
+              />
+            </Link>
+          </>
+        )}
 
         <section className="w-full flex flex-col flex-1 min-h-0 pb-20">
           {displayedStudySets.length > 0 && (
@@ -2021,12 +2249,12 @@ const Study = () => {
           <StudySectionHeader
             className="mb-4 max-w-4xl w-full self-start min-w-0"
             title={
-              searchQuery.trim()
+              isSearching
                 ? `Results (${displayedStudySets.length})`
                 : "Your study sets"
             }
             description={
-              searchQuery.trim()
+              isSearching
                 ? "Sets that match your search across title, description, and category."
                 : "Sets you created or imported—open a card to study with flashcards or quiz."
             }
@@ -2147,7 +2375,7 @@ const Study = () => {
                         ) : null}
                         <button
                           type="button"
-                          onClick={() => deleteStudySet(set.id)}
+                          onClick={() => requestDeleteStudySet(set)}
                           className="p-1.5 text-gray-500 hover:text-red-600 rounded-md hover:bg-gray-50 transition-colors"
                           title="Delete set"
                         >

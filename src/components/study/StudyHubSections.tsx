@@ -229,6 +229,9 @@ type JumpBackProps = {
 
 export function StudyHubJumpBack({ set, onContinue }: JumpBackProps) {
   const { reviewed, total, percent } = getSetReviewProgress(set);
+  const isPodcastSet = Boolean(
+    typeof set.podcastId === "string" && set.podcastId
+  );
 
   return (
     <section className="w-full max-w-4xl self-start min-w-0 mb-8">
@@ -237,7 +240,13 @@ export function StudyHubJumpBack({ set, onContinue }: JumpBackProps) {
         title="Jump back in"
         description="Continue the set you were studying most recently."
       />
-      <div className="study-round relative overflow-hidden border border-sky-100 bg-sky-50/40 shadow-sm dark:border-zinc-800 dark:bg-black">
+      <div
+        className={`study-round relative overflow-hidden shadow-sm dark:border-zinc-800 dark:bg-black ${
+          isPodcastSet
+            ? "border border-violet-100 bg-violet-50/40"
+            : "border border-sky-100 bg-sky-50/40"
+        }`}
+      >
         <div
           className="pointer-events-none absolute inset-0 hidden md:block"
           aria-hidden
@@ -250,13 +259,35 @@ export function StudyHubJumpBack({ set, onContinue }: JumpBackProps) {
             preload="auto"
             className="absolute inset-0 h-full w-full scale-125 object-cover object-right opacity-90 motion-reduce:hidden dark:invert"
           />
-          <div className="absolute inset-0 bg-sky-50/55 backdrop-blur-md dark:bg-black/50" />
-          <div className="absolute inset-0 bg-gradient-to-r from-sky-50 from-[18%] via-sky-50/80 via-[42%] to-sky-50/30 to-[80%] dark:from-black dark:via-black/80 dark:to-black/30" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,_rgba(2,132,199,0.14),_transparent_55%)] dark:bg-[radial-gradient(ellipse_at_70%_50%,_rgba(2,132,199,0.16),_transparent_55%)]" />
+          <div
+            className={`absolute inset-0 backdrop-blur-md dark:bg-black/50 ${
+              isPodcastSet ? "bg-violet-50/55" : "bg-sky-50/55"
+            }`}
+          />
+          <div
+            className={`absolute inset-0 bg-gradient-to-r from-[18%] via-[42%] to-[80%] dark:from-black dark:via-black/80 dark:to-black/30 ${
+              isPodcastSet
+                ? "from-violet-50 via-violet-50/80 to-violet-50/30"
+                : "from-sky-50 via-sky-50/80 to-sky-50/30"
+            }`}
+          />
+          <div
+            className={`absolute inset-0 ${
+              isPodcastSet
+                ? "bg-[radial-gradient(ellipse_at_70%_50%,_rgba(139,92,246,0.14),_transparent_55%)] dark:bg-[radial-gradient(ellipse_at_70%_50%,_rgba(139,92,246,0.16),_transparent_55%)]"
+                : "bg-[radial-gradient(ellipse_at_70%_50%,_rgba(2,132,199,0.14),_transparent_55%)] dark:bg-[radial-gradient(ellipse_at_70%_50%,_rgba(2,132,199,0.16),_transparent_55%)]"
+            }`}
+          />
         </div>
         <div className="relative z-10 p-6 md:p-8">
           <div className="md:max-w-[55%] mb-4">
-            <p className="mb-1 text-sm font-medium text-sky-600 dark:text-sky-400">
+            <p
+              className={`mb-1 text-sm font-medium ${
+                isPodcastSet
+                  ? "text-violet-600 dark:text-violet-400"
+                  : "text-sky-600 dark:text-sky-400"
+              }`}
+            >
               {displayStudySetCategory(set)}
             </p>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -274,16 +305,22 @@ export function StudyHubJumpBack({ set, onContinue }: JumpBackProps) {
             </span>
             <span>{percent}%</span>
           </div>
-          <div className="mb-6 h-2.5 w-full rounded-full bg-sky-200/70 dark:bg-zinc-800">
+          <div
+            className={`mb-6 h-2.5 w-full rounded-full dark:bg-zinc-800 ${
+              isPodcastSet ? "bg-violet-200/70" : "bg-sky-200/70"
+            }`}
+          >
             <div
-              className="h-2.5 rounded-full bg-sky-500 transition-all"
+              className={`h-2.5 rounded-full transition-all ${
+                isPodcastSet ? "bg-violet-500" : "bg-sky-500"
+              }`}
               style={{ width: `${percent}%` }}
             />
           </div>
           <button
             type="button"
             onClick={onContinue}
-            className="study-btn px-8 py-3 font-semibold"
+            className={`${isPodcastSet ? "study-btn-violet" : "study-btn"} px-8 py-3 font-semibold`}
           >
             Continue
           </button>
@@ -309,14 +346,24 @@ export function StudyHubRecents({ sets, onOpenSet }: RecentsProps) {
         description="Sets you opened lately—tap one to start studying again."
       />
       <ul className="study-round overflow-hidden bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 divide-y divide-gray-100 dark:divide-zinc-800 shadow-sm">
-        {sets.map((set) => (
+        {sets.map((set) => {
+          const isPodcastSet = Boolean(
+            typeof set.podcastId === "string" && set.podcastId
+          );
+          return (
           <li key={set.id}>
             <button
               type="button"
               onClick={() => onOpenSet(set)}
               className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-zinc-800/80 transition-colors text-left"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  isPodcastSet
+                    ? "bg-violet-50 text-violet-600"
+                    : "bg-sky-50 text-sky-600"
+                }`}
+              >
                 <BookOpenIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
@@ -330,7 +377,8 @@ export function StudyHubRecents({ sets, onOpenSet }: RecentsProps) {
               </div>
             </button>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );

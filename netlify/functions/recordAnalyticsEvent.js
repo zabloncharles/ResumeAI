@@ -22,6 +22,7 @@ if (!admin.apps.length) {
 const ALLOWED_TYPES = new Set([
   "resumeCreated",
   "coverLetterCreated",
+  "podcastCreated",
   "userSignup",
 ]);
 
@@ -96,6 +97,15 @@ export const handler = async function (event) {
       ]);
     } else if (type === "coverLetterCreated") {
       await incrementAnalyticsRollups(admin, { coverLetters: 1 });
+    } else if (type === "podcastCreated") {
+      const durationSeconds = Math.max(
+        0,
+        Math.round(Number(body.durationSeconds) || 0)
+      );
+      await incrementAnalyticsRollups(admin, {
+        podcasts: 1,
+        podcastSeconds: durationSeconds,
+      });
     } else if (type === "userSignup") {
       const userSnap = await admin.firestore().collection("users").doc(uid).get();
       const plan = normalizeAccountPlan(userSnap.data()?.type);

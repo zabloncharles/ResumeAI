@@ -1,27 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
   query,
-  serverTimestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
+import { deleteObject, ref } from "firebase/storage";
 import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytes,
-} from "firebase/storage";
-import {
+  ChevronDownIcon,
   MicrophoneIcon,
   PauseIcon,
   PlayIcon,
+  RectangleStackIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { auth, db, storage } from "../firebase";
@@ -29,38 +30,74 @@ import { useStudyFolders } from "../hooks/useStudyFolders";
 import StudyShell from "./study/StudyShell";
 import StudySectionHeader from "./study/StudySectionHeader";
 import NewFolderModal from "./study/NewFolderModal";
+import DeletePodcastConfirmModal from "./study/DeletePodcastConfirmModal";
 import { studyFlowAccent } from "../constants/studyFlowAccent";
 import {
   getStudyCategoryLabel,
   resolveStudyCategoryId,
-  studyCategoryFirestoreFields,
 } from "../constants/studyCategories";
-import {
-  postGeneratePodcastAudio,
-  postGeneratePodcastScript,
-} from "../utils/aiApi";
 import {
   DEFAULT_PODCAST_EMOTION,
   DEFAULT_PODCAST_MANNERISM,
+  DEFAULT_PODCAST_VOICE,
   PODCAST_EMOTIONS,
   PODCAST_MANNERISMS,
+  PODCAST_VOICES,
   normalizePodcastEmotion,
   normalizePodcastMannerism,
+  normalizePodcastVoice,
   podcastEmotionLabel,
   podcastMannerismLabel,
+  podcastVoiceAvatar,
+  podcastVoiceLabel,
   type PodcastEmotion,
   type PodcastMannerism,
+  type PodcastVoiceId,
 } from "../constants/podcastVoiceOptions";
+import {
+  podcastJobStatusCopy,
+  startPodcastCreateJob,
+  subscribeActivePodcastJobs,
+  subscribePodcastJob,
+  type PodcastCreateJob,
+} from "../utils/podcastCreateJobs";
+import { invalidateStudySetsCache } from "../utils/studySetsCache";
 import { PODCAST_SOURCE_MAX_CHARS } from "../utils/podcastScriptChunks";
 import type { Podcast } from "../types/podcast";
 import { UNCATEGORIZED_FOLDER_ID } from "../types/study";
-import bunny1 from "../bunny1.png";
 import spaceOrb from "../spaceorb.gif";
+import BrandLogo from "./BrandLogo";
 
 const CREATE_FOLDER_SELECT_VALUE = "__create_folder__";
 const LAST_LISTEN_KEY = "podcastLastListen";
 const flow = studyFlowAccent("violet");
-const selectClassName = `study-round w-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2.5 text-gray-900 dark:text-zinc-100 outline-none ${flow.focusField}`;
+const selectClassName = `study-round w-full appearance-none border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 pl-3 pr-10 py-2.5 text-gray-900 dark:text-zinc-100 outline-none ${flow.focusField}`;
+
+function PodcastSelect({
+  value,
+  onChange,
+  children,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={selectClassName}
+      >
+        {children}
+      </select>
+      <ChevronDownIcon
+        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400"
+        aria-hidden
+      />
+    </div>
+  );
+}
 
 type LastListen = {
   id: string;
@@ -110,9 +147,15 @@ function mapPodcastDoc(id: string, data: Record<string, unknown>): Podcast {
     title: String(data.title || "Podcast"),
     emotion: normalizePodcastEmotion(data.emotion),
     mannerism: normalizePodcastMannerism(data.mannerism ?? data.manner),
+    voice: normalizePodcastVoice(data.voice),
     script: String(data.script || ""),
     audioUrl: String(data.audioUrl || ""),
     audioPath: String(data.audioPath || ""),
+    durationSeconds: Math.max(0, Number(data.durationSeconds) || 0),
+    studySetId:
+      typeof data.studySetId === "string" && data.studySetId
+        ? data.studySetId
+        : null,
     sourcePreview: String(data.sourcePreview || ""),
     categoryId,
     category: getStudyCategoryLabel(categoryId),
@@ -139,7 +182,7 @@ export default function PodcastPage() {
   const [authReady, setAuthReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
-  const { folders, createFolder, touchFolder } = useStudyFolders(user?.uid);
+  const { folders, createFolder } = useStudyFolders(user?.uid);
 
   const [showCreator, setShowCreator] = useState(false);
   const [content, setContent] = useState("");
@@ -147,22 +190,27 @@ export default function PodcastPage() {
   const [mannerism, setMannerism] = useState<PodcastMannerism>(
     DEFAULT_PODCAST_MANNERISM
   );
+  const [voice, setVoice] = useState<PodcastVoiceId>(DEFAULT_PODCAST_VOICE);
   const [folderId, setFolderId] = useState<string | null>(() =>
     initialFolderParam && initialFolderParam !== UNCATEGORIZED_FOLDER_ID
       ? initialFolderParam
       : null
   );
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [phase, setPhase] = useState<"script" | "audio" | "save" | null>(null);
-  const [audioProgress, setAudioProgress] = useState<{
-    current: number;
-    total: number;
-  } | null>(null);
+  const [activeJob, setActiveJob] = useState<PodcastCreateJob | null>(null);
+  const [trackedJobId, setTrackedJobId] = useState<string | null>(null);
   const [barPercent, setBarPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const handledDoneJobRef = useRef<string | null>(null);
+  const isGenerating = Boolean(
+    activeJob &&
+      (activeJob.status === "queued" || activeJob.status === "running")
+  );
 
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [loadingList, setLoadingList] = useState(true);
+  const [podcastPendingDelete, setPodcastPendingDelete] =
+    useState<Podcast | null>(null);
+  const [deletingPodcast, setDeletingPodcast] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playback, setPlayback] = useState({ current: 0, duration: 0 });
@@ -258,20 +306,25 @@ export default function PodcastPage() {
     }
   }, [initialFolderParam]);
 
+  const reloadPodcasts = async (uid: string) => {
+    const q = query(
+      collection(db, "podcasts"),
+      where("createdBy", "==", uid)
+    );
+    const snap = await getDocs(q);
+    const rows = snap.docs
+      .map((d) => mapPodcastDoc(d.id, d.data() as Record<string, unknown>))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    setPodcasts(rows);
+    return rows;
+  };
+
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       setLoadingList(true);
       try {
-        const q = query(
-          collection(db, "podcasts"),
-          where("createdBy", "==", user.uid)
-        );
-        const snap = await getDocs(q);
-        const rows = snap.docs
-          .map((d) => mapPodcastDoc(d.id, d.data() as Record<string, unknown>))
-          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        setPodcasts(rows);
+        await reloadPodcasts(user.uid);
       } catch (err) {
         console.error("Error loading podcasts:", err);
       } finally {
@@ -282,153 +335,108 @@ export default function PodcastPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!isGenerating) {
-      setBarPercent(0);
+    if (!user) {
+      setActiveJob(null);
       return;
     }
+    return subscribeActivePodcastJobs(user.uid, (jobs) => {
+      if (trackedJobId) {
+        const tracked = jobs.find((job) => job.id === trackedJobId);
+        if (tracked) setActiveJob(tracked);
+        return;
+      }
+      setActiveJob(jobs[0] ?? null);
+      if (jobs[0]) setTrackedJobId(jobs[0].id);
+    });
+  }, [user, trackedJobId]);
 
-    let target = 8;
-    if (phase === "script") target = 28;
-    if (phase === "audio" && audioProgress) {
-      target = 30 + (audioProgress.current / audioProgress.total) * 55;
+  useEffect(() => {
+    if (!trackedJobId) return;
+    return subscribePodcastJob(trackedJobId, (job) => {
+      if (!job) return;
+      setActiveJob(job);
+      if (job.status === "queued" || job.status === "running") {
+        setBarPercent((prev) => Math.max(prev, job.progress || 2));
+      }
+      if (
+        job.status === "done" &&
+        job.podcastId &&
+        handledDoneJobRef.current !== job.id
+      ) {
+        handledDoneJobRef.current = job.id;
+        setBarPercent(100);
+        setShowCreator(false);
+        setContent("");
+        if (user) {
+          void reloadPodcasts(user.uid).then((rows) => {
+            const created = rows.find((p) => p.id === job.podcastId);
+            if (created) {
+              shouldAutoPlayRef.current = true;
+              setActiveId(created.id);
+              setIsPlaying(false);
+              setPlayback({ current: 0, duration: 0 });
+            }
+          });
+          invalidateStudySetsCache(user.uid);
+        }
+        setTrackedJobId(null);
+      }
+      if (job.status === "error") {
+        setError(job.error || "Could not create podcast. Try again.");
+        setTrackedJobId(null);
+      }
+    });
+  }, [trackedJobId, user]);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      if (!activeJob || activeJob.status === "done") setBarPercent(0);
+      return;
     }
-    if (phase === "save") target = 92;
-
+    const target = Math.max(2, activeJob?.progress || 2);
     setBarPercent((prev) => Math.max(prev, target));
-
     const timer = window.setInterval(() => {
       setBarPercent((prev) => {
-        const cap =
-          phase === "save" ? 96 : phase === "audio" ? target + 4 : target + 8;
-        if (prev >= Math.min(98, cap)) return prev;
-        return Math.min(98, prev + 0.35);
+        const cap = Math.min(98, target + 6);
+        if (prev >= cap) return prev;
+        return Math.min(cap, prev + 0.35);
       });
     }, 120);
-
     return () => window.clearInterval(timer);
-  }, [isGenerating, phase, audioProgress]);
+  }, [isGenerating, activeJob]);
 
   const handleGenerate = async () => {
     if (!user || isGenerating) return;
     setError(null);
-    setIsGenerating(true);
-    setPhase("script");
-    setAudioProgress(null);
-    setBarPercent(5);
-
-    const savedFolderId = folderId || null;
-    let createdDocId: string | null = null;
-    let uploadedAudioPath: string | null = null;
-
+    setBarPercent(4);
+    setShowCreator(true);
     try {
-      const token = await user.getIdToken();
-      const {
-        title,
-        script,
-        categoryId: detectedCategoryId,
-        emotion: usedEmotion,
-        mannerism: usedMannerism,
-      } = await postGeneratePodcastScript(token, {
+      const jobId = await startPodcastCreateJob({
         content,
         emotion,
         mannerism,
+        voice,
+        folderId: folderId || null,
       });
-      const categoryFields = studyCategoryFirestoreFields(detectedCategoryId);
-
-      setPhase("audio");
-      const audioBlob = await postGeneratePodcastAudio(
-        token,
-        script,
-        (current, total) => setAudioProgress({ current, total }),
-        { emotion: usedEmotion, mannerism: usedMannerism }
-      );
-
-      setPhase("save");
-      const podcastRef = await addDoc(collection(db, "podcasts"), {
-        title,
-        emotion: usedEmotion,
-        mannerism: usedMannerism,
-        script,
-        audioUrl: "",
-        audioPath: "",
-        sourcePreview: content.trim().slice(0, 240),
-        ...categoryFields,
-        folderId: savedFolderId,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-      });
-      createdDocId = podcastRef.id;
-
-      const audioPath = `podcasts/${user.uid}/${podcastRef.id}.mp3`;
-      const storageRef = ref(storage, audioPath);
-      await uploadBytes(storageRef, audioBlob, { contentType: "audio/mpeg" });
-      uploadedAudioPath = audioPath;
-      const audioUrl = await getDownloadURL(storageRef);
-
-      await updateDoc(doc(db, "podcasts", podcastRef.id), {
-        audioUrl,
-        audioPath,
-      });
-
-      if (savedFolderId) await touchFolder(savedFolderId);
-
-      const created: Podcast = {
-        id: podcastRef.id,
-        title,
-        emotion: usedEmotion,
-        mannerism: usedMannerism,
-        script,
-        audioUrl,
-        audioPath,
-        sourcePreview: content.trim().slice(0, 240),
-        categoryId: categoryFields.categoryId,
-        category: categoryFields.category,
-        folderId: savedFolderId,
-        createdBy: user.uid,
-        createdAt: new Date(),
-      };
-      setPodcasts((prev) => [created, ...prev]);
+      handledDoneJobRef.current = null;
+      setTrackedJobId(jobId);
       setContent("");
-      setShowCreator(false);
-      shouldAutoPlayRef.current = true;
-      setActiveId(created.id);
-      setIsPlaying(false);
-      setPlayback({ current: 0, duration: 0 });
-      setBarPercent(100);
     } catch (err) {
-      if (uploadedAudioPath) {
-        try {
-          await deleteObject(ref(storage, uploadedAudioPath));
-        } catch {
-          // ignore cleanup failures
-        }
-      }
-      if (createdDocId) {
-        try {
-          await deleteDoc(doc(db, "podcasts", createdDocId));
-        } catch {
-          // ignore cleanup failures
-        }
-      }
       setError(
         err instanceof Error
           ? err.message
           : "Could not create podcast. Try again."
       );
-    } finally {
-      setIsGenerating(false);
-      setPhase(null);
-      setAudioProgress(null);
     }
   };
 
   const handleDelete = async (podcast: Podcast) => {
     if (!user) return;
-    if (!window.confirm(`Delete “${podcast.title}”?`)) return;
+    setDeletingPodcast(true);
     setError(null);
     try {
       const audioPath =
-        podcast.audioPath || `podcasts/${user.uid}/${podcast.id}.mp3`;
+        podcast.audioPath || `podcasts/${user.uid}/${podcast.id}.wav`;
       try {
         await deleteObject(ref(storage, audioPath));
       } catch (storageErr) {
@@ -440,6 +448,19 @@ export default function PodcastPage() {
             : "";
         if (code !== "storage/object-not-found") {
           throw storageErr;
+        }
+      }
+
+      if (podcast.studySetId) {
+        try {
+          const cardsSnap = await getDocs(
+            collection(db, "studySets", podcast.studySetId, "flashcards")
+          );
+          await Promise.all(cardsSnap.docs.map((card) => deleteDoc(card.ref)));
+          await deleteDoc(doc(db, "studySets", podcast.studySetId));
+          invalidateStudySetsCache(user.uid);
+        } catch (setErr) {
+          console.error("Error deleting linked study set:", setErr);
         }
       }
 
@@ -459,6 +480,7 @@ export default function PodcastPage() {
         setIsPlaying(false);
         setPlayback({ current: 0, duration: 0 });
       }
+      setPodcastPendingDelete(null);
     } catch (err) {
       console.error("Error deleting podcast:", err);
       setError(
@@ -466,6 +488,8 @@ export default function PodcastPage() {
           ? err.message
           : "Could not delete podcast. Try again."
       );
+    } finally {
+      setDeletingPodcast(false);
     }
   };
 
@@ -563,15 +587,9 @@ export default function PodcastPage() {
       .catch(() => setIsPlaying(false));
   }, [activePodcast]);
 
-  const statusCopy = useMemo(() => {
-    if (phase === "script") return "Writing your teaching script…";
-    if (phase === "audio" && audioProgress) {
-      return `Generating voice part ${audioProgress.current} of ${audioProgress.total}…`;
-    }
-    if (phase === "audio") return "Generating voice…";
-    if (phase === "save") return "Saving your podcast…";
-    return "Building your podcast…";
-  }, [phase, audioProgress]);
+  const statusCopy = activeJob
+    ? podcastJobStatusCopy(activeJob)
+    : "Building your podcast…";
 
   if (!authReady || !user) {
     return (
@@ -600,17 +618,24 @@ export default function PodcastPage() {
       <div className="w-full max-w-3xl space-y-10">
         {(showCreator || isGenerating) && (
           <section className="space-y-4">
-            <StudySectionHeader
-              title="New podcast"
-              description="Paste notes or a transcript. We’ll write a teaching episode and generate one voice."
-            />
+            <div className="flex items-start gap-4">
+              <img
+                src={podcastVoiceAvatar(voice)}
+                alt={podcastVoiceLabel(voice)}
+                className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-violet-100 dark:ring-violet-900/60"
+              />
+              <StudySectionHeader
+                title="New podcast"
+                description="Paste notes or a transcript. We’ll write a teaching episode and generate one voice."
+              />
+            </div>
             {isGenerating ? (
               <div className="study-round border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6 py-12 sm:px-10">
                 <div className="max-w-md mx-auto flex flex-col items-center space-y-8">
-                  <img
-                    src={bunny1}
+                  <BrandLogo
+                    accent="podcast"
                     alt=""
-                    className="h-14 w-14 object-contain animate-pulse"
+                    className="h-14 w-auto animate-pulse"
                   />
                   <div className="w-full">
                     <div className="w-full bg-gray-200 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
@@ -630,6 +655,9 @@ export default function PodcastPage() {
                     <p className="text-gray-500 dark:text-zinc-400 text-sm">
                       {statusCopy}
                     </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                      You can leave this page — creation keeps running.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -639,17 +667,15 @@ export default function PodcastPage() {
                   <label className="block text-sm font-medium text-gray-900 dark:text-zinc-100 mb-2">
                     Folder
                   </label>
-                  <select
+                  <PodcastSelect
                     value={folderId ?? ""}
-                    onChange={(e) => {
-                      const next = e.target.value;
+                    onChange={(next) => {
                       if (next === CREATE_FOLDER_SELECT_VALUE) {
                         setShowNewFolderModal(true);
                         return;
                       }
                       setFolderId(next || null);
                     }}
-                    className={selectClassName}
                   >
                     <option value="">Uncategorized</option>
                     {folders.map((f) => (
@@ -660,9 +686,27 @@ export default function PodcastPage() {
                     <option value={CREATE_FOLDER_SELECT_VALUE}>
                       + Create new folder…
                     </option>
-                  </select>
+                  </PodcastSelect>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-zinc-100 mb-2">
+                    Host
+                  </label>
+                  <PodcastSelect
+                    value={voice}
+                    onChange={(next) =>
+                      setVoice(normalizePodcastVoice(next))
+                    }
+                  >
+                    {PODCAST_VOICES.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </PodcastSelect>
                   <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-500">
-                    Subject is detected from your content.
+                    {PODCAST_VOICES.find((o) => o.id === voice)?.hint}
                   </p>
                 </div>
 
@@ -671,19 +715,18 @@ export default function PodcastPage() {
                     <label className="block text-sm font-medium text-gray-900 dark:text-zinc-100 mb-2">
                       Emotion
                     </label>
-                    <select
+                    <PodcastSelect
                       value={emotion}
-                      onChange={(e) =>
-                        setEmotion(normalizePodcastEmotion(e.target.value))
+                      onChange={(next) =>
+                        setEmotion(normalizePodcastEmotion(next))
                       }
-                      className={selectClassName}
                     >
                       {PODCAST_EMOTIONS.map((option) => (
                         <option key={option.id} value={option.id}>
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </PodcastSelect>
                     <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-500">
                       {
                         PODCAST_EMOTIONS.find((o) => o.id === emotion)?.hint
@@ -694,19 +737,18 @@ export default function PodcastPage() {
                     <label className="block text-sm font-medium text-gray-900 dark:text-zinc-100 mb-2">
                       Mannerism
                     </label>
-                    <select
+                    <PodcastSelect
                       value={mannerism}
-                      onChange={(e) =>
-                        setMannerism(normalizePodcastMannerism(e.target.value))
+                      onChange={(next) =>
+                        setMannerism(normalizePodcastMannerism(next))
                       }
-                      className={selectClassName}
                     >
                       {PODCAST_MANNERISMS.map((option) => (
                         <option key={option.id} value={option.id}>
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </PodcastSelect>
                     <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-500">
                       {
                         PODCAST_MANNERISMS.find((o) => o.id === mannerism)
@@ -861,8 +903,8 @@ export default function PodcastPage() {
                     </h3>
                     <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 sm:truncate">
                       {continuePodcast
-                        ? `${continuePodcast.category} · ${podcastEmotionLabel(continuePodcast.emotion)} · ${podcastMannerismLabel(continuePodcast.mannerism)}`
-                        : "Paste notes, pick emotion and mannerism, and we’ll teach it out loud."}
+                        ? `${continuePodcast.category} · ${podcastVoiceLabel(continuePodcast.voice)} · ${podcastEmotionLabel(continuePodcast.emotion)} · ${podcastMannerismLabel(continuePodcast.mannerism)}`
+                        : "Paste notes, pick a host, emotion, and mannerism, and we’ll teach it out loud."}
                     </p>
                   </div>
                   {continuePodcast ? (
@@ -962,10 +1004,25 @@ export default function PodcastPage() {
             }}
             onLoadedMetadata={(e) => {
               const el = e.currentTarget;
+              const duration = Number.isFinite(el.duration) ? el.duration : 0;
               setPlayback((prev) => ({
                 current: prev.current,
-                duration: Number.isFinite(el.duration) ? el.duration : 0,
+                duration,
               }));
+              if (!activeId || duration <= 0) return;
+              const active = podcasts.find((p) => p.id === activeId);
+              if (!active || active.durationSeconds > 0) return;
+              const durationSeconds = Math.round(duration);
+              setPodcasts((prev) =>
+                prev.map((p) =>
+                  p.id === activeId ? { ...p, durationSeconds } : p
+                )
+              );
+              void updateDoc(doc(db, "podcasts", activeId), {
+                durationSeconds,
+              }).catch(() => {
+                // ignore backfill failures
+              });
             }}
             onPlay={() => setIsPlaying(true)}
             onPause={() => {
@@ -1059,6 +1116,7 @@ export default function PodcastPage() {
                         </p>
                         <p className="text-sm text-gray-500 dark:text-zinc-500 mt-0.5 truncate">
                           {folderLabel} ·{" "}
+                          {podcastVoiceLabel(podcast.voice)} ·{" "}
                           {podcastEmotionLabel(podcast.emotion)} ·{" "}
                           {podcastMannerismLabel(podcast.mannerism)} ·{" "}
                           {podcast.createdAt.toLocaleDateString()}
@@ -1066,9 +1124,34 @@ export default function PodcastPage() {
                         </p>
                       </button>
 
+                      {podcast.durationSeconds > 0 ? (
+                        <span className="shrink-0 text-sm tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {formatAudioTime(podcast.durationSeconds)}
+                        </span>
+                      ) : null}
+
                       <button
                         type="button"
-                        onClick={() => handleDelete(podcast)}
+                        disabled={!podcast.studySetId}
+                        onClick={() => {
+                          if (!podcast.studySetId) return;
+                          navigate(
+                            `/study/library?set=${encodeURIComponent(podcast.studySetId)}`
+                          );
+                        }}
+                        className="p-2 text-zinc-400 hover:text-violet-600 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                        title={
+                          podcast.studySetId
+                            ? "Open flashcards"
+                            : "Flashcards unavailable"
+                        }
+                      >
+                        <RectangleStackIcon className="h-5 w-5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPodcastPendingDelete(podcast)}
                         className="p-2 text-zinc-400 hover:text-red-600 shrink-0"
                         title="Delete"
                       >
@@ -1089,6 +1172,20 @@ export default function PodcastPage() {
         onCreate={async (folderTitle, description) => {
           const id = await createFolder(folderTitle, description);
           if (id) setFolderId(id);
+        }}
+      />
+
+      <DeletePodcastConfirmModal
+        isOpen={Boolean(podcastPendingDelete)}
+        episodeTitle={podcastPendingDelete?.title || ""}
+        confirming={deletingPodcast}
+        onClose={() => {
+          if (deletingPodcast) return;
+          setPodcastPendingDelete(null);
+        }}
+        onConfirm={() => {
+          if (!podcastPendingDelete) return;
+          void handleDelete(podcastPendingDelete);
         }}
       />
     </StudyShell>
