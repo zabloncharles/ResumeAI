@@ -4,24 +4,84 @@ struct RootView: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        TabView(selection: $appState.selectedTab) {
-            HomeView()
-                .tabItem { Label("Home", systemImage: "house.fill") }
-                .tag(AppTab.home)
-            StudyView()
-                .tabItem { Label("Study", systemImage: "graduationcap.fill") }
-                .tag(AppTab.study)
-            ResumeView()
-                .tabItem { Label("Resume", systemImage: "doc.text.fill") }
-                .tag(AppTab.resume)
-            LettersView()
-                .tabItem { Label("Letters", systemImage: "envelope.fill") }
-                .tag(AppTab.letters)
-            AccountView()
-                .tabItem { Label("Account", systemImage: "person.crop.circle.fill") }
-                .tag(AppTab.account)
+        ZStack {
+            switch appState.selectedTab {
+            case .home:
+                HomeView()
+            case .explore:
+                ExploreView()
+            case .create:
+                CreateView()
+            case .library:
+                LibraryView()
+            case .profile:
+                AccountView()
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            NativeBottomBar()
         }
         .tint(.brightfolioTeal)
+    }
+}
+
+struct NativeBottomBar: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        HStack(spacing: 0) {
+            NativeBarItem(tab: .home, label: "Home", icon: "house.fill")
+            NativeBarItem(tab: .explore, label: "Explore", icon: "safari.fill")
+
+            Button {
+                appState.selectedTab = .create
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(Color.brightfolioTeal)
+                    .clipShape(Circle())
+                    .shadow(color: .brightfolioTeal.opacity(0.3), radius: 12, y: 6)
+            }
+            .frame(maxWidth: .infinity)
+            .offset(y: -12)
+
+            NativeBarItem(tab: .library, label: "Library", icon: "books.vertical.fill")
+            NativeBarItem(tab: .profile, label: "Profile", icon: "person.fill")
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Divider()
+        }
+    }
+}
+
+struct NativeBarItem: View {
+    @EnvironmentObject private var appState: AppState
+    let tab: AppTab
+    let label: String
+    let icon: String
+
+    var isSelected: Bool { appState.selectedTab == tab }
+
+    var body: some View {
+        Button {
+            appState.selectedTab = tab
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                Text(label)
+                    .font(.caption2.weight(.medium))
+            }
+            .foregroundStyle(isSelected ? Color.brightfolioTeal : Color.secondary)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -48,14 +108,14 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Your toolkit")
                             .font(.title3.weight(.bold))
-                        QuickActionCard(title: "Resume Builder", detail: "Create an ATS-ready resume with guided sections.", icon: "doc.text", tint: .blue) {
-                            appState.selectedTab = .resume
+                        QuickActionCard(title: "Create or edit resume", detail: "Build an ATS-ready resume with guided sections.", icon: "doc.text", tint: .blue) {
+                            appState.selectedTab = .create
                         }
-                        QuickActionCard(title: "Cover Letters", detail: "Tailor your story to the job you want next.", icon: "envelope", tint: .purple) {
-                            appState.selectedTab = .letters
+                        QuickActionCard(title: "Explore study sets", detail: "Turn notes into practice sessions and flashcards.", icon: "graduationcap", tint: .orange) {
+                            appState.selectedTab = .explore
                         }
-                        QuickActionCard(title: "Study Sets", detail: "Turn notes into practice sessions and flashcards.", icon: "graduationcap", tint: .orange) {
-                            appState.selectedTab = .study
+                        QuickActionCard(title: "Write a cover letter", detail: "Tailor your story to the job you want next.", icon: "envelope", tint: .purple) {
+                            appState.selectedTab = .create
                         }
                     }
                 }
@@ -118,3 +178,5 @@ struct QuickActionCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+}
