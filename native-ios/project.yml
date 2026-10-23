@@ -9,6 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: 5.0
+    GENERATE_INFOPLIST_FILE: YES
     TARGETED_DEVICE_FAMILY: "1"
     SUPPORTS_MACCATALYST: NO
     INFOPLIST_KEY_CFBundleDisplayName: Brightfolio
