@@ -1,0 +1,19 @@
+{
+  "name": "Brightfolio — AI Career Toolkit",
+  "short_name": "Brightfolio",
+  "description": "Build stronger resumes, cover letters, and study sets with AI.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#16aeac",
+  "icons": [
+    {
+      "src": "/icons/brightfolio-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
