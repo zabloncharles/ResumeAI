@@ -17,11 +17,14 @@ import Contact from "./components/Pages/Contact.tsx";
 import Privacy from "./components/Pages/Privacy";
 import Terms from "./components/Pages/Terms";
 import Jobs from "./components/Pages/Jobs";
+import InstallAppPrompt from "./components/InstallAppPrompt";
+import MobileAppNav from "./components/MobileAppNav";
 
 function App() {
   return (
     <Router>
       <div className="App">
+        <InstallAppPrompt />
         <Routes>
           <Route
             path="/"
@@ -57,6 +60,7 @@ function App() {
           <Route path="/courses" element={<Navigate to="/" replace />} />
           <Route path="/jobs" element={<Jobs />} />
         </Routes>
+        <MobileAppNav />
       </div>
     </Router>
   );
