@@ -9,7 +9,7 @@ struct ResumeView: View {
                 Section {
                     Button { showEditor = true } label: {
                         Label("Create a new resume", systemImage: "plus.circle.fill")
-                            .foregroundStyle(.brightfolioTeal)
+                            .foregroundStyle(Color.brightfolioTeal)
                     }
                 }
                 Section("Recent resumes") {
@@ -60,7 +60,7 @@ struct LettersView: View {
             List {
                 Section {
                     Label("Create a tailored cover letter", systemImage: "plus.circle.fill")
-                        .foregroundStyle(.brightfolioTeal)
+                        .foregroundStyle(Color.brightfolioTeal)
                 }
                 Section("Recent letters") {
                     NativeEmptyStateRow(icon: "envelope", title: "No cover letters yet", detail: "Create one from a job description or resume.")
@@ -77,7 +77,7 @@ struct StudyView: View {
             List {
                 Section {
                     Label("Create a study set", systemImage: "plus.circle.fill")
-                        .foregroundStyle(.brightfolioTeal)
+                        .foregroundStyle(Color.brightfolioTeal)
                 }
                 Section("Practice") {
                     Label("Flashcards", systemImage: "rectangle.on.rectangle")
@@ -103,7 +103,7 @@ struct AccountView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "person.crop.circle.fill")
                             .font(.system(size: 44))
-                            .foregroundStyle(.brightfolioTeal)
+                            .foregroundStyle(Color.brightfolioTeal)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(appState.isSignedIn ? "Your account" : "Welcome to Brightfolio")
                                 .font(.headline)
@@ -115,7 +115,7 @@ struct AccountView: View {
                     .padding(.vertical, 6)
                     if !appState.isSignedIn {
                         Button("Sign in") { appState.isSignedIn = true }
-                            .foregroundStyle(.brightfolioTeal)
+                            .foregroundStyle(Color.brightfolioTeal)
                     }
                 }
                 Section("Preferences") {
