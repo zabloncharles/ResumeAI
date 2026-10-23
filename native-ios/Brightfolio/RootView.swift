@@ -20,6 +20,8 @@ struct RootView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             NativeBottomBar()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
         }
         .tint(.brightfolioTeal)
     }
@@ -54,9 +56,8 @@ struct NativeBottomBar: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background(.ultraThinMaterial)
-        .overlay(alignment: .top) {
-            Divider()
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
     }
 }
 
