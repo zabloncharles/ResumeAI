@@ -6,6 +6,7 @@ import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 if (Capacitor.isNativePlatform()) {
   document.documentElement.classList.add("native-app");
@@ -31,7 +32,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
       <AuthProvider>
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>
