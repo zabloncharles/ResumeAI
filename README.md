@@ -4,6 +4,13 @@ A modern, AI-powered resume builder application that helps users create professi
 
 ## Features
 
+### Installable app
+
+Brightfolio is also configured as an installable Progressive Web App (PWA).
+On a supported browser, use the install prompt or the browser's “Add to Home
+Screen” action to launch it like a normal mobile app. The app shell and the
+last loaded route are cached for a better offline fallback.
+
 ### 1. Core Features
 
 #### 1.1 Resume Sections
@@ -185,6 +192,30 @@ interface ResumeData {
 - Optimized re-renders
 
 ## Getting Started
+
+## Mobile app builds
+
+The project is configured for Capacitor so the same React/Firebase product can
+ship as an iPhone and Android app.
+
+```bash
+npm install
+npm run cap:add:ios       # one time, on macOS with Xcode
+npm run cap:add:android   # one time, with Android Studio installed
+npm run build:mobile
+npm run cap:open:ios
+npm run cap:open:android
+```
+
+Before store submission, add the Firebase native configuration files and
+native Google OAuth client IDs for each platform. Email/password auth already
+uses the shared Firebase web SDK.
+
+### Xcode Cloud
+
+The iOS project includes `ios/App/ci_scripts/ci_post_clone.sh`. Xcode Cloud
+uses it to install Node dependencies, build the React bundle, and sync the
+Capacitor iOS project before archiving the app.
 
 ### Prerequisites
 
