@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Brightfolio — Home / Explore wireframe</title>
+  <title>Brightfolio — Home / Explore Studios wireframe</title>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -325,6 +325,17 @@
     }
     .tab.active { color: #fff; }
     .tab.active .ico { background: #3a3a3c; color: #fff; }
+    .tab.plus .ico {
+      width: 48px;
+      height: 48px;
+      margin-top: -18px;
+      border-radius: 50%;
+      background: #159e9b;
+      color: #fff;
+      border: 4px solid #202023;
+      box-shadow: 0 8px 18px rgba(21, 158, 155, 0.35);
+      font-size: 26px;
+    }
 
     .note {
       max-width: 920px;
@@ -341,8 +352,8 @@
 </head>
 <body>
   <div class="meta">
-    <h1>Brightfolio wireframe — Home / Explore</h1>
-    Structure matches your Figma/screenshot. Content remapped to career/study (not events).
+    <h1>Brightfolio wireframe — Home / Explore Studios</h1>
+    Content is organized around Resume Studio, Podcast Studio, Cover Letter Studio, and Study Studio.
   </div>
 
   <div class="boards">
@@ -355,7 +366,7 @@
             <img class="owl" src="../../public/images/logo/owl_teal.png" alt="Brightfolio" />
             <div class="brand-copy">
               <strong>Brightfolio</strong>
-              <span>Resume, letters, and study in one place</span>
+              <span>Career tools, studios, and learning in one place</span>
             </div>
           </div>
           <div class="icon-btn" title="Notifications">🔔</div>
@@ -363,7 +374,7 @@
         </div>
 
         <div class="search">
-          <span class="grow">Search study sets, podcasts</span>
+          <span class="grow">Search studios, resumes, podcasts</span>
           <span>⌕</span>
         </div>
 
@@ -399,34 +410,34 @@
           <div class="card">
             <div class="card-top">
               <span class="glyph">📘</span>
-              <div class="card-title blue">Apex &amp; LWC interview prep</div>
+              <div class="card-title blue">Resume Studio</div>
             </div>
-            <p>Flashcards and quiz for Salesforce platform fundamentals.</p>
+            <p>Build an ATS-ready resume with guided AI sections.</p>
             <div class="card-meta">
-              <div class="left">📅 Studied Oct 22</div>
-              <div class="badge">18</div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-top">
-              <span class="glyph">📄</span>
-              <div class="card-title coral">Senior PM — Brightfolio resume</div>
-            </div>
-            <p>ATS-ready draft with impact bullets and skills section.</p>
-            <div class="card-meta">
-              <div class="left">📅 Updated Oct 20</div>
+              <div class="left">📅 Updated Oct 22</div>
               <div class="badge">84</div>
             </div>
           </div>
           <div class="card">
             <div class="card-top">
               <span class="glyph">🎧</span>
-              <div class="card-title mint">Orin &amp; Elara — Marketing Cloud</div>
+              <div class="card-title coral">Podcast Studio</div>
             </div>
-            <p>Podcast episode generated from your study set transcript.</p>
+            <p>Turn your notes and study sets into an audio lesson.</p>
             <div class="card-meta">
-              <div class="left">📅 Oct 19 · 12 min</div>
+              <div class="left">📅 12 min episode</div>
               <div class="badge">3</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-top">
+              <span class="glyph">✉️</span>
+              <div class="card-title mint">Cover Letter Studio</div>
+            </div>
+            <p>Tailor your story to the job you want next.</p>
+            <div class="card-meta">
+              <div class="left">📅 Draft in progress</div>
+              <div class="badge">1</div>
             </div>
           </div>
         </div>
@@ -435,6 +446,7 @@
       <nav class="tabbar">
         <div class="tab active"><div class="ico">◇</div>Home</div>
         <div class="tab"><div class="ico">○</div>Explore</div>
+        <div class="tab plus"><div class="ico">+</div></div>
         <div class="tab"><div class="ico">△</div>Library</div>
         <div class="tab"><div class="ico">⬡</div>Profile</div>
       </nav>
@@ -447,7 +459,7 @@
         <div class="header explore">
           <img class="owl" src="../../public/images/logo/owl_teal.png" alt="Brightfolio" />
           <div class="search compact">
-            <span class="grow">Search resumes, sets, letters</span>
+            <span class="grow">Search studios and tools</span>
             <span>⌕</span>
           </div>
           <div class="icon-btn" title="Menu">☰</div>
@@ -460,13 +472,10 @@
 
         <div class="cats">
           <div class="cat"><div class="cat-dot all">✦</div>All</div>
-          <div class="cat"><div class="cat-dot resume">📄</div>Resume</div>
-          <div class="cat"><div class="cat-dot study">🎴</div>Study</div>
-          <div class="cat"><div class="cat-dot letters">✉️</div>Letters</div>
-          <div class="cat"><div class="cat-dot podcast">🎧</div>Podcast</div>
-          <div class="cat"><div class="cat-dot template">▦</div>Templates</div>
-          <div class="cat"><div class="cat-dot interview">🎤</div>Interview</div>
-          <div class="cat"><div class="cat-dot other">✦</div>Other</div>
+          <div class="cat"><div class="cat-dot resume">📄</div>Resume Studio</div>
+          <div class="cat"><div class="cat-dot podcast">🎧</div>Podcast Studio</div>
+          <div class="cat"><div class="cat-dot letters">✉️</div>Cover Letter Studio</div>
+          <div class="cat"><div class="cat-dot study">🎴</div>Study Studio</div>
         </div>
 
         <div class="section-head">
@@ -477,34 +486,34 @@
           <div class="card">
             <div class="card-top">
               <span class="glyph">📘</span>
-              <div class="card-title blue">Apex &amp; LWC interview prep</div>
+              <div class="card-title blue">Resume Studio</div>
             </div>
-            <p>Flashcards and quiz for Salesforce platform fundamentals.</p>
+            <p>Create, edit, preview, and improve your resume.</p>
             <div class="card-meta">
-              <div class="left">📅 Studied Oct 22</div>
-              <div class="badge">18</div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-top">
-              <span class="glyph">📄</span>
-              <div class="card-title coral">Senior PM — Brightfolio resume</div>
-            </div>
-            <p>ATS-ready draft with impact bullets and skills section.</p>
-            <div class="card-meta">
-              <div class="left">📅 Updated Oct 20</div>
+              <div class="left">ATS score</div>
               <div class="badge">84</div>
             </div>
           </div>
           <div class="card">
             <div class="card-top">
               <span class="glyph">🎧</span>
-              <div class="card-title mint">Orin &amp; Elara — Marketing Cloud</div>
+              <div class="card-title coral">Podcast Studio</div>
             </div>
-            <p>Podcast episode generated from your study set transcript.</p>
+            <p>Generate focused audio lessons from your notes.</p>
             <div class="card-meta">
-              <div class="left">📅 Oct 19 · 12 min</div>
+              <div class="left">Episodes generated</div>
               <div class="badge">3</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-top">
+              <span class="glyph">✉️</span>
+              <div class="card-title mint">Cover Letter Studio</div>
+            </div>
+            <p>Match your experience to each job description.</p>
+            <div class="card-meta">
+              <div class="left">Drafts ready</div>
+              <div class="badge">1</div>
             </div>
           </div>
         </div>
@@ -513,6 +522,7 @@
       <nav class="tabbar">
         <div class="tab"><div class="ico">◇</div>Home</div>
         <div class="tab active"><div class="ico">○</div>Explore</div>
+        <div class="tab plus"><div class="ico">+</div></div>
         <div class="tab"><div class="ico">△</div>Library</div>
         <div class="tab"><div class="ico">⬡</div>Profile</div>
       </nav>
@@ -521,8 +531,8 @@
 
   <div class="note">
     <strong>Open:</strong> <code>native-ios/wireframes/brightfolio-home-explore.html</code>
-    · Tabs match your mock (no Create yet). Badges = card count / ATS score / episode count.
-    · Next screens to wireframe if you want: Library, Profile, Create sheet.
+    · Tabs: Home, Explore, +, Library, Profile. Studios are the main creation surfaces.
+    · Badges represent ATS score, episode count, and active drafts.
   </div>
 </body>
 </html>
