@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AppTab: Hashable {
-    case home, resume, letters, study, account
+    case home, explore, create, library, profile
 }
 
 final class AppState: ObservableObject {
