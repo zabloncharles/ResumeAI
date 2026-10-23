@@ -20,7 +20,7 @@ workflows:
         XCODE_PROJECT: ios/App/App.xcodeproj
         XCODE_SCHEME: App
         APP_STORE_APPLE_ID: "6826103999"
-      node: 20
+      node: 22
       xcode: latest
     scripts:
       - name: Install JavaScript dependencies
@@ -73,7 +73,7 @@ workflows:
         - brightfolio_android_keystore
       vars:
         PACKAGE_NAME: com.brightfolio.app
-      node: 20
+      node: 22
     scripts:
       - name: Set up Android SDK path
         script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
