@@ -21,20 +21,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        setUser(user);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Firebase auth initialization failed:", error);
-        setUser(null);
-        setLoading(false);
-      }
-    );
+    let mounted = true;
+    let unsubscribe: (() => void) | undefined;
 
-    return unsubscribe;
+    const finishLoading = (nextUser: User | null) => {
+      if (!mounted) return;
+      setUser(nextUser);
+      setLoading(false);
+    };
+
+    // A native WebView can occasionally leave Firebase Auth waiting on its
+    // persistence layer indefinitely. The app should still render while auth
+    // finishes, rather than presenting a permanently blank screen.
+    const timeoutId = window.setTimeout(() => {
+      if (!mounted) return;
+      console.warn("Firebase auth initialization timed out; continuing as signed out.");
+      finishLoading(null);
+    }, 5000);
+
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        (nextUser) => {
+          window.clearTimeout(timeoutId);
+          finishLoading(nextUser);
+        },
+        (error) => {
+          window.clearTimeout(timeoutId);
+          console.error("Firebase auth initialization failed:", error);
+          finishLoading(null);
+        }
+      );
+    } catch (error) {
+      window.clearTimeout(timeoutId);
+      console.error("Firebase Auth could not start:", error);
+      finishLoading(null);
+    }
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(timeoutId);
+      unsubscribe?.();
+    };
   }, []);
 
   const value = {
@@ -44,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
