@@ -11,10 +11,21 @@
     "dev": "vite",
     "dev:netlify": "netlify dev",
     "build": "tsc && vite build",
+    "build:mobile": "npm run build && npx cap sync",
+    "cap:add:android": "npx cap add android",
+    "cap:add:ios": "npx cap add ios",
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/splash-screen": "^8.0.2",
     "@react-pdf/renderer": "^4.3.0",
     "@types/js-cookie": "^3.0.6",
     "@types/react-datepicker": "^7.0.0",
@@ -38,6 +49,7 @@
     "zipcodes": "^8.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@headlessui/react": "^1.7.18",
     "@heroicons/react": "^2.1.1",
     "@svgr/webpack": "^8.1.0",
