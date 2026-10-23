@@ -71,6 +71,65 @@ struct LettersView: View {
     }
 }
 
+struct ExploreView: View {
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Discover") {
+                    Label("AI career guidance", systemImage: "sparkles")
+                    Label("Resume templates", systemImage: "doc.text")
+                    Label("Interview practice", systemImage: "person.2")
+                }
+                Section("Study") {
+                    Label("Salesforce Marketing Cloud", systemImage: "cloud.fill")
+                    Label("Apex and LWC", systemImage: "chevron.left.forwardslash.chevron.right")
+                    Label("Interview prep", systemImage: "lightbulb")
+                }
+            }
+            .navigationTitle("Explore")
+        }
+    }
+}
+
+struct CreateView: View {
+    @State private var showResumeEditor = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Create something new") {
+                    Button { showResumeEditor = true } label: {
+                        Label("Resume", systemImage: "doc.text.fill")
+                    }
+                    Label("Cover letter", systemImage: "envelope.fill")
+                    Label("Study set", systemImage: "graduationcap.fill")
+                }
+            }
+            .navigationTitle("Create")
+            .sheet(isPresented: $showResumeEditor) { NativeResumeEditorView() }
+        }
+    }
+}
+
+struct LibraryView: View {
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Resumes") {
+                    NativeEmptyStateRow(icon: "doc.text", title: "No resumes yet", detail: "Your saved resumes will appear here.")
+                }
+                Section("Cover letters") {
+                    NativeEmptyStateRow(icon: "envelope", title: "No cover letters yet", detail: "Your saved letters will appear here.")
+                }
+                Section("Study sets") {
+                    NativeEmptyStateRow(icon: "books.vertical", title: "No study sets yet", detail: "Your saved study sets will appear here.")
+                }
+            }
+            .navigationTitle("Library")
+        }
+    }
+}
+
 struct StudyView: View {
     var body: some View {
         NavigationStack {
@@ -129,7 +188,7 @@ struct AccountView: View {
                     Label("Help and support", systemImage: "questionmark.circle")
                 }
             }
-            .navigationTitle("Account")
+            .navigationTitle("Profile")
         }
     }
 }
