@@ -65,6 +65,42 @@ workflows:
         submit_to_testflight: true
         submit_to_app_store: false
 
+  ios-simulator-preview:
+    name: Brightfolio iOS Simulator Preview
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - brightfolio-production
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install JavaScript dependencies
+        script: npm install
+      - name: Install Capacitor build dependencies
+        script: |
+          npm install --no-save \\
+            @capacitor/core@8.5.3 \\
+            @capacitor/cli@8.5.3 \\
+            @capacitor/ios@8.5.3 \\
+            @capacitor/app@8.1.2 \\
+            @capacitor/splash-screen@8.0.2
+      - name: Build web app and create iOS project
+        script: |
+          npm run build
+          npx cap add ios
+          npx cap sync ios
+      - name: Build iOS Simulator app
+        script: |
+          xcodebuild build \\
+            -project "$CM_BUILD_DIR/ios/App/App.xcodeproj" \\
+            -scheme App \\
+            -sdk iphonesimulator \\
+            -configuration Debug \\
+            -derivedDataPath "$CM_BUILD_DIR/build/ios/simulator"
+    artifacts:
+      - build/ios/simulator/Build/Products/Debug-iphonesimulator/App.app
+
   android-release:
     name: Brightfolio Android Release
     max_build_duration: 120
