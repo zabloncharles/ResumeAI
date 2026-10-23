@@ -16,6 +16,8 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.brightfolio.app
+      groups:
+        - brightfolio-production
       vars:
         XCODE_PROJECT: ios/App/App.xcodeproj
         XCODE_SCHEME: App
@@ -72,6 +74,8 @@ workflows:
     environment:
       android_signing:
         - brightfolio_android_keystore
+      groups:
+        - brightfolio-production
       vars:
         PACKAGE_NAME: com.brightfolio.app
       node: 22
