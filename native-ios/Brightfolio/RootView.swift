@@ -8,15 +8,15 @@ struct RootView: View {
             HomeView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(AppTab.home)
+            StudyView()
+                .tabItem { Label("Study", systemImage: "graduationcap.fill") }
+                .tag(AppTab.study)
             ResumeView()
                 .tabItem { Label("Resume", systemImage: "doc.text.fill") }
                 .tag(AppTab.resume)
             LettersView()
                 .tabItem { Label("Letters", systemImage: "envelope.fill") }
                 .tag(AppTab.letters)
-            StudyView()
-                .tabItem { Label("Study", systemImage: "graduationcap.fill") }
-                .tag(AppTab.study)
             AccountView()
                 .tabItem { Label("Account", systemImage: "person.crop.circle.fill") }
                 .tag(AppTab.account)
@@ -118,5 +118,3 @@ struct QuickActionCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-}
