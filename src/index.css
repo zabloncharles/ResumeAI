@@ -5,10 +5,17 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    min-height: 100%;
   }
 
   body {
     @apply antialiased text-gray-900 bg-white dark:text-zinc-100 dark:bg-zinc-950;
+    min-height: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 
   input:focus {
@@ -18,6 +25,78 @@
   ::selection {
     @apply bg-primary-500 text-white;
   }
+}
+
+.pwa-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.mobile-app-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.45rem 0.6rem max(0.45rem, env(safe-area-inset-bottom));
+  border-top: 1px solid rgb(228 228 231 / 0.9);
+  background: rgb(255 255 255 / 0.94);
+  box-shadow: 0 -8px 24px rgb(15 23 42 / 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.dark .mobile-app-nav {
+  border-top-color: rgb(63 63 70 / 0.9);
+  background: rgb(9 9 11 / 0.94);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 0.25);
+}
+
+.mobile-app-nav-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border-radius: 0.8rem;
+  padding: 0.4rem 0.2rem;
+  color: rgb(113 113 122);
+  font-size: 0.67rem;
+  font-weight: 600;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.mobile-app-nav-item.is-active {
+  color: rgb(13 148 136);
+  background: rgb(204 251 241 / 0.7);
+}
+
+.dark .mobile-app-nav-item {
+  color: rgb(161 161 170);
+}
+
+.dark .mobile-app-nav-item.is-active {
+  color: rgb(94 234 212);
+  background: rgb(19 78 74 / 0.55);
+}
+
+@media (min-width: 768px) {
+  .mobile-app-nav {
+    display: none;
+  }
+}
+
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+.native-app body {
+  overscroll-behavior-y: none;
 }
 
 @layer components {
@@ -47,90 +126,6 @@
 
   .study-round {
     @apply rounded-study;
-  }
-
-  @keyframes study-match-pop {
-    0% {
-      transform: scale(1);
-    }
-    35% {
-      transform: scale(1.06);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
-  @keyframes study-match-exit {
-    0% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    35% {
-      transform: scale(1.08);
-      opacity: 1;
-    }
-    100% {
-      transform: scale(0.82);
-      opacity: 0;
-    }
-  }
-
-  @keyframes study-match-shake {
-    0%,
-    100% {
-      transform: translateX(0);
-    }
-    25% {
-      transform: translateX(-4px);
-    }
-    75% {
-      transform: translateX(4px);
-    }
-  }
-
-  @keyframes study-match-burst {
-    0% {
-      opacity: 0;
-      transform: scale(0.6);
-    }
-    40% {
-      opacity: 1;
-      transform: scale(1.05);
-    }
-    100% {
-      opacity: 0;
-      transform: scale(1.35);
-    }
-  }
-
-  .study-match-pop {
-    animation: study-match-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .study-match-exit {
-    animation: study-match-exit 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    pointer-events: none;
-  }
-
-  .study-match-shake {
-    animation: study-match-shake 0.4s ease;
-  }
-
-  .study-match-burst {
-    pointer-events: none;
-    position: absolute;
-    inset: -6px;
-    border-radius: inherit;
-    border: 2px solid rgb(34 197 94 / 0.55);
-    animation: study-match-burst 0.55s ease-out forwards;
-  }
-
-  .study-farmland-host svg,
-  .study-farmland-svg {
-    display: block;
-    width: 100%;
-    height: auto;
   }
 
   .podcast-scrubber {
