@@ -1,0 +1,80 @@
+# Codemagic CI/CD for Brightfolio (Capacitor)
+#
+# Before running the iOS workflow, connect an App Store Connect API key in
+# Codemagic and enable automatic iOS signing for com.brightfolio.app.
+# Before publishing Android, upload a keystore in Codemagic and use the same
+# keystore for every future Google Play release.
+
+workflows:
+  ios-release:
+    name: Brightfolio iOS Release
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: BRIGHTFOLIO_APP_STORE_CONNECT
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.brightfolio.app
+      vars:
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+        APP_STORE_APPLE_ID: "6826103999"
+      node: 20
+      xcode: latest
+    scripts:
+      - name: Install JavaScript dependencies
+        script: npm ci
+      - name: Build web app and sync Capacitor
+        script: npm run build:mobile
+      - name: Apply iOS signing settings
+        script: xcode-project use-profiles
+      - name: Increment iOS build number
+        script: |
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || true)
+          if [ -z "$LATEST_BUILD_NUMBER" ]; then
+            LATEST_BUILD_NUMBER=0
+          fi
+          agvtool new-version -all $((LATEST_BUILD_NUMBER + 1))
+      - name: Build signed iOS IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+  android-release:
+    name: Brightfolio Android Release
+    max_build_duration: 120
+    # mac_mini_m2 is used here so the workflow works on Codemagic's
+    # individual free tier. Linux X2 requires billing to be enabled.
+    instance_type: mac_mini_m2
+    environment:
+      android_signing:
+        - brightfolio_android_keystore
+      vars:
+        PACKAGE_NAME: com.brightfolio.app
+      node: 20
+    scripts:
+      - name: Set up Android SDK path
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Install JavaScript dependencies
+        script: npm ci
+      - name: Build web app and sync Capacitor
+        script: npm run build:mobile
+      - name: Build signed Android App Bundle
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/mapping/**
